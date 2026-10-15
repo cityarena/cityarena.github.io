@@ -751,6 +751,14 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 40px; }
 .turf-mark.ok { color: var(--accent); }
 .turf-mark.part { color: var(--warn); }
 .turf-block-top .turf-mark { margin-left: auto; }
+/* Over and settled: the day's past bookings under the board, in plain graphite with a jade tick, apart from the live board. */
+.turf-past { margin-top: 18px; }
+.turf-past-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 8px; }
+.turf-past-item { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 10px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--inset); color: var(--ink-2); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--ease); }
+.turf-past-item:hover { border-color: var(--line-strong); }
+.turf-past-item > svg { flex: none; width: 15px; height: 15px; color: var(--ink-3); }
+.turf-past-main { flex: 1; display: grid; min-width: 0; }
+.turf-past-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); font-weight: 600; }
 /* A booking split among players: the turf charge and discount, then Team A and Team B, a row per player. */
 .turf-discount input { width: 120px; min-height: 36px; padding: 0 10px; text-align: right; font-family: var(--display); font-variant-numeric: tabular-nums; }
 .group-title .btn.quiet { margin-left: auto; min-height: 32px; }
@@ -1484,7 +1492,7 @@ var ArenaLifecycle=(function(){
  }
  function execute(s,c,actor,now,id){
   check(actor&&actor.role==='owner','Access denied.');s.Endings=s.Endings||[];s.TableParties=s.TableParties||[];
-  if(c.type==='TRANSFER_CREDIT_INLINE'){var account=c.accountId;if(c.newAccount)account=ArenaCredits.execute(s,{type:'CREATE_CREDIT_ACCOUNT',name:c.newAccount.name,phone:c.newAccount.phone||'',openingPaise:0},actor,now,id+'-account').accountId;var transferred=ArenaCredits.execute(s,{type:'CREDIT',billId:c.billId,accountId:account},actor,now,id+'-transfer');transferred.billId=c.billId;return transferred;}
+  if(c.type==='TRANSFER_CREDIT_INLINE'){var account=c.accountId;if(c.newAccount)account=ArenaCredits.execute(s,{type:'CREATE_CREDIT_ACCOUNT',name:c.newAccount.name,phone:c.newAccount.phone||'',openingPaise:0},actor,now,id+'-account').accountId;var transferred=ArenaCredits.execute(s,{type:'CREDIT',billId:c.billId,accountId:account,unpaidItems:c.unpaidItems},actor,now,id+'-transfer');transferred.billId=c.billId;return transferred;}
   if(c.type==='JOIN_TABLE')return join(s,c,actor,now,id);
   if(c.type==='MOVE_REVIEW')return move(s,c,actor,now,id);
   if(c.type==='COUNTER_SALE'||c.type==='CREDIT_SALE'){
@@ -1577,7 +1585,7 @@ var ArenaLifecycle=(function(){
     leftover.forEach(function(a){a.status='refunded';s.Payments.push({id:a.id+'-refund',billId:'',amountPaise:-a.amountPaise,method:a.method,createdMs:now});ArenaCore.nextNumber(s,'receipt',a.id+'-refund',now);});
     result.refundPaise=back;
    }
-   if(c.settlement==='credit'&&row(s.Bills,result.billId).totalPaise>row(s.Bills,result.billId).paidPaise){ArenaCredits.execute(s,{type:'CREDIT',billId:result.billId,accountId:accountId},actor,now,id+'-credit');result.message='Bill finalized; remaining balance assigned to credit. Transfer is not money received.';}
+   if(c.settlement==='credit'&&row(s.Bills,result.billId).totalPaise>row(s.Bills,result.billId).paidPaise){ArenaCredits.execute(s,{type:'CREDIT',billId:result.billId,accountId:accountId,unpaidItems:c.unpaidItems},actor,now,id+'-credit');result.message='Bill finalized; remaining balance assigned to credit. Transfer is not money received.';}
    return result;
   }
   throw new Error('Unsupported operation.');
@@ -1686,13 +1694,26 @@ var ArenaSales=(function(){
    var order=row(s.Orders,c.id);tab(s,order.tabId);check(order.category!=='Turf'&&order.category!=='Carried','The turf charge follows the booking. Change the booking instead.');check(c.revision===order.revision,'This order changed on another device. Refresh before editing.');check(order.status==='active','This order was already voided.');text(c.reason,300);
    check(c.quantity===0||quantity(c.quantity),'Invalid quantity.');check(order.unitPricePaise*c.quantity<=100000000,'Charge exceeds supported amount.');order.quantity=c.quantity;order.totalPaise=order.unitPricePaise*c.quantity;order.status=c.quantity?'active':'void';order.revision++;order.reason=c.reason;return {orderId:order.id,message:'Order corrected. Original price retained.'};
   }
+  // Some of a group's snacks and drinks go with the players paying now: a whole line moves; part of a line is split in two.
+  if(c.type==='TAKE_ITEMS'){
+   var giver=tab(s,c.fromTabId),taker=tab(s,c.tabId);check(giver.id!==taker.id,'These items are already on this bill.');
+   check(Array.isArray(c.items)&&c.items.length>=1&&c.items.length<=30&&new Set(c.items.map(function(i){return i&&i.orderId;})).size===c.items.length,'Invalid item selection.');
+   var count=0;
+   c.items.forEach(function(item,i){
+    var o=row(s.Orders,item.orderId);check(o.tabId===giver.id&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried','This item is no longer on that bill. Refresh and try again.');check(Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=Number(o.quantity),'Invalid quantity.');count+=item.quantity;
+    if(item.quantity===Number(o.quantity)){o.tabId=taker.id;o.purchaser=taker.customer;o.revision++;return;}
+    o.quantity=Number(o.quantity)-item.quantity;o.totalPaise=o.unitPricePaise*o.quantity;o.revision++;
+    s.Orders.push(Object.assign({},o,{id:id+'-'+i,tabId:taker.id,purchaser:taker.customer,quantity:item.quantity,totalPaise:o.unitPricePaise*item.quantity,revision:1}));
+   });
+   return {fromTabId:giver.id,tabId:taker.id,message:count+(count===1?' item':' items')+' moved to '+taker.customer+'’s bill.'};
+  }
   if(c.type==='MOVE_CHARGE'){
    check(['segment','order'].indexOf(c.kind)>=0,'Invalid charge type.');var charge=row(c.kind==='segment'?s.Segments:s.Orders,c.id);check(charge.category!=='Turf'&&charge.category!=='Carried','The turf charge follows the booking. Use the turf booking to move it.');check(charge.status!=='shared','This item is shared by a group. Change it from the turf booking.');tab(s,charge.tabId);tab(s,c.tabId);check(charge.status!=='active'||c.kind==='order','This player is still active. End their controller first.');check(charge.status!=='void','This charge is voided.');var from=charge.tabId;check(from!==c.tabId,'This charge is already on that tab.');text(c.reason,300);charge.tabId=c.tabId;if(c.kind==='order')charge.revision++;return {fromTabId:from,tabId:c.tabId,message:'Charge reassigned once. Other players are unchanged.'};
   }
   var source=tab(s,c.sourceTabId),destination=tab(s,c.tabId);check(source.id!==destination.id,'Invalid consolidation target.');check(!s.Segments.some(function(g){return g.tabId===source.id&&g.status==='active';}),'This source tab still has active players.');
   var moved=0;s.Segments.concat(s.Orders).forEach(function(x){if(x.tabId===source.id){x.tabId=destination.id;moved++;}});(s.Advances||[]).forEach(function(a){if(a.tabId===source.id&&a.status==='held')a.tabId=destination.id;});check(moved>0,'This source tab has no charges.');source.status='merged';return {tabId:destination.id,message:'Added to '+destination.customer+'’s bill.'};
  }
- return {handles:function(t){return ['SAVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','MOVE_CHARGE','CONSOLIDATE_TABS'].indexOf(t)>=0;},execute:execute};
+ return {handles:function(t){return ['SAVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS'].indexOf(t)>=0;},execute:execute};
 })();
 
 
@@ -1710,13 +1731,24 @@ var ArenaCredits=(function(){
     rows.forEach(function(r){check(Number.isSafeInteger(r.outstandingPaise)&&r.outstandingPaise>=0,'Credit ledger does not reconcile. Owner review required.');});
     return rows.filter(function(r){return r.outstandingPaise>0;}).sort(function(a,b){return Number(b.opening)-Number(a.opening)||a.createdMs-b.createdMs||a.id.localeCompare(b.id);});
   }
+  // What an amount moved to credit was for, when the receptionist says which items are still unpaid: those items, and the
+  // rest as gaming (or turf, or other charges). Kept as a note on the bill, so the statement and the bill both show it.
+  function rupees(p){return '₹'+(p%100?(p/100).toFixed(2):String(p/100));}
+  function unpaid(s,c,owed,now,id){
+    var detail=find(s.BillDetails,c.billId),items=c.unpaidItems,parts=[],sum=0;
+    check(Array.isArray(items)&&items.length<=30&&new Set(items.map(function(i){return i&&i.orderId;})).size===items.length,'Invalid item selection.');
+    items.forEach(function(item){var o=find(s.Orders,item.orderId);check(o.tabId===detail.tabId&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried','That item is not on this bill.');check(Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=Number(o.quantity),'Invalid quantity.');var part=o.unitPricePaise*item.quantity;sum+=part;parts.push(o.label+(item.quantity>1?' × '+item.quantity:'')+' '+rupees(part));});
+    check(sum<=owed,'The unpaid items come to more than the '+rupees(owed)+' going to credit.');
+    if(sum<owed){var gaming=(s.Segments||[]).some(function(g){return g.tabId===detail.tabId;}),turf=s.Orders.some(function(o){return o.tabId===detail.tabId&&o.category==='Turf'&&o.status==='active';});parts.push((gaming?'Gaming':turf?'Turf':'Other charges')+' '+rupees(owed-sum));}
+    s.Notes=s.Notes||[];s.Notes.push({id:id+'-unpaid',kind:'CREDIT_UNPAID',text:parts.join(' · '),refsJson:JSON.stringify([c.billId]),createdMs:now});
+  }
   function balance(s,id){return obligations(s,id).reduce(function(n,r){return n+r.outstandingPaise;},0);}
   function allocate(s,accountId,total,receiptId){var remaining=total;obligations(s,accountId).forEach(function(o){if(!remaining)return;var paid=Math.min(remaining,o.outstandingPaise);s.CreditAllocations.push({id:receiptId+'-'+s.CreditAllocations.length,receiptId:receiptId,accountId:accountId,kind:o.kind,targetId:o.id,amountPaise:paid});if(o.kind==='bill')find(s.Bills,o.id).paidPaise+=paid;remaining-=paid;});check(remaining===0,'Amount exceeds account outstanding.');}
   function execute(s,c,actor,now,id){
     check(actor&&actor.role==='owner','Access denied.');check(types.indexOf(c.type)>=0,'Unsupported operation.');
     if((c.type==='PAY'||c.type==='CREDIT')&&c.billId)check(!ArenaCore.carryOf(s,c.billId),'This balance was moved to a later booking. Collect it there.');
     if(c.type==='PAY'){check(!s.CreditTransfers.some(function(t){return t.billId===c.billId;}),'This bill is on credit. Record repayment from the credit account so FIFO is preserved.');return ArenaCore.execute(s,c,actor,now,id);}
-    if(c.type==='CREDIT')return ArenaCore.execute(s,c,actor,now,id);
+    if(c.type==='CREDIT'){var moved=ArenaCore.execute(s,c,actor,now,id);if(c.unpaidItems&&c.unpaidItems.length)unpaid(s,c,moved.outstandingPaise,now,id);return moved;}
     s.CreditEntries=s.CreditEntries||[];s.CreditAllocations=s.CreditAllocations||[];s.CreditReceipts=s.CreditReceipts||[];s.CreditDetails=s.CreditDetails||[];
     if(c.type==='CREATE_CREDIT_ACCOUNT'){
       var name=text(c.name,80),phone=c.phone||'';check(typeof phone==='string'&&phone.length<=24,'Invalid phone.');check(!s.CreditAccounts.some(function(a){return a.name.toLowerCase()===name.toLowerCase();}),'An account with this name already exists.');
@@ -3049,6 +3081,10 @@ var ArenaTurf = (function () {
     check(validKey(fromKey) && validKey(toKey) && fromKey <= toKey, 'Choose a valid date.');
     return booked(state).filter(function (b) { return b.dateKey >= fromKey && b.dateKey <= toKey; });
   }
+  // An older day for the board: each booking with how it was settled, so a settled one shows among the past bookings.
+  function day(state, fromKey, toKey) {
+    return range(state, fromKey, toKey).map(function (b) { return Object.assign({}, b, { settledState: settlement(state, b).state }); });
+  }
 
   /* One-time move from the old turf app's sheet (one row per hour: id, date, slot "18-19", name, phone, court, sport,
      created, WhatsApp sent). Consecutive hours of one customer on one court become one booking. Rows that cannot be read
@@ -3088,7 +3124,7 @@ var ArenaTurf = (function () {
   }
 
   return {
-    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, livePlayers: livePlayers, settlement: settlement, range: range, importRows: importRows, exportRows: exportRows,
+    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
     clash: clash, dateKeyOf: dateKeyOf, feeOf: feeOf, rateFor: rateFor, locked: locked, meta: meta, COURTS: COURTS, SPORTS: SPORTS, OPEN_HOUR: OPEN_HOUR, CLOSE_HOUR: CLOSE_HOUR
   };
 })();
@@ -3332,7 +3368,8 @@ function commentField() {
 const NOTE_KIND = {
   SETTLE_REVIEW: 'Moved to credit', TRANSFER_CREDIT_INLINE: 'Moved to credit', CREDIT_SALE: 'Put on credit', TURF_CREDIT_ALL: 'Moved to credit',
   TURF_CARRY: 'Moved to the next booking', MOVE_REVIEW: 'Moved to a system', TURF_TAKE: 'Moved to the turf', TURF_MOVE: 'Moved to a system',
-  CONSOLIDATE_TABS: 'Added to a bill', ATTACH_TO_GROUP: 'Added to a bill', KEEP_SHARED: 'Added to a bill'
+  CONSOLIDATE_TABS: 'Added to a bill', ATTACH_TO_GROUP: 'Added to a bill', KEEP_SHARED: 'Added to a bill',
+  CREDIT_UNPAID: 'Still owed'
 };
 function notesBlock(ids) {
   const want = new Set(ids.filter(Boolean));
@@ -3381,7 +3418,11 @@ function customerFields(initialName = '', initialPhone = '', phoneRequired = fal
     const text = name.value.trim().toLowerCase(), digits = phone.value.replace(/\D/g, '');
     suggestions.replaceChildren();
     if (text.length < 2 && digits.length < 4) return;
-    const found = (state.Customers || []).filter(c => (text.length >= 2 && c.name.toLowerCase().includes(text)) || (digits.length >= 4 && String(c.phone).replace(/\D/g, '').includes(digits)))
+    // People on the credit list are suggested too, even before their first visit.
+    const customers = state.Customers || [];
+    const creditOnly = (state.CreditAccounts || []).filter(a => !customers.some(c => c.name.toLowerCase() === a.name.toLowerCase()))
+      .map(a => ({ name: a.name, phone: ((state.CreditDetails || []).find(d => d.id === a.id) || {}).phone || '' }));
+    const found = customers.concat(creditOnly).filter(c =>(text.length >= 2 && c.name.toLowerCase().includes(text)) || (digits.length >= 4 && String(c.phone).replace(/\D/g, '').includes(digits)))
       .filter(c => !(c.name === name.value && String(c.phone) === phone.value)).slice(0, 4);
     for (const c of found) suggestions.append(h('button', { type: 'button', onclick: () => { name.value = c.name; phone.value = c.phone || ''; suggestions.replaceChildren(); } }, h('span', 'suggest-who', avatar(c.name), h('span', { text: c.name })), h('span', { class: 'muted small', text: c.phone || 'No mobile' })));
   };
@@ -4111,6 +4152,55 @@ function productPicker(onchange) {
   };
 }
 
+// Snacks and drinks on a bill (not the turf fee or a balance carried in): only these can move or be named as unpaid.
+const goodsOf = orders => orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
+// Items already on a bill, each with a stepper from none up to how many are on it. counts survives a redraw.
+function itemChooser(orders, counts, onchange) {
+  const node = h('div', 'lines');
+  const draw = () => {
+    node.replaceChildren(...orders.map(o => {
+      const n = counts.get(o.id) || 0, most = Number(o.quantity);
+      const set = value => { counts.set(o.id, Math.max(0, Math.min(most, value))); draw(); onchange(); };
+      return h('div', { class: 'line', data: { pick: o.id } },
+        h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: money(o.unitPricePaise) + ' each · ' + most + ' on the bill' })),
+        h('span', 'step',
+          h('button', { type: 'button', 'aria-label': 'One fewer ' + o.label, disabled: !n, onclick: () => set(n - 1) }, icon('minus')),
+          h('b', { text: String(n), data: { picked: o.id } }),
+          h('button', { type: 'button', 'aria-label': 'One more ' + o.label, disabled: n >= most, onclick: () => set(n + 1) }, icon('plus'))));
+    }));
+  };
+  draw();
+  return {
+    node,
+    items: () => orders.filter(o => counts.get(o.id)).map(o => ({ orderId: o.id, quantity: counts.get(o.id) })),
+    count: () => orders.reduce((sum, o) => sum + (counts.get(o.id) || 0), 0),
+    total: () => orders.reduce((sum, o) => sum + o.unitPricePaise * (counts.get(o.id) || 0), 0)
+  };
+}
+// Players paying before the rest of their group take their share of the group's snacks and drinks with them.
+function takeItemsSheet(tab, group) {
+  const counts = new Map();
+  let chooser = null;
+  openSheet({
+    title: 'Items from ' + group.customer + '’s bill',
+    sub: 'To ' + tab.customer,
+    icon: 'sales',
+    focus: false,
+    build(ui) {
+      const paint = () => { ui.foot.replaceChildren(); const n = chooser.count(); ui.primary(n ? 'Move ' + n + (n === 1 ? ' item' : ' items') + ' · ' + money(chooser.total()) : 'Move items', !n); };
+      chooser = itemChooser(goodsOf(ordersOf(group.id)), counts, paint);
+      ui.body.append(chooser.node);
+      paint();
+    },
+    command() {
+      const items = chooser ? chooser.items() : [];
+      if (!items.length) throw new Error('Choose at least one item.');
+      return { type: 'TAKE_ITEMS', fromTabId: group.id, tabId: tab.id, items };
+    },
+    then: () => settleSheet(tab.id)
+  });
+}
+
 function addItemsSheet(tab, options = {}) {
   const tabs = options.tabs && options.tabs.length > 1 ? options.tabs : [tab];
   let target = tab, forSegment = '', picker = null;
@@ -4283,8 +4373,8 @@ function drawLines(body, lines) {
 function settleSheet(tabId, mode = 'pay') {
   const tab = tabOf(tabId);
   if (!tab || tab.status !== 'open') { closeSheet(); return; }
-  const draft = { discountOn: false, discount: '', received: '', edited: false, method: 'cash', account: newAccountStore(), toAccount: mode === 'credit' };
-  let picker = null;
+  const draft = { discountOn: false, discount: '', received: '', edited: false, method: 'cash', account: newAccountStore(), toAccount: mode === 'credit', unpaid: new Map() };
+  let picker = null, unpaidChooser = null;
   const comment = commentField();
   const subtotal = () => tabTotal(tab.id);
   const discountPaise = () => (draft.discountOn ? toPaise(draft.discount || 0) : 0);
@@ -4298,6 +4388,7 @@ function settleSheet(tabId, mode = 'pay') {
   // A bill split off a group that is still open: anything paid over it can go towards that group's bill.
   const group = (() => { const origin = originOf(tab.id), home = tabOf(origin); return origin !== tab.id && home && home.status === 'open' ? home : null; })();
   const receivedPaise = () => (draft.edited ? toPaise(draft.received || 0) : mode === 'pay' ? duePaise() : 0);
+  const unpaidPaise = () => (mode === 'credit' && unpaidChooser ? unpaidChooser.total() : 0);
 
   openSheet({
     title: tab.customer,
@@ -4312,6 +4403,7 @@ function settleSheet(tabId, mode = 'pay') {
       if (notes) ui.body.append(notes);
       const adds = h('div', 'station-links', btn([icon('sales'), 'Add Items'], () => addItemsSheet(tab), 'quiet', { data: { action: 'items' } }));
       if (tab.kind === 'quick_sale') adds.append(btn([icon('plus'), 'Gaming or other charge'], () => manualChargeSheet(tab), 'quiet'));
+      if (group && goodsOf(ordersOf(group.id)).length) adds.append(btn([icon('sales'), 'Items from ' + group.customer + '’s bill'], () => takeItemsSheet(tab, group), 'quiet', { data: { action: 'take-items' } }));
       // One row of quiet extras under the lines: add items, add a charge, add a discount.
       const discountSlot = h('span');
       adds.append(discountSlot);
@@ -4327,7 +4419,16 @@ function settleSheet(tabId, mode = 'pay') {
       discountSlot.append(discountToggle);
       ui.body.append(discountField);
       let accountTitle = null;
-      if (mode === 'credit') { picker = accountPicker(draft.account); accountTitle = h('div', 'group-title', icon('credits'), 'Move the outstanding amount to'); ui.body.append(accountTitle, picker.node, comment.node); }
+      if (mode === 'credit') {
+        picker = accountPicker(draft.account);
+        accountTitle = h('div', 'group-title', icon('credits'), 'Move the outstanding amount to');
+        ui.body.append(accountTitle, picker.node);
+        // Optional: which items are still unpaid, so the credit statement says what the amount was for.
+        const goods = goodsOf(ordersOf(tab.id));
+        unpaidChooser = goods.length ? itemChooser(goods, draft.unpaid, () => paint()) : null;
+        if (unpaidChooser) ui.body.append(h('div', 'group-title', icon('sales'), 'Items still unpaid (optional)'), unpaidChooser.node);
+        ui.body.append(comment.node);
+      }
 
       // The footer is the financial summary: the bill, what was already paid towards it, and what is still outstanding.
       const sums = h('div', 'sums'), totalValue = h('div', { class: 'foot-total', data: { total: '1' } }), balance = h('div', 'sums');
@@ -4377,10 +4478,10 @@ function settleSheet(tabId, mode = 'pay') {
         const sound = valid && Number.isSafeInteger(paid) && paid >= 0 && (paid <= due || over);
         balance.replaceChildren(...(back > 0 ? [sum('Hand back to the customer', money(back), 'warn-text strong')] : !sound ? [sum(valid ? 'Received is more than this bill.' : 'Discount cannot be more than ' + money(sub) + '.', '', 'warn-text')]
           : over ? [sum('Towards this bill', money(due)), sum('Extra towards ' + group.customer + '’s bill', money(paid - due), 'extra'), sum('Total received now', money(paid), 'strong')]
-            : mode === 'credit' ? (left <= 0 ? [sum('Nothing is left to move to credit', '', 'extra')] : paid > 0 ? [sum('Goes to the credit account', money(left), 'extra')] : [])
+            : mode === 'credit' ? (left <= 0 ? [sum('Nothing is left to move to credit', '', 'extra')] : unpaidPaise() > left ? [sum('The unpaid items come to more than ' + money(left) + '.', '', 'warn-text')] : paid > 0 ? [sum('Goes to the credit account', money(left), 'extra')] : [])
               : left > 0 ? [sum('Outstanding after this payment', money(left), 'warn-text')] : []));
         const label = back > 0 ? 'Hand Back ' + money(back) + ' · Close Bill' : mode === 'credit' ? 'Move ' + money(Math.max(0, left)) + ' to Credit' : paid > 0 ? 'Collect Payment · ' + money(paid) : due > 0 ? 'Save Unpaid' : 'Close Bill';
-        primary.dataset.label = label; primary.textContent = label; primary.disabled = !sound || (mode === 'credit' && left <= 0);
+        primary.dataset.label = label; primary.textContent = label; primary.disabled = !sound || (mode === 'credit' && (left <= 0 || unpaidPaise() > left));
       }
       paint();
       // Straight to where the account is chosen: no scrolling to look for it.
@@ -4392,7 +4493,7 @@ function settleSheet(tabId, mode = 'pay') {
       const due = duePaise(), over = mode === 'pay' && paid > due && !!group;
       if (!Number.isSafeInteger(paid) || paid < 0 || (paid > due && !over)) throw new Error('Received is more than this bill.');
       const back = handBackPaise();
-      return { type: 'SETTLE_REVIEW', tabId: tab.id, settlement: mode, discountType: discount > 0 ? 'fixed' : 'none', discountValue: discount, amountPaise: back > 0 ? 0 : paid, method: draft.method, surplusTabId: over ? group.id : undefined, refundPaise: back > 0 ? back : undefined, ...(mode === 'credit' ? { ...picker.value(), note: comment.value() } : {}) };
+      return { type: 'SETTLE_REVIEW', tabId: tab.id, settlement: mode, discountType: discount > 0 ? 'fixed' : 'none', discountValue: discount, amountPaise: back > 0 ? 0 : paid, method: draft.method, surplusTabId: over ? group.id : undefined, refundPaise: back > 0 ? back : undefined, ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: unpaidChooser ? unpaidChooser.items() : undefined } : {}) };
     },
     // Paid in full: nothing more to look at. The sheet closes to where the receptionist was (the floor, the list of players
     // still to settle, or the turf booking), with a short note and the receipt one tap away. Anything still owing shows the bill.
@@ -4910,7 +5011,7 @@ async function receiptSheet(billId, back) {
         primary();
         // A turf bill can also go to the team's next booking: the turf chooser offers both.
         const turfOwner = data.tab ? turfBookingForTab(data.tab.id) : null, turfPlayer = turfOwner ? (state.TurfPlayers || []).find(x => x.tabId === data.tab.id) || null : null;
-        ui.foot.append(h('div', 'foot-links', btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, due)), 'quiet', { data: { action: 'bill-credit' } }), btn('Close', dismissSheet, 'quiet')));
+        ui.foot.append(h('div', 'foot-links', btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, due, goodsOf(data.orders))), 'quiet', { data: { action: 'bill-credit' } }), btn('Close', dismissSheet, 'quiet')));
       } else {
         // Nothing left to collect: say so plainly, then offer the receipt.
         const done = data.status === 'paid' ? ['', 'checkCircle', 'Paid in full', money(bill.totalPaise) + ' settled' + (extras.length ? ' · ' + money(receivedAll) + ' received in all' : '')]
@@ -4933,16 +5034,26 @@ async function receiptSheet(billId, back) {
   });
 }
 
-function creditTransferSheet(billId, number, due) {
-  const store = newAccountStore(), comment = commentField();
-  let picker;
+function creditTransferSheet(billId, number, due, goods = []) {
+  const store = newAccountStore(), comment = commentField(), unpaid = new Map();
+  let picker, chooser = null;
   openSheet({
     title: 'Move ' + money(due) + ' to credit',
     sub: 'Bill ' + number,
     icon: 'credits',
     tone: 'gold',
-    build(ui) { picker = accountPicker(store); ui.body.append(picker.node, comment.node); ui.primary('Move to credit'); },
-    command: () => ({ type: 'TRANSFER_CREDIT_INLINE', billId, ...picker.value(), note: comment.value() }),
+    build(ui) {
+      picker = accountPicker(store);
+      ui.body.append(picker.node);
+      chooser = goods.length ? itemChooser(goods, unpaid, () => {}) : null;
+      if (chooser) ui.body.append(h('div', 'group-title', icon('sales'), 'Items still unpaid (optional)'), chooser.node);
+      ui.body.append(comment.node);
+      ui.primary('Move to credit');
+    },
+    command() {
+      if (chooser && chooser.total() > due) throw new Error('The unpaid items come to more than ' + money(due) + '.');
+      return { type: 'TRANSFER_CREDIT_INLINE', billId, ...picker.value(), note: comment.value(), unpaidItems: chooser ? chooser.items() : undefined };
+    },
     then: () => receiptSheet(billId)
   });
 }
@@ -6165,6 +6276,10 @@ function turfDayWord(key) {
   return turfDayName(key);
 }
 const turfEnded = b => hourStart(b.dateKey, Number(b.startHour) + Number(b.hours)) <= nowMs();
+// How a booking stands: from the live snapshot, or as an older day was fetched.
+const turfSettled = b => { const known = (state.TurfStatus || []).find(s => s.bookingId === b.id); return known ? known.state : b.settledState || 'open'; };
+// Over and settled: it leaves the board for the day's past bookings.
+const turfDone = b => turfEnded(b) && turfSettled(b) === 'settled';
 const sportIcon = sport => (sport === 'Cricket' ? 'cricket' : 'football');
 
 // Bookings on a day. Yesterday onwards come with the snapshot; an older day is fetched once (null while it loads).
@@ -6885,30 +7000,40 @@ function turfBlock(b, row, column, rows) {
     h('span', 'turf-block-top', icon(sportIcon(b.sport)), h('button', { type: 'button', class: 'turf-name', 'aria-label': b.customer + ', ' + b.court + ', ' + turfRange(b), text: b.customer }), send, mark, cancel),
     h('span', { class: 'turf-block-sub', text: turfRange(b) }));
 }
-// Today starts at the hour now under way; hours already over are left off. Other days show the whole day.
-function turfFirstHour(key) {
-  if (key !== dayKey(nowMs())) return TURF_OPEN;
-  let hour = TURF_OPEN;
-  while (hour < TURF_CLOSE && hourStart(key, hour + 1) <= nowMs()) hour++;
-  return hour;
+// The board keeps the hours still to come, and any earlier hour of a booking not yet settled (it stays until it is).
+function turfBoardHours(key, list) {
+  const hours = [];
+  for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) if (hourStart(key, hour + 1) > nowMs() || TURF_COURTS.some(court => bookingAt(list, court, hour))) hours.push(hour);
+  return hours;
 }
-function turfBoard(key, list) {
-  const now = nowMs(), first = turfFirstHour(key);
-  if (first >= TURF_CLOSE) return emptyState('turf', 'The turf has closed for today.');
+function turfBoard(key, all) {
+  const now = nowMs(), list = all.filter(b => !turfDone(b)), hours = turfBoardHours(key, list);
+  if (!hours.length) return all.length ? null : emptyState('turf', key === dayKey(now) ? 'The turf has closed for today.' : 'No bookings on this day.');
   const board = h('div', { class: 'turf-board', role: 'grid', 'aria-label': 'Turf, ' + turfDayName(key) });
   board.append(h('div', 'turf-corner'), ...TURF_COURTS.map((court, i) => h('div', { class: 'turf-court-head', style: 'grid-column:' + (i + 2) }, icon('turf'), h('b', { text: court }))));
-  for (let hour = first; hour < TURF_CLOSE; hour++) {
-    const row = hour - first + 2, over = hourStart(key, hour + 1) <= now, current = !over && hourStart(key, hour) <= now;
+  hours.forEach((hour, index) => {
+    const row = index + 2, over = hourStart(key, hour + 1) <= now, current = !over && hourStart(key, hour) <= now;
     board.append(h('div', { class: 'turf-hour' + (current ? ' now' : '') + (over ? ' over' : ''), style: 'grid-row:' + row, text: hourLabel(hour) }));
     TURF_COURTS.forEach((court, i) => {
       const where = 'grid-row:' + row + ';grid-column:' + (i + 2), taken = bookingAt(list, court, hour);
-      // A booking is drawn once, from its first hour on the board (a game under way since earlier starts at the top).
-      if (taken) { if (Number(taken.startHour) === hour || hour === first) board.append(turfBlock(taken, row, i + 2, Number(taken.startHour) + Number(taken.hours) - hour)); return; }
+      // A booking is drawn once, from its first hour on the board; every hour of it is on the board.
+      if (taken) { if (Number(taken.startHour) === hour || hours[index - 1] !== hour - 1) board.append(turfBlock(taken, row, i + 2, Number(taken.startHour) + Number(taken.hours) - hour)); return; }
       if (over) { board.append(h('div', { class: 'turf-cell over', style: where })); return; }
       board.append(h('button', { type: 'button', class: 'turf-cell', style: where, 'aria-label': 'Book ' + court + ' at ' + hourLabel(hour), data: { court, hour: String(hour) }, onclick: () => turfBookingSheet(null, { dateKey: key, court, startHour: hour }) }, icon('plus'), h('span', { text: 'Free' })));
     });
-  }
+  });
   return board;
+}
+// The day's bookings that are over and settled, under the board, quieter: they need nothing more.
+function turfPast(all) {
+  const done = all.filter(turfDone).sort((a, b) => Number(a.startHour) - Number(b.startHour) || a.court.localeCompare(b.court));
+  if (!done.length) return null;
+  return h('section', { class: 'turf-past', data: { past: String(done.length) } },
+    h('div', 'group-title', icon('history'), 'Past bookings'),
+    h('div', 'turf-past-list', done.map(b => h('button', { type: 'button', class: 'turf-past-item', data: { booking: b.id }, onclick: () => turfOpenBooking(b.id) },
+      icon(sportIcon(b.sport)),
+      h('span', 'turf-past-main', h('b', { text: b.customer }), h('span', { class: 'small muted', text: b.court + ' · ' + turfRange(b) })),
+      h('span', { class: 'turf-mark ok', title: 'Settled' }, icon('checkCircle'))))));
 }
 // Hours still free on each court that day, and the hours booked.
 function turfSummary(key, list) {
@@ -6955,7 +7080,7 @@ const turfPage = {
     if (turfView === 'upcoming') { turfUpcoming(target); return; }
     const list = turfBookingsOn(turfDay);
     if (!list) { loadTurfDay(turfDay); target.append(loadingRows(6)); return; }
-    target.append(turfSummary(turfDay, list), turfBoard(turfDay, list));
+    target.append(...[turfSummary(turfDay, list), turfBoard(turfDay, list), turfPast(list)].filter(Boolean));
   }
 };
 
