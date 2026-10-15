@@ -7281,6 +7281,8 @@ setInterval(tick, 1000);
 
 // On City Arena's own address the connection is opened at once, so it is ready by the time the password is typed.
 if (typeof google === 'undefined') openBridge();
+// There the page is also kept on the device (sw.js), so the next opening does not wait for GitHub.
+if (typeof google === 'undefined' && window.isSecureContext && 'serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => { /* opens from the network as before */ });
 if (!storage) { $('login').hidden = false; $('loginError').textContent = 'Browser storage is blocked. Allow site storage to sign in.'; }
 else {
   token = storage.getItem('arenaToken') || '';
