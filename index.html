@@ -1699,7 +1699,7 @@ var ArenaSales=(function(){
 /* Credit balances derive from original obligations and allocations; transfers are not sales. */
 var ArenaCredits=(function(){
   'use strict';
-  var types=['CREATE_CREDIT_ACCOUNT','CREDIT_CHARGE','CREDIT_ADJUST','CREDIT_PAY','CREDIT','PAY'];
+  var types=['CREATE_CREDIT_ACCOUNT','SET_CREDIT_PHONE','CREDIT_CHARGE','CREDIT_ADJUST','CREDIT_PAY','CREDIT','PAY'];
   function check(ok,message){ArenaCore.check(ok,message);}
   function find(rows,id){var row=rows.find(function(x){return x.id===id;});check(!!row,'Record not found.');return row;}
   function text(value,max){check(typeof value==='string'&&value.trim().length>0&&value.length<=max,'Enter valid text.');return value.trim();}
@@ -1721,6 +1721,13 @@ var ArenaCredits=(function(){
     if(c.type==='CREATE_CREDIT_ACCOUNT'){
       var name=text(c.name,80),phone=c.phone||'';check(typeof phone==='string'&&phone.length<=24,'Invalid phone.');check(!s.CreditAccounts.some(function(a){return a.name.toLowerCase()===name.toLowerCase();}),'An account with this name already exists.');
       var opening=c.openingPaise||0;check(Number.isSafeInteger(opening)&&opening>=0&&opening<=100000000,'Invalid opening balance.');s.CreditAccounts.push({id:id,name:name});s.CreditDetails.push({id:id,phone:phone,createdMs:now});if(opening)s.CreditEntries.push({id:id+'-opening',accountId:id,kind:'opening',amountPaise:opening,label:'Opening balance',purchaser:name,reason:text(c.reason,240),createdMs:now});return {accountId:id,message:'Credit account created.',outstandingPaise:opening};
+    }
+    // A mobile added or changed later (an account opened without one cannot be sent its balance on WhatsApp).
+    if(c.type==='SET_CREDIT_PHONE'){
+      var holder=find(s.CreditAccounts,c.accountId),number=typeof c.phone==='string'?c.phone.trim():'';check(/^[0-9+ ()-]{6,24}$/.test(number),'Enter a valid mobile number.');
+      var detail=s.CreditDetails.find(function(d){return d.id===holder.id;});
+      if(detail)detail.phone=number;else s.CreditDetails.push({id:holder.id,phone:number,createdMs:now});
+      return {accountId:holder.id,phone:number,message:'Mobile saved.'};
     }
     var account=find(s.CreditAccounts,c.accountId),total=amount(c.amountPaise);
     if(c.type==='CREDIT_PAY'){
@@ -5522,6 +5529,39 @@ function creditEntrySheet(account, adjust) {
     then: () => accountSheet(account.id)
   });
 }
+// A mobile for a credit account, added or changed later. From the WhatsApp button of an account without one, the
+// balance goes out on WhatsApp straight after the save.
+function creditPhoneSheet(account, sendAfter) {
+  let phone, chat = null;
+  openSheet({
+    title: creditPhone(account.id) ? 'Change mobile' : 'Add mobile',
+    sub: account.name,
+    icon: sendAfter ? 'whatsapp' : 'user',
+    tone: 'gold',
+    build(ui) {
+      phone = phone || h('input', { type: 'tel', inputmode: 'tel', value: creditPhone(account.id), 'aria-label': 'Mobile', data: { field: 'credit-phone' } });
+      ui.body.append(field('Mobile', phone));
+      ui.primary(sendAfter ? 'Save and send on WhatsApp' : 'Save');
+    },
+    command() {
+      if (!phone.value.trim()) throw new Error('Enter the mobile number.');
+      if (sendAfter) chat = whatsappAfterSave();
+      return { type: 'SET_CREDIT_PHONE', accountId: account.id, phone: phone.value.trim() };
+    },
+    onFailed() {
+      if (chat) chat.drop();
+      chat = null;
+    },
+    then(result) {
+      if (chat) {
+        chat.send(result.phone, dayStatementText(account));
+        chat = null;
+        closeSheet();
+      } else accountSheet(account.id);
+      return { text: 'Mobile saved.' };
+    }
+  });
+}
 function accountSheet(accountId) {
   const account = state.CreditAccounts.find(a => a.id === accountId);
   if (!account) { closeSheet(); return; }
@@ -5539,7 +5579,8 @@ function accountSheet(accountId) {
         menu([
           ['Add charge', () => creditEntrySheet(account, false), false, 'plusCircle'],
           ['Adjust balance', () => creditEntrySheet(account, true), false, 'settings'],
-          ...(phone ? [['Send on WhatsApp', () => whatsapp(phone, dayStatementText(account)), false, 'whatsapp']] : [])
+          ...(phone ? [['Send on WhatsApp', () => whatsapp(phone, dayStatementText(account)), false, 'whatsapp']] : []),
+          [phone ? 'Change mobile' : 'Add mobile', () => creditPhoneSheet(account, false), false, 'user']
         ], 'Account actions')));
       // A bill on this account opens out, in place, to show what it was for.
       const billRow = (billId, title, sub, amount) => {
@@ -5688,7 +5729,7 @@ const creditsPage = {
         h('td', { class: 'r' }, h('div', 'row-tools',
           creditPhone(a.id)
             ? iconButton('whatsapp', 'Send ' + a.name + ' today’s balance on WhatsApp', e => { e.stopPropagation(); whatsapp(creditPhone(a.id), dayStatementText(a)); }, { data: { action: 'account-whatsapp' } })
-            : h('span', { class: 'icon-btn placeholder', 'aria-hidden': 'true' }),
+            : iconButton('whatsapp', 'Add ' + a.name + '’s mobile, then send today’s balance on WhatsApp', e => { e.stopPropagation(); creditPhoneSheet(a, true); }, { data: { action: 'account-whatsapp-add' } }),
           h('button', { type: 'button', class: 'btn', 'aria-label': 'Add snacks or beverages to ' + a.name, title: 'Add snacks or beverages', data: { action: 'account-items' }, onclick: e => { e.stopPropagation(); accountItemsSheet(a); } }, icon('sales'), h('span', { class: 'hide-s', text: 'Add Items' })))))),
       'No credit accounts.', 'credits'));
   }
