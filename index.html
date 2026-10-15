@@ -3395,15 +3395,17 @@ function openBridge() {
   if (bridge) return bridge.ready;
   const pending = new Map(), frame = document.createElement('iframe');
   let seq = 0, target = null, opened;
-  bridge = { pending, ready: new Promise(resolve => { opened = resolve; }), call: (fn, args) => bridge.ready.then(() => new Promise((resolve, reject) => {
+  // The bridge either starts (true) or, within a few seconds, does not (false): then every call goes the direct way.
+  bridge = { pending, ready: new Promise(resolve => { opened = resolve; }), call: (fn, args) => bridge.ready.then(up => (up ? new Promise((resolve, reject) => {
     const id = ++seq;
     pending.set(id, { resolve, reject });
     target.postMessage({ arena: 'call', id, fn, args }, '*');
-  })) };
+  }) : directCall(fn, args))) };
+  setTimeout(() => { if (!target) { console.warn('[City Arena] the hidden connection did not start; using the direct connection'); frame.remove(); opened(false); } }, 7000);
   window.addEventListener('message', ev => {
     const m = ev.data;
     if (!m || typeof m !== 'object' || !/\.googleusercontent\.com$/.test(new URL(ev.origin).hostname)) return;
-    if (m.arena === 'ready') { target = ev.source; opened(); return; }
+    if (m.arena === 'ready') { target = ev.source; opened(true); return; }
     const waiting = m.arena === 'reply' ? pending.get(m.id) : null;
     if (!waiting) return;
     pending.delete(m.id);
@@ -3417,6 +3419,11 @@ function openBridge() {
   frame.src = ARENA_API + '?bridge=1';
   document.body.append(frame);
   return bridge.ready;
+}
+// The direct connection: a plain request with no cookies, answered through Google's results server.
+function directCall(name, args) {
+  return fetch(ARENA_API, { method: 'POST', credentials: 'omit', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: name, args }) })
+    .then(response => { if (!response.ok) throw new Error('HTTP ' + response.status); return response.json(); });
 }
 function callServer(name, args) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
@@ -7107,6 +7114,7 @@ function signedOut(message) {
   page = 'floor';
   floorCategory = null;
   if (storage) storage.removeItem('arenaToken');
+  forgetLast();
   closeSheet();
   $('app').hidden = true;
   $('login').hidden = false;
@@ -7128,12 +7136,53 @@ function showSync(ok, at) {
 
 // ---------- Refresh: the server answers "unchanged" cheaply, so the screen is only redrawn for real changes ----------
 let refreshing = null, lastGood = Date.now();
+// The last data this device had from the server. A device still signed in opens on it at once, marked "Not updated
+// since …" until the server answers. Gone at sign-out.
+const LAST_KEY = 'arenaLast';
+function keepLast(data) {
+  try { if (storage && token) storage.setItem(LAST_KEY, JSON.stringify({ state: confirmed, serverMs: data.serverMs, user: session.user })); } catch (e) { /* only a convenience */ }
+}
+function lastSeen() {
+  try { const last = JSON.parse(storage.getItem(LAST_KEY) || 'null'); return last && last.state && last.user ? last : null; } catch (e) { return null; }
+}
+function forgetLast() {
+  try { if (storage) storage.removeItem(LAST_KEY); } catch (e) { /* nothing kept */ }
+}
+function showApp(user) {
+  $('login').hidden = true;
+  $('app').hidden = false;
+  $('identity').textContent = user.username;
+  $('avatar').textContent = (user.username[0] || '?').toUpperCase();
+}
+function openOnLast(last) {
+  session = { user: last.user, lastBackup: null, backupError: null };
+  lastGood = last.serverMs;
+  // Kept without its version, so whatever the server answers next replaces it.
+  setConfirmed(last.state, '');
+  showApp(last.user);
+  showSync(false, last.serverMs);
+  render();
+}
+// The server's data on screen: from a refresh, or straight from the sign-in.
+function applySnapshot(data) {
+  clockOffset = data.serverMs - Date.now();
+  lastGood = data.serverMs;
+  session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError };
+  const first = !state;
+  if (!data.unchanged && setConfirmed(data.state, data.version)) keepLast(data);
+  // Saves left on their way (a reload, a lost connection) carry on.
+  if (outbox.length && !outboxBusy) pumpOutbox();
+  showApp(data.user);
+  showSync(true, data.serverMs);
+  if (!data.unchanged || first) render();
+  if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
+}
 // The data that came back with a save: the screen is brought up to date without asking again.
 function applySaved(snapshot) {
   if (!snapshot || !state) return false;
   clockOffset = snapshot.serverMs - Date.now();
   lastGood = snapshot.serverMs;
-  setConfirmed(snapshot.state, snapshot.version);
+  if (setConfirmed(snapshot.state, snapshot.version)) keepLast(snapshot);
   showSync(true, snapshot.serverMs);
   render();
   return true;
@@ -7143,21 +7192,7 @@ function refresh(force) {
   if (refreshing) return force ? refreshing.then(() => refresh(true)) : refreshing;
   refreshing = (async () => {
     try {
-      const data = await rpc('rpcSnapshot', token, force ? '' : version);
-      clockOffset = data.serverMs - Date.now();
-      lastGood = data.serverMs;
-      session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError };
-      const first = !state;
-      if (!data.unchanged) setConfirmed(data.state, data.version);
-      // Saves left on their way (a reload, a lost connection) carry on.
-      if (outbox.length && !outboxBusy) pumpOutbox();
-      $('login').hidden = true;
-      $('app').hidden = false;
-      $('identity').textContent = data.user.username;
-      $('avatar').textContent = (data.user.username[0] || '?').toUpperCase();
-      showSync(true, data.serverMs);
-      if (!data.unchanged || first) render();
-      if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
+      applySnapshot(await rpc('rpcSnapshot', token, force ? '' : version));
     } catch (e) {
       if (/sign in|expired|Access denied/i.test(e.message)) signedOut(/expired/i.test(e.message) ? 'Signed out after 30 days. Sign in again.' : '');
       else showSync(false, lastGood);
@@ -7209,7 +7244,8 @@ $('loginForm').onsubmit = async e => {
     token = data.token;
     if (storage) storage.setItem('arenaToken', token);
     markAlive();
-    await refresh(true);
+    if (data.snapshot) applySnapshot(data.snapshot);
+    else await refresh(true);
   } catch (error) {
     $('loginError').textContent = error.message;
     $('login').classList.add('refused');
@@ -7249,7 +7285,12 @@ if (!storage) { $('login').hidden = false; $('loginError').textContent = 'Browse
 else {
   token = storage.getItem('arenaToken') || '';
   if (token && awayTooLong()) signOutAfterAway();
-  else if (token) { markAlive(); refresh(true).then(() => { if (!state) $('login').hidden = false; }); }
+  else if (token) {
+    markAlive();
+    const last = lastSeen();
+    if (last) openOnLast(last);
+    refresh(true).then(() => { if (!state) $('login').hidden = false; });
+  }
   else $('login').hidden = false;
 }
 
