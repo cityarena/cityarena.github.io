@@ -177,6 +177,7 @@ svg { flex: none; }
 .btn.outline { border-color: var(--line-strong); background: linear-gradient(180deg, #121a1d 0%, #0d1416 100%); color: var(--ink); }
 .btn.outline svg { color: var(--accent); }
 .btn.outline:hover { border-color: var(--line-bold); }
+.btn.danger-text, .btn.danger-text svg { color: var(--danger); }
 .btn.danger { color: var(--danger); border-color: var(--danger-line); background: var(--danger-soft); }
 .btn.danger svg { color: var(--danger); }
 .btn.block { width: 100%; }
@@ -1839,8 +1840,13 @@ var ArenaSales=(function(){
   }
   if(c.type==='SAVE_PRODUCT'){
    check(['Snacks','Beverages','Ice cream'].indexOf(c.category)>=0,'Invalid product category.');check(typeof c.available==='boolean','Invalid availability.');
-   var old=c.id?row(s.Products,c.id):null;if(old)check(c.revision===old.revision,'This product changed on another device. Refresh before editing.');
+   var old=c.id?row(s.Products,c.id):null;if(old)check(c.revision===old.revision,'This product changed on another device. Refresh before editing.');if(old)check(old.available!=='removed','This item was removed from the menu.');
    var product={id:old?old.id:id,name:text(c.name,80),category:c.category,pricePaise:amount(c.pricePaise),available:c.available?'yes':'no',revision:old?old.revision+1:1};if(old)Object.assign(old,product);else s.Products.push(product);return {productId:product.id,message:'Product saved.'};
+  }
+  // Off the menu for good: the row stays (old bills keep their own name and price), marked removed, so it is never sold again.
+  if(c.type==='REMOVE_PRODUCT'){
+   var gone=row(s.Products,c.id);check(gone.available!=='removed','This item was already removed.');check(c.revision===gone.revision,'This product changed on another device. Refresh before editing.');
+   gone.available='removed';gone.revision++;return {productId:gone.id,message:gone.name+' removed from the menu.'};
   }
   if(c.type==='QUICK_TAB'){var t={id:id,customer:text(c.customer||'Walk-in',80),phone:c.phone?text(c.phone,30):'',status:'open',createdMs:now,kind:'quick_sale'};s.Tabs.push(t);if(typeof ArenaCustomers!=='undefined'&&(t.phone||t.customer.toLowerCase()!=='walk-in'))ArenaCustomers.touch(s,t.customer,t.phone,now,id+'-customer');
    // The counter flow sends the basket with the tab, so one save opens the sale and adds every item.
@@ -1881,7 +1887,7 @@ var ArenaSales=(function(){
   var source=tab(s,c.sourceTabId),destination=tab(s,c.tabId);check(source.id!==destination.id,'Invalid consolidation target.');check(!s.Segments.some(function(g){return g.tabId===source.id&&g.status==='active';}),'This source tab still has active players.');
   var moved=0;s.Segments.concat(s.Orders).forEach(function(x){if(x.tabId===source.id){x.tabId=destination.id;moved++;}});(s.Advances||[]).forEach(function(a){if(a.tabId===source.id&&a.status==='held')a.tabId=destination.id;});check(moved>0,'This source tab has no charges.');source.status='merged';return {tabId:destination.id,message:'Added to '+destination.customer+'’s bill.'};
  }
- return {handles:function(t){return ['SAVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS'].indexOf(t)>=0;},execute:execute};
+ return {handles:function(t){return ['SAVE_PRODUCT','REMOVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS'].indexOf(t)>=0;},execute:execute};
 })();
 
 
@@ -5666,6 +5672,15 @@ function productSheet(p, kind, added = []) {
       if (added.length) ui.body.append(h('div', 'field', h('span', { text: 'Added' }), h('div', { class: 'chips', data: { added: 'products' } }, added.map(x => h('span', { class: 'chip', text: x })))));
       ui.primary(p ? 'Save item' : 'Add item');
       if (!p) ui.foot.append(btn('Done', () => dismissSheet(), 'quiet block', { data: { action: 'products-done' } }));
+      // Remove: a second tap confirms. Old bills keep the item's name and price.
+      if (p) {
+        let armed = false;
+        const remove = btn([icon('trash'), 'Remove item'], () => {
+          if (!armed) { armed = true; remove.replaceChildren(icon('trash'), 'Tap again to remove ' + p.name); return; }
+          runCommand({ type: 'REMOVE_PRODUCT', id: p.id, revision: p.revision }, () => closeSheet());
+        }, 'quiet block danger-text', { data: { action: 'remove-product' } });
+        ui.foot.append(remove);
+      }
     },
     command() {
       if (!name.value.trim()) throw new Error('Enter the item name.');
@@ -5684,7 +5699,7 @@ const menuPage = {
   render(target) {
     target.append(table(
       [{ label: 'Item' }, { label: 'Category', class: 'hide-s' }, { label: 'Price', class: 'r' }, { label: 'Status' }],
-      state.Products.slice().sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)).map(p => h('tr', { class: 'click', data: { product: p.id }, onclick: () => productSheet(p) },
+      state.Products.filter(p => p.available !== 'removed').sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)).map(p => h('tr', { class: 'click', data: { product: p.id }, onclick: () => productSheet(p) },
         h('td', null, h('div', 'cell', glyph(productIcon(p.category), '', 'sm'), h('b', { text: p.name }))),
         h('td', { class: 'hide-s muted', text: p.category }),
         h('td', { class: 'r num', text: money(p.pricePaise) }),
