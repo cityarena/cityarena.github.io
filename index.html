@@ -285,6 +285,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .page-sub { font-size: 14px; color: var(--ink-2); }
 .page-sub:empty { display: none; }
 .top-tools { display: flex; align-items: center; gap: 8px; }
+/* Refresh turns while it is checking with the server. */
+#refresh.busy svg { animation: spin 0.9s linear infinite; }
 .top-tools .icon-btn { width: 38px; height: 38px; border-color: var(--line-strong); background: rgba(12, 18, 21, 0.8); }
 .sync { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 13px; border: 1px solid var(--line-strong); border-radius: 999px; background: rgba(12, 18, 21, 0.8); font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
 .sync i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 10px 1px rgba(62, 227, 154, 0.6); }
@@ -3614,27 +3616,45 @@ const AFTER_SAVES = new Set(['rpcBill', 'rpcHistory', 'rpcReport', 'rpcQuote', '
 // On City Arena's own web address the page reaches the same server through a hidden bridge frame loaded without cookies
 // (ARENA_API, set by the build), so the browser's signed-in Google accounts never get in the way.
 const ARENA_API = "https://script.google.com/macros/s/AKfycbwoZOVuZ6rp7gDVmMdqrOx16x3jj0iddMGqTiT-Qd8AVaZXhMY9VsED-R-GvsrW-mjp/exec";
-let bridge = null;
+let bridge = null, bridgeTroubles = 0;
+// A connection that stops answering (the internet dropped, the frame stalled) is rebuilt after two failures in a row.
+function bridgeTrouble() {
+  bridgeTroubles++;
+  if (bridgeTroubles < 2 || !bridge) return;
+  bridgeTroubles = 0;
+  console.warn('[City Arena] rebuilding the hidden connection');
+  bridge.close();
+  bridge = null;
+  openBridge();
+}
 function openBridge() {
   if (bridge) return bridge.ready;
   const pending = new Map(), frame = document.createElement('iframe');
   let seq = 0, target = null, opened;
-  // The bridge either starts (true) or, within a few seconds, does not (false): then every call goes the direct way.
-  bridge = { pending, ready: new Promise(resolve => { opened = resolve; }), call: (fn, args) => bridge.ready.then(up => (up ? new Promise((resolve, reject) => {
-    const id = ++seq;
-    pending.set(id, { resolve, reject });
-    target.postMessage({ arena: 'call', id, fn, args }, '*');
-  }) : directCall(fn, args))) };
-  setTimeout(() => { if (!target) { console.warn('[City Arena] the hidden connection did not start; using the direct connection'); frame.remove(); opened(false); } }, 7000);
-  window.addEventListener('message', ev => {
+  // Calls wait a few seconds for the bridge; if it has not started by then they go the direct way, and the bridge is
+  // used again from the moment it does start.
+  const ready = new Promise(resolve => { opened = resolve; });
+  const listen = ev => {
     const m = ev.data;
     if (!m || typeof m !== 'object' || !/\.googleusercontent\.com$/.test(new URL(ev.origin).hostname)) return;
-    if (m.arena === 'ready') { target = ev.source; opened(true); return; }
+    if (m.arena === 'ready') { target = ev.source; bridgeTroubles = 0; opened(true); return; }
     const waiting = m.arena === 'reply' ? pending.get(m.id) : null;
     if (!waiting) return;
     pending.delete(m.id);
-    if (m.failed) waiting.reject(new Error('Connection interrupted.')); else waiting.resolve(m.reply);
-  });
+    if (m.failed) { bridgeTrouble(); waiting.reject(new Error('Connection interrupted.')); } else { bridgeTroubles = 0; waiting.resolve(m.reply); }
+  };
+  bridge = {
+    pending,
+    ready,
+    call: (fn, args) => Promise.race([ready, pause(7000).then(() => false)]).then(() => (target ? new Promise((resolve, reject) => {
+      const id = ++seq;
+      pending.set(id, { resolve, reject });
+      target.postMessage({ arena: 'call', id, fn, args }, '*');
+    }) : directCall(fn, args))),
+    close: () => { window.removeEventListener('message', listen); frame.remove(); pending.forEach(w => w.reject(new Error('Connection interrupted.'))); pending.clear(); }
+  };
+  setTimeout(() => { if (!target) console.warn('[City Arena] the hidden connection has not started yet; using the direct connection meanwhile'); }, 7000);
+  window.addEventListener('message', listen);
   // No cookies: Google sees no account, so it never has to pick one of the accounts signed in to this browser.
   frame.credentialless = true;
   frame.setAttribute('credentialless', '');
@@ -3657,10 +3677,14 @@ function callServer(name, args) {
   return bridge.call(name, args);
 }
 function rpc(name, ...args) {
-  if (AFTER_SAVES.has(name) && typeof outbox !== 'undefined' && outbox.length) return outboxDrained().then(() => rpc(name, ...args));
+  return rpcWithin(45000, name, ...args);
+}
+// A look at the data gives up sooner than a save, so a lost answer never holds the screen for long.
+function rpcWithin(ms, name, ...args) {
+  if (AFTER_SAVES.has(name) && typeof outbox !== 'undefined' && outbox.length) return outboxDrained().then(() => rpcWithin(ms, name, ...args));
   return new Promise((resolve, reject) => {
     let settled = false;
-    const timer = setTimeout(() => { settled = true; reject(new Error('The server has not confirmed the outcome yet.')); }, 45000);
+    const timer = setTimeout(() => { settled = true; if (bridge && typeof google === 'undefined') bridgeTrouble(); reject(new Error('The server has not confirmed the outcome yet.')); }, ms);
     callServer(name, args).then(reply => {
       if (settled) return;
       clearTimeout(timer);
@@ -7590,18 +7614,25 @@ function applySaved(snapshot) {
   render();
   return true;
 }
+// A tap on Refresh while a look has been waiting more than a few seconds starts a new one rather than queueing behind it.
+let refreshStarted = 0;
 function refresh(force) {
   if (!token) return Promise.resolve();
-  if (refreshing) return force ? refreshing.then(() => refresh(true)) : refreshing;
-  refreshing = (async () => {
+  if (refreshing && !(force && nowMs() - refreshStarted > 4000)) return force ? refreshing.then(() => refresh(true)) : refreshing;
+  refreshStarted = nowMs();
+  $('refresh').classList.add('busy');
+  const mine = (async () => {
     try {
-      applySnapshot(await rpc('rpcSnapshot', token, force ? '' : version));
+      applySnapshot(await rpcWithin(15000, 'rpcSnapshot', token, force ? '' : version));
     } catch (e) {
       if (/sign in|expired|Access denied/i.test(e.message)) signedOut(/expired/i.test(e.message) ? 'Signed out after 30 days. Sign in again.' : '');
       else showSync(false, lastGood);
-    } finally { refreshing = null; }
+    } finally {
+      if (refreshing === mine) { refreshing = null; $('refresh').classList.remove('busy'); }
+    }
   })();
-  return refreshing;
+  refreshing = mine;
+  return mine;
 }
 
 // ---------- Wiring ----------
