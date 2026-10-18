@@ -547,6 +547,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .kv.sub b { font-weight: 500; color: var(--ink-2); }
 .kv.good b { color: var(--accent); }
 .kv.gold b, .kv.gold > span { color: var(--gold); }
+/* The storage meter in Settings: how much of Google's 10 million cells the live Sheet uses. */
+.meter-bar { height: 6px; margin: 2px 0 10px; border-radius: 3px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.meter-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.meter-bar.warn i { background: var(--warn); }
 .rates { width: 100%; border-collapse: separate; border-spacing: 10px; margin: -10px; }
 .rates th { font-size: 13.5px; font-weight: 500; color: var(--ink-2); text-align: left; padding: 0 4px; white-space: nowrap; }
 .rates thead th span { display: inline-flex; align-items: center; gap: 8px; }
@@ -3305,6 +3309,208 @@ var ArenaTurf = (function () {
   };
 })();
 
+/* The monthly archive: which finished records leave the live Sheet, and how archived records are read back.
+   Pure rules over the state; the storage is in Store.gs.
+   Always kept live: anything open, unpaid or part-paid; every bill, payment and booking behind a credit account; balances
+   carried to a later booking; customers, the menu, stations and settings. Records that belong together (a group's bills,
+   a turf booking and its players' bills, money one player left towards another's bill) leave together or not at all. */
+var ArenaArchive = (function () {
+  'use strict';
+  var IST = 19800000;
+  // The tables whose rows can move to the archive (the audit log is moved by date in Store.gs).
+  var TABLES = ['Tabs', 'Segments', 'Orders', 'OrderOwners', 'Pauses', 'Endings', 'TableParties', 'TableGuests', 'Bills', 'BillDetails',
+    'Payments', 'References', 'Corrections', 'Advances', 'Notes', 'Reminders', 'Reservations', 'DayCloses', 'TurfBookings', 'TurfPlayers'];
+  var DONE_RESERVATIONS = ['completed', 'cancelled', 'no_show'];
+
+  function index(rows) { var map = {}; (rows || []).forEach(function (r) { map[r.id] = r; }); return map; }
+  function dateKey(ms) { return new Date(Number(ms) + IST).toISOString().slice(0, 10); }
+  function yearOf(ms) { return dateKey(ms).slice(0, 4); }
+  // The previous full month stays live: a run on 1 November moves what was finished before 1 October (India time).
+  function cutoff(now) {
+    var d = new Date(now + IST), y = d.getUTCFullYear(), m = d.getUTCMonth() - 1;
+    if (m < 0) { m += 12; y--; }
+    return Date.UTC(y, m, 1) - IST;
+  }
+  function refsOf(note) { try { return JSON.parse(note.refsJson || '[]'); } catch (e) { return []; } }
+
+  // Groups of visits that must stay together: who shares a group bill, who left money towards whose bill, who joined a
+  // table, and a turf booking with all its players. Each group is a list of visit (tab) ids.
+  function links(state) {
+    var segTab = {}, groups = [];
+    (state.Segments || []).forEach(function (g) { segTab[g.id] = g.tabId; });
+    (state.Endings || []).forEach(function (e) { groups.push([e.originalTabId, e.reviewTabId]); });
+    (state.Advances || []).forEach(function (a) { groups.push([a.tabId, a.sourceTabId]); });
+    (state.TableParties || []).forEach(function (p) { groups.push([p.originalTabId, segTab[p.segmentId]]); });
+    (state.TableGuests || []).forEach(function (g) { groups.push([g.tabId, segTab[g.tableSegmentId]]); });
+    return groups.map(function (list) { return list.filter(Boolean); }).filter(function (list) { return list.length > 1; });
+  }
+  function bookingTabs(state, booking) {
+    var ids = booking.tabId ? [booking.tabId] : [];
+    (state.TurfPlayers || []).forEach(function (p) { if (p.bookingId === booking.id && p.tabId) ids.push(p.tabId); });
+    return ids;
+  }
+
+  // Everything that goes with a set of visits and bookings, table by table.
+  function collect(state, tabSet, bookingSet) {
+    var out = {}, moved = {};
+    TABLES.forEach(function (t) { out[t] = []; });
+    var take = function (table, row) { out[table].push(row); moved[row.id] = true; };
+    (state.Tabs || []).forEach(function (t) { if (tabSet[t.id]) take('Tabs', t); });
+    (state.BillDetails || []).forEach(function (d) { if (tabSet[d.tabId]) take('BillDetails', d); });
+    var billIds = index(out.BillDetails);
+    (state.Bills || []).forEach(function (b) { if (billIds[b.id]) take('Bills', b); });
+    (state.Advances || []).forEach(function (a) { if (tabSet[a.tabId]) take('Advances', a); });
+    var advanceIds = out.Advances.map(function (a) { return a.id; });
+    (state.Payments || []).forEach(function (p) {
+      var ofAdvance = advanceIds.some(function (id) { return p.id === id || p.id.indexOf(id + '-') === 0; });
+      if (billIds[p.billId] || ofAdvance) take('Payments', p);
+    });
+    (state.Segments || []).forEach(function (g) { if (tabSet[g.tabId]) take('Segments', g); });
+    (state.Orders || []).forEach(function (o) { if (tabSet[o.tabId]) take('Orders', o); });
+    (state.OrderOwners || []).forEach(function (w) { if (moved[w.id]) take('OrderOwners', w); });
+    (state.Pauses || []).forEach(function (p) { if (moved[p.segmentId]) take('Pauses', p); });
+    (state.Endings || []).forEach(function (e) { if (tabSet[e.originalTabId] && (tabSet[e.reviewTabId] || !e.reviewTabId)) take('Endings', e); });
+    (state.TableParties || []).forEach(function (p) { if (tabSet[p.originalTabId]) take('TableParties', p); });
+    (state.TableGuests || []).forEach(function (g) { if (tabSet[g.tabId]) take('TableGuests', g); });
+    (state.Reminders || []).forEach(function (r) { if (tabSet[r.tabId] && r.status !== 'set') take('Reminders', r); });
+    (state.TurfBookings || []).forEach(function (b) { if (bookingSet[b.id]) take('TurfBookings', b); });
+    (state.TurfPlayers || []).forEach(function (p) { if (bookingSet[p.bookingId]) take('TurfPlayers', p); });
+    (state.References || []).forEach(function (r) { if (moved[r.id]) take('References', r); });
+    (state.Corrections || []).forEach(function (c) { if (moved[c.targetId]) take('Corrections', c); });
+    (state.Notes || []).forEach(function (n) { var refs = refsOf(n); if (refs.length && refs.every(function (id) { return moved[id] || tabSet[id] || bookingSet[id]; })) take('Notes', n); });
+    return out;
+  }
+
+  /* What a run moves, given the live state and the cutoff (start of the previous month). Returns the rows per archive year
+     and the state that stays live. */
+  function select(state, cutoffMs) {
+    var cutKey = dateKey(cutoffMs), tabs = index(state.Tabs), bills = index(state.Bills);
+    var onCredit = {}, carriedBill = {}, carriedTab = {}, carriedBooking = {}, billsOfTab = {};
+    (state.CreditTransfers || []).forEach(function (t) { onCredit[t.billId] = true; });
+    (state.Carries || []).forEach(function (c) { carriedBill[c.billId] = true; carriedTab[c.tabId] = true; carriedBooking[c.bookingId] = true; });
+    (state.BillDetails || []).forEach(function (d) { (billsOfTab[d.tabId] = billsOfTab[d.tabId] || []).push(d); });
+    // (A settled visit keeps its "review" marker; a review still in progress is on an open visit, which stays, and every visit
+    // tied to it stays with it through the links below.)
+    var heldOn = {}, playing = {};
+    (state.Advances || []).forEach(function (a) { if (a.status === 'held') heldOn[a.tabId] = true; });
+    (state.Segments || []).forEach(function (g) { if (g.status === 'active') playing[g.tabId] = true; });
+    // A visit can leave when it is closed (or merged into another bill), older than the cutoff, and every bill on it is
+    // paid in full or voided, not on credit and not carried to a later booking.
+    var C = {};
+    (state.Tabs || []).forEach(function (t) {
+      if (t.status === 'open' || !(Number(t.createdMs) < cutoffMs) || heldOn[t.id] || playing[t.id] || carriedTab[t.id]) return;
+      var ok = (billsOfTab[t.id] || []).every(function (d) {
+        var b = bills[d.id];
+        return b && Number(d.createdMs) < cutoffMs && !onCredit[b.id] && !carriedBill[b.id] && (Number(b.paidPaise) >= Number(b.totalPaise) || ArenaCore.isVoidedBill(state, b.id));
+      });
+      if (ok) C[t.id] = true;
+    });
+    var groups = links(state), bookings = (state.TurfBookings || []), B = {};
+    var settled = function (b) { return typeof ArenaTurf !== 'undefined' && ArenaTurf.settlement(state, b).state === 'settled'; };
+    var changed = true;
+    while (changed) {
+      changed = false;
+      groups.forEach(function (list) {
+        var some = list.some(function (id) { return C[id]; }), stuck = list.some(function (id) { return tabs[id] && !C[id]; });
+        if (some && stuck) { list.forEach(function (id) { if (C[id]) { delete C[id]; changed = true; } }); }
+      });
+      bookings.forEach(function (b) {
+        var ids = bookingTabs(state, b);
+        var ok = b.dateKey < cutKey && !carriedBooking[b.id] && (b.status === 'cancelled' || settled(b)) && ids.every(function (id) { return !tabs[id] || C[id]; });
+        if (ok) { B[b.id] = true; return; }
+        delete B[b.id];
+        ids.forEach(function (id) { if (C[id]) { delete C[id]; changed = true; } });
+      });
+    }
+    var rows = collect(state, C, B);
+    rows.Reservations = (state.Reservations || []).filter(function (r) { return DONE_RESERVATIONS.indexOf(r.status) >= 0 && Number(r.arrivalMs) < cutoffMs; });
+    rows.DayCloses = (state.DayCloses || []).filter(function (d) { return d.dateKey < cutKey; });
+    // Each record goes to the archive of its year: a visit's year is that of its latest bill, a booking's its day.
+    var yearOfTab = {};
+    (state.Tabs || []).forEach(function (t) {
+      if (!C[t.id]) return;
+      var latest = (billsOfTab[t.id] || []).reduce(function (m, d) { return Math.max(m, Number(d.createdMs)); }, Number(t.createdMs));
+      yearOfTab[t.id] = yearOf(latest);
+    });
+    var yearOfBooking = {};
+    bookings.forEach(function (b) { if (B[b.id]) { yearOfBooking[b.id] = b.dateKey.slice(0, 4); bookingTabs(state, b).forEach(function (id) { if (C[id]) yearOfTab[id] = yearOfBooking[b.id]; }); } });
+    var yearOfId = {};
+    var mark = function (list, key) { list.forEach(function (r) { if (yearOfTab[r[key]]) yearOfId[r.id] = yearOfTab[r[key]]; }); };
+    mark(rows.Tabs, 'id'); mark(rows.BillDetails, 'tabId'); mark(rows.Segments, 'tabId'); mark(rows.Orders, 'tabId'); mark(rows.Advances, 'tabId');
+    mark(rows.TableParties, 'originalTabId'); mark(rows.TableGuests, 'tabId'); mark(rows.Reminders, 'tabId'); mark(rows.Endings, 'originalTabId');
+    rows.Bills.forEach(function (b) { yearOfId[b.id] = yearOfId[b.id] || yearOfTab[(rows.BillDetails.find(function (d) { return d.id === b.id; }) || {}).tabId]; });
+    rows.Payments.forEach(function (p) {
+      var owner = rows.Bills.find(function (b) { return b.id === p.billId; }) || rows.Advances.find(function (a) { return p.id === a.id || p.id.indexOf(a.id + '-') === 0; });
+      yearOfId[p.id] = owner ? yearOfId[owner.id] : yearOf(p.createdMs);
+    });
+    rows.OrderOwners.forEach(function (w) { yearOfId[w.id] = yearOfId[w.id] || yearOf(w.createdMs); });
+    rows.Pauses.forEach(function (p) { yearOfId[p.id] = yearOfId[p.segmentId] || yearOf(p.createdMs); });
+    rows.TurfBookings.forEach(function (b) { yearOfId[b.id] = yearOfBooking[b.id]; });
+    rows.TurfPlayers.forEach(function (p) { yearOfId[p.id] = yearOfBooking[p.bookingId]; });
+    rows.References.forEach(function (r) { yearOfId[r.id] = yearOfId[r.id] || yearOf(r.createdMs); });
+    rows.Corrections.forEach(function (c) { yearOfId[c.id] = yearOfId[c.targetId] || yearOf(c.createdMs); });
+    rows.Notes.forEach(function (n) { yearOfId[n.id] = yearOfId[refsOf(n)[0]] || yearOf(n.createdMs); });
+    rows.Reservations.forEach(function (r) { yearOfId[r.id] = yearOf(r.arrivalMs); });
+    rows.DayCloses.forEach(function (d) { yearOfId[d.id] = d.dateKey.slice(0, 4); });
+    var years = {}, keep = {}, total = 0, counts = {};
+    Object.keys(state).forEach(function (t) { keep[t] = state[t]; });
+    TABLES.forEach(function (t) {
+      var gone = {};
+      rows[t].forEach(function (r) {
+        var y = yearOfId[r.id] || yearOf(cutoffMs - 1);
+        years[y] = years[y] || {};
+        (years[y][t] = years[y][t] || []).push(r);
+        gone[r.id] = true;
+      });
+      counts[t] = rows[t].length;
+      total += rows[t].length;
+      keep[t] = (state[t] || []).filter(function (r) { return !gone[r.id]; });
+    });
+    return { cutoffMs: cutoffMs, years: years, keep: keep, counts: counts, total: total };
+  }
+
+  /* Live and archived rows read together, for screens that look back (old bills, reports, exports, older turf days).
+     A record found live is the one shown; archived records come first, as they are the older ones. */
+  function merge(live, archives) {
+    var out = {};
+    Object.keys(live).forEach(function (t) { out[t] = live[t]; });
+    (archives || []).forEach(function (archived) {
+      TABLES.forEach(function (t) {
+        var rows = archived[t] || [];
+        if (!rows.length) return;
+        var seen = index(out[t]);
+        out[t] = rows.filter(function (r) { return !seen[r.id]; }).concat(out[t] || []);
+      });
+    });
+    return out;
+  }
+
+  /* Bringing a bill back to the live Sheet (to correct it): the bill's visit with every visit and booking tied to it. */
+  function group(archived, billId) {
+    var detail = (archived.BillDetails || []).find(function (d) { return d.id === billId; });
+    ArenaCore.check(!!detail, 'Record not found.');
+    var C = {}, B = {}, groups = links(archived), changed = true;
+    C[detail.tabId] = true;
+    while (changed) {
+      changed = false;
+      groups.forEach(function (list) {
+        if (list.some(function (id) { return C[id]; })) list.forEach(function (id) { if (!C[id]) { C[id] = true; changed = true; } });
+      });
+      (archived.TurfBookings || []).forEach(function (b) {
+        var ids = bookingTabs(archived, b);
+        if (!B[b.id] && ids.some(function (id) { return C[id]; })) { B[b.id] = true; changed = true; }
+        if (B[b.id]) ids.forEach(function (id) { if (!C[id]) { C[id] = true; changed = true; } });
+      });
+    }
+    var rows = collect(archived, C, B);
+    rows.Reservations = [];
+    rows.DayCloses = [];
+    return rows;
+  }
+
+  return { TABLES: TABLES, cutoff: cutoff, select: select, merge: merge, group: group, dateKey: dateKey };
+})();
+
 /* ENGINES_END */
 </script>
 <script>
@@ -5185,8 +5391,9 @@ async function receiptSheet(billId, back) {
         h('span', 'bill-tools', statusBadge(data.status), menu([
           ['Print receipt', () => printReceipt(data), false, 'printer'],
           ...(phone ? [['WhatsApp confirmation', () => whatsapp(phone, 'City Arena: bill ' + data.number + ' for ' + money(bill.totalPaise) + '. Received ' + money(paidHere) + (data.transfer ? '. On credit ' + money(data.transfer.amountPaise) : due ? '. Balance ' + money(due) : '') + '. Thank you.'), false, 'message']] : []),
-          ...(correctable(data) && data.payments.length ? [['Correct payment', () => correctBillPaymentSheet(data, back), false, 'pencil'], ['Correct charges', () => correctChargesSheet(data, back), false, 'bills']] : []),
-          ...(data.status !== 'void' && bill.paidPaise === 0 && !data.transfer ? [['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'The visit opens again so it can be corrected.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet()) }), true, 'ban']] : [])
+          ...(data.archived ? [['Bring back to correct', () => restoreBill(billId), false, 'undo']] : []),
+          ...(!data.archived && correctable(data) && data.payments.length ? [['Correct payment', () => correctBillPaymentSheet(data, back), false, 'pencil'], ['Correct charges', () => correctChargesSheet(data, back), false, 'bills']] : []),
+          ...(!data.archived && data.status !== 'void' && bill.paidPaise === 0 && !data.transfer ? [['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'The visit opens again so it can be corrected.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet()) }), true, 'ban']] : [])
         ], 'Bill actions'))));
       drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, editable: false, detail: true, pauses: data.pauses });
       const notes = notesBlock([billId, data.tab ? data.tab.id : '']);
@@ -5391,6 +5598,18 @@ function correctChargesSheet(data, back) {
     then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet())
   });
 }
+// A bill from the archive comes back to the live Sheet with everything tied to it; then it is corrected as usual.
+async function restoreBill(billId) {
+  notify('pending', 'Bringing the bill back from the archive…');
+  try {
+    await outboxDrained();
+    const r = await rpc('rpcRestoreBill', token, billId);
+    billCache.key = '';
+    await refresh(true);
+    closeSheet();
+    notify('success', r.message);
+  } catch (e) { notify('error', e.message); }
+}
 // From the closed bills list: fetch the bill, then open the chosen correction.
 async function correctBill(billId, kind) {
   let data;
@@ -5562,7 +5781,9 @@ const billsPage = {
         h('td', { class: 'r num hide-s' + (b.outstandingPaise && !b.account ? ' owing' : ''), text: b.outstandingPaise && !b.account ? money(b.outstandingPaise) : '—' }),
         h('td', null, statusBadge(b.status)),
         // A bill settled by mistake is corrected from here, without opening it first.
-        h('td', { class: 'r', onclick: e => e.stopPropagation() }, (b.status === 'paid' || b.status === 'part') && !b.account ? menu([
+        h('td', { class: 'r', onclick: e => e.stopPropagation() }, b.archived ? menu([
+          ['Bring back to correct', () => restoreBill(b.id), false, 'undo']
+        ], 'Bill ' + b.number + ' is in the archive') : (b.status === 'paid' || b.status === 'part') && !b.account ? menu([
           ['Correct payment', () => correctBill(b.id, 'payment'), false, 'pencil'],
           ['Correct charges', () => correctBill(b.id, 'charges'), false, 'bills']
         ], 'Correct bill ' + b.number) : null))), 'No bills match.', 'search'));
@@ -6391,12 +6612,50 @@ const setupPage = {
           backupError ? h('p', { class: 'small', style: 'color:var(--danger);margin:8px 0', text: 'Last scheduled backup failed on ' + when(Date.parse(backupError.at)) + ': ' + backupError.message }) : null,
           h('p', { class: 'small muted', style: 'margin:8px 0 12px', text: 'A private copy is made every night. The newest copy from each of the last 7 days is kept.' }),
           btn([icon('drive'), 'Back up now'], async () => { notify('pending', 'Creating a private backup…'); try { await rpc('rpcBackup', token); await refresh(true); notify('success', 'Backup created.'); } catch (e) { notify('error', e.message); } })),
+        storagePanel(head),
         h('section', { class: 'panel', data: { panel: 'erase' } }, head('trash', 'Start fresh', 'bad'),
           h('p', { class: 'small muted', style: 'margin-bottom:12px', text: 'After trying the app out: erase every bill, booking, credit account and customer. Stations, rates, festival dates and the sign-in stay. A backup copy is made first.' }),
           btn([icon('trash'), 'Erase all data…'], eraseAllSheet, 'danger', { data: { action: 'erase-all' } })),
         h('section', 'panel', head('lock', 'Sign-in'), h('p', { class: 'small muted', style: 'margin-bottom:12px', text: 'One login for the reception PC and phones. A device stays signed in for 30 days.' }), btn([icon('lock'), 'Change password'], passwordSheet))));
   }
 };
+// How full the live Sheet is, and the monthly archive: fetched when Settings opens, kept until the data changes.
+let storageInfo = { key: '', data: null };
+async function loadStorage(key) {
+  try { storageInfo = { key, data: await rpc('rpcStorage', token) }; }
+  catch (e) { storageInfo = { key, data: null }; return; }
+  if (page === 'settings' && settingsMode === 'setup') render();
+}
+function storagePanel(head) {
+  const key = version;
+  if (storageInfo.key !== key) loadStorage(key);
+  const info = storageInfo.data, panel = h('section', { class: 'panel', data: { panel: 'storage' } }, head('drive', 'Storage'));
+  if (!info) { panel.append(h('p', { class: 'small muted', text: 'Checking…' })); return panel; }
+  const share = Math.min(100, (info.cells / info.limit) * 100), tone = share >= 70 ? ' warn' : '';
+  const month = ms => new Date(ms + 19800000).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  panel.append(
+    h('div', 'kv', h('span', { text: 'Live Sheet' }), h('b', { text: share < 1 ? 'under 1%' : Math.round(share) + '%' })),
+    h('div', { class: 'meter-bar' + tone, role: 'img', 'aria-label': Math.round(share) + '% of Google’s 10 million cells' }, h('i', { style: 'width:' + Math.max(1, share) + '%' })),
+    h('div', 'kv', h('span', { text: 'Archive' }), h('b', { text: info.years.length ? info.years.join(', ') : 'Nothing yet' })),
+    h('div', 'kv', h('span', { text: 'Last archived' }), h('b', { text: info.lastRun ? when(info.lastRun) + ' · ' + info.lastMoved + ' records' : 'Not yet' })),
+    h('p', { class: 'small muted', style: 'margin:8px 0 12px', text: info.cutoffMs ? 'Live from ' + month(info.cutoffMs) + '. Finished records older than the previous month move to the archive on the 1st.' : 'Finished records older than the previous month move to the archive on the 1st of each month.' }));
+  let armed = false;
+  const go = btn([icon('drive'), 'Archive now'], async () => {
+    if (!armed) { armed = true; go.replaceChildren(icon('drive'), 'Tap again to archive now'); return; }
+    go.disabled = true;
+    go.classList.add('loading');
+    notify('pending', 'Moving finished records to the archive…');
+    try {
+      await outboxDrained();
+      const r = await rpc('rpcArchiveNow', token);
+      storageInfo.key = '';
+      await refresh(true);
+      notify('success', r.moved ? r.moved + ' records moved to the archive.' : 'Nothing to archive yet: everything is from the last month or still open.');
+    } catch (e) { notify('error', e.message); go.disabled = false; go.classList.remove('loading'); }
+  }, '', { data: { action: 'archive-now' } });
+  panel.append(go);
+  return panel;
+}
 // Festival wishes for turf booking confirmations: the dates of each one this year, on or off, and the wording.
 function festivalPanel(head) {
   const span = f => f.key === 'newyear' ? '31 Dec · 1–4 Jan, every year' : f.from ? (f.from === f.to ? turfDayName(f.from) + ' ' + f.from.slice(0, 4) : turfDayName(f.from) + ' – ' + turfDayName(f.to) + ' ' + f.to.slice(0, 4)) : 'No dates set';
