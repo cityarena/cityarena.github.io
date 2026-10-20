@@ -421,6 +421,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
    its state on the top of the picture, a soft shade there and at the foot. A free card has Start Session on its foot; a card
    in use has its panel there. The band between only keeps the length. */
 .station.photo { isolation: isolate; overflow: hidden; border-color: rgba(60, 50, 32, 0.22); }
+/* At a glance (owner, 20 October): a card in use is ringed in red, a free one in green; a fine ring with a soft glow of
+   its colour, so the photograph stays clean. Paused keeps amber. */
+.station.photo:not(.live) { border: 2px solid rgba(46, 158, 98, 0.85); box-shadow: 0 0 0 3px rgba(46, 158, 98, 0.14), var(--shadow); }
+.station.photo.live { border: 2px solid rgba(214, 64, 58, 0.85); box-shadow: 0 0 0 3px rgba(214, 64, 58, 0.14), var(--shadow); }
+.station.photo.live.held { border-color: rgba(214, 140, 50, 0.9); box-shadow: 0 0 0 3px rgba(214, 140, 50, 0.16), var(--shadow); }
 .station.photo::before { content: ""; position: absolute; z-index: -1; inset: 0; pointer-events: none; background: linear-gradient(180deg, rgba(14, 16, 18, 0.62) 0%, rgba(14, 16, 18, 0.18) 26%, rgba(14, 16, 18, 0) 48%, rgba(14, 16, 18, 0.1) 70%, rgba(14, 16, 18, 0.5) 100%), var(--art) var(--pos, center) / cover no-repeat, #2a2620; }
 .station.photo .station-art { height: auto; flex: 1 0 128px; background: none; box-shadow: none; }
 .station.photo.live .station-art, .station.photo.live:not(.mini) .station-art { flex: 1 0 24px; height: auto; }
@@ -431,8 +436,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .station.photo .state { background: rgba(255, 255, 255, 0.92); }
 .station.photo .station-meta.booked { color: #ffe1a8; text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); }
 /* The menu and + of a card in use sit in its heading, on the photograph. */
-.station.photo.live .station-tools > .menu, .station.photo.live .station-tools > .collapse { position: static; }
-.station.photo.live .station-tools > .menu > .menu-list { right: 0; }
+.station.photo.live .station-tools > .menu { position: relative; top: auto; right: auto; }
+.station.photo.live .station-tools > .menu > .menu-list { right: 0; top: calc(100% + 6px); }
 /* Who, how long and the buttons of a card in use: a light frosted panel on the foot of the photograph. */
 .station-panel { display: flex; flex-direction: column; gap: 8px; margin: 0 -6px -6px; padding: 8px 10px 10px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 12px; background: rgba(251, 249, 244, 0.93); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.5); }
 .station.live .station-art { height: auto; flex: 1 0 104px; }
@@ -777,6 +782,14 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .tile-add svg { width: 14px; height: 14px; }
 .tile:hover .tile-add { color: var(--ink); border-color: var(--line-bold); }
 .tile .step { display: flex; justify-content: space-between; width: 100%; }
+/* An item on an open bill: one fewer, how many, one more, and remove, beside its amount. */
+.item-tools { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.item-tools .step button { width: 30px; height: 30px; }
+.item-tools .step b { min-width: 22px; font-size: 15px; }
+.item-tools .step button:disabled { opacity: 0.35; cursor: default; }
+.item-remove { width: 30px; height: 30px; display: grid; place-items: center; border: 1px solid var(--danger-line); border-radius: 8px; background: var(--danger-soft); color: var(--danger); cursor: pointer; }
+.item-remove svg { width: 15px; height: 15px; }
+.basket-line .item-tools { margin-left: auto; }
 .step { display: inline-flex; align-items: center; gap: 6px; }
 .step button { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--inset); color: var(--ink); cursor: pointer; transition: border-color var(--ease), background var(--ease), transform var(--ease); }
 .step button svg { width: 15px; height: 15px; }
@@ -791,7 +804,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .till .panel-head { margin-bottom: 0; }
 .till-ways .btn { padding: 0 8px; font-size: 14px; }
 .basket { display: grid; }
-.basket-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
+.basket-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .basket-line:first-child { border-top: 0; }
 .basket-line span { min-width: 0; overflow-wrap: anywhere; }
 .basket-line b { font-family: var(--display); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
@@ -1012,10 +1025,18 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-cell { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px dashed var(--line-strong); border-radius: 10px; background: rgba(80, 62, 30, 0.018); color: var(--ink-2); font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color var(--ease), background var(--ease), color var(--ease); }
 .turf-cell svg { width: 14px; height: 14px; }
 .turf-cell:hover { border-style: solid; border-color: var(--accent-line); background: var(--accent-soft); color: var(--ink); }
-.turf-cell.over { border-style: solid; border-color: var(--line); background: rgba(80, 62, 30, 0.009); cursor: default; opacity: 0.5; }
-/* An hour whose booking is settled or pending: taken, quiet, with the name. */
-.turf-cell.closed { border-style: solid; border-color: var(--line-strong); background: #efeae0; color: var(--ink-2); }
-.turf-cell.closed:hover { border-color: var(--line-bold); background: #ebe5da; color: var(--ink); }
+.turf-cell.over { border-style: solid; border-color: rgba(191, 67, 61, 0.22); background: rgba(208, 80, 70, 0.05); color: #b5655f; cursor: default; }
+/* The board's colours (owner, 20 October): free cream, booked teal, paid green, pending or part paid orange, an hour gone by
+   unbooked red. Nothing leaves the board. */
+.turf-block.paid { border-color: rgba(31, 125, 74, 0.5); background: linear-gradient(180deg, #e3efe2 0%, #d6e8d4 100%); }
+.turf-block.owing { border-color: rgba(196, 120, 40, 0.55); background: linear-gradient(180deg, #fbebd6 0%, #f6dfc0 100%); }
+.turf-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: -6px 2px 12px; font-size: 13px; color: var(--ink-2); }
+.turf-key { display: inline-flex; align-items: center; gap: 7px; }
+.turf-key i { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line-bold); background: #faf7f0; }
+.turf-key.booked i { border-color: var(--primary-line); background: #dfe7ea; }
+.turf-key.paid i { border-color: rgba(31, 125, 74, 0.5); background: #d6e8d4; }
+.turf-key.owing i { border-color: rgba(196, 120, 40, 0.55); background: #f6dfc0; }
+.turf-key.missed i { border-color: rgba(191, 67, 61, 0.35); background: #f6e1de; }
 /* Free hours picked to book together: mint, with a tick; the bar under the board books them in one go. */
 .turf-cell.picked { border-style: solid; border-color: var(--primary); background: var(--primary-soft); color: var(--ink); }
 .turf-cell.picked svg { color: var(--primary); }
@@ -1074,6 +1095,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-together svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
 .turf-slot { padding: 12px 14px 2px; margin-bottom: 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: rgba(80, 62, 30, 0.023); }
 .turf-slot .group-title { margin-top: 0; }
+/* A bulk booking's day already set: one line, tapped to change it. */
+.bulk-day-line { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 10px; padding: 6px 6px 6px 14px; border: 1px solid var(--primary-line); border-radius: 12px; background: var(--primary-soft); cursor: pointer; }
+.bulk-day-line > svg { width: 16px; height: 16px; color: var(--primary); flex: none; }
+.bulk-day-line b { flex: 1; min-width: 0; font-weight: 600; }
+.bulk-day-line .icon-btn { width: 32px; height: 32px; }
 .turf-slot .group-title .icon-btn { margin-left: auto; width: 30px; height: 30px; }
 .turf-when { font-family: var(--display); font-size: 20px; letter-spacing: -0.01em; }
 .turf-starts .chip { min-width: 74px; justify-content: center; }
@@ -3673,14 +3699,17 @@ var ArenaTurf = (function () {
       check(bought2.status === 'shared' && info.bookingId === booking.id, 'This item is not shared on this booking.');
       check(!info.fixed && !locked(state, booking), 'Shared items are fixed once someone has paid.');
       if (cmd.remove === true) { bought2.status = 'void'; bought2.reason = 'Removed'; }
-      else {
+      else if (cmd.quantity != null) {
+        check(Number.isInteger(cmd.quantity) && cmd.quantity >= 1 && cmd.quantity <= 999, 'Invalid quantity.');
+        bought2.quantity = cmd.quantity; bought2.totalPaise = bought2.unitPricePaise * cmd.quantity;
+      } else {
         var taker = row(state.TurfPlayers, cmd.playerId), takerTab = tabOf(state, taker.tabId);
         check(taker.bookingId === booking.id && taker.status === 'active' && !!takerTab && takerTab.status === 'open', 'This player’s bill is already settled.');
         bought2.tabId = takerTab.id; bought2.status = 'active'; bought2.ratesJson = ''; bought2.purchaser = taker.name;
       }
       bought2.revision = Number(bought2.revision || 1) + 1;
       sync(state, booking, now, id);
-      return { bookingId: booking.id, message: cmd.remove === true ? 'Item removed. Shares recalculated.' : 'Item given to ' + row(state.TurfPlayers, cmd.playerId).name + '.' };
+      return { bookingId: booking.id, message: cmd.remove === true ? 'Item removed. Shares recalculated.' : cmd.quantity != null ? bought2.label + ' × ' + cmd.quantity + '. Shares recalculated.' : 'Item given to ' + row(state.TurfPlayers, cmd.playerId).name + '.' };
     }
     if (cmd.type === 'TURF_PAY_ALL') {
       // Everyone still owing pays now, in full, by one method: each player's bill is made and paid in this one save.
@@ -4332,6 +4361,17 @@ function icon(name, cls) {
   return svg;
 }
 // An icon in its own small tile: the anchor of a card header, a list row or an empty state. tone: '', 'jade', 'gold', 'warn', 'bad'.
+// An item's count with one fewer, one more and remove beside it. change(n) is called with the new count (0 removes).
+// A charge that is not a product (no count) gets the remove button only.
+function itemTools(name, quantity, change, counted = true) {
+  const tools = h('span', { class: 'item-tools', data: { itemTools: name } });
+  if (counted) tools.append(h('span', 'step',
+    h('button', { type: 'button', 'aria-label': 'One fewer ' + name, disabled: quantity <= 1, data: { action: 'item-less' }, onclick: e => { e.stopPropagation(); change(quantity - 1); } }, icon('minus')),
+    h('b', { text: String(quantity) }),
+    h('button', { type: 'button', 'aria-label': 'One more ' + name, disabled: quantity >= 999, data: { action: 'item-more' }, onclick: e => { e.stopPropagation(); change(quantity + 1); } }, icon('plus'))));
+  tools.append(h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove ' + name, title: 'Remove', data: { action: 'item-remove' }, onclick: e => { e.stopPropagation(); change(0); } }, icon('trash')));
+  return tools;
+}
 function glyph(name, tone = '', size = '') { return h('span', { class: ('glyph ' + tone + ' ' + size).replace(/\s+/g, ' ').trim() }, icon(name)); }
 // A button that is only an icon. The label is read by screen readers and shown as the tooltip.
 function iconButton(name, label, onclick, props = {}) {
@@ -4612,8 +4652,14 @@ function dismissSheet() {
 }
 // config: { title, sub, caption, icon, tone, build(ui), command(), then(result, command), onClose(), onFailed() }
 // build(ui) fills ui.body and ui.foot. ui.primary(label) adds the one main button; it submits command().
+// A sheet opened from another sheet (Add Items from a bill, a bill from a booking) goes back to it on ✕, Esc or Done (owner,
+// 20 October), unless it says where to go itself. A sheet that follows a save does not: the one before it is done with. The
+// same sheet opened again keeps the way back it had.
+let sheetAfterSave = false;
 function openSheet(config) {
-  current = { ...config, ack: { reservation: false, time: false }, primaryButton: null };
+  const before = $('sheet').open && current && !sheetAfterSave ? current.config : null;
+  if (before && config.onClose === undefined) config = { ...config, onClose: before.title === config.title ? before.onClose : () => openSheet(before) };
+  current = { ...config, config, ack: { reservation: false, time: false }, primaryButton: null };
   const sheet = current;
   $('sheetTitle').textContent = config.title;
   $('sheetSub').textContent = config.sub || '';
@@ -4683,7 +4729,10 @@ async function afterSave(then, here) {
   if (here) render();
   else if (!applySaved(saved && saved.snapshot)) await refresh(true);
   // A follow-up may return { text, action } to say it better than the server's stock message.
-  const said = then ? await then(saved.result, saved.command) : (closeSheet(), null);
+  sheetAfterSave = true;
+  let said;
+  try { said = then ? await then(saved.result, saved.command) : (closeSheet(), null); }
+  finally { sheetAfterSave = false; }
   if (!$('sheet').open) notify('success', said && said.text ? said.text : text, said && said.action);
 }
 async function runCommand(command, then) {
@@ -4964,25 +5013,24 @@ function floorSummary(category) {
 // session ends. A free station is always shown whole. Each device remembers its own opened cards.
 const OPENED_KEY = 'arenaOpened';
 const opened = new Set((() => { try { return JSON.parse((storage && storage.getItem(OPENED_KEY)) || '[]'); } catch (e) { return []; } })());
-const canCollapse = unit => (unit.category === 'PC' || unit.category === 'PS5') && inUse(unit);
+// Only a console can show its controllers one by one, from its ⋮ menu (owner, 20 October: no + button).
+const canCollapse = unit => unit.category === 'PS5' && inUse(unit);
 function keepSets() {
   try { if (storage) storage.setItem(OPENED_KEY, JSON.stringify([...opened])); } catch (e) { /* only a convenience */ }
 }
-const isSmall = unit => canCollapse(unit) && !opened.has(unit.id);
+// A PC in use is always the small card; a console is, unless its ⋮ asked for each controller.
+const isSmall = unit => (unit.category === 'PC' && inUse(unit)) || (canCollapse(unit) && !opened.has(unit.id));
 function toggleCollapsed(unit) {
   if (opened.has(unit.id)) opened.delete(unit.id); else opened.add(unit.id);
   keepSets();
   render();
 }
-function collapseButton(unit) {
-  if (!canCollapse(unit)) return null;
-  const shut = isSmall(unit);
-  return iconButton(shut ? 'plus' : 'minus', (shut ? 'Show ' : 'Minimise ') + unit.name, e => { e.stopPropagation(); toggleCollapsed(unit); }, { class: 'collapse', data: { action: 'collapse' } });
-}
+// Each controller in a row, with its own pause and corrections, or back to the four pads: from the console's ⋮ menu.
+const controllersItem = unit => (opened.has(unit.id) ? ['Show as pads', () => toggleCollapsed(unit), false, 'PS5'] : ['Each controller', () => toggleCollapsed(unit), false, 'PS5']);
 const STATE_TEXT = { free: 'Available', live: 'In Use', held: 'Paused' };
 function statePill(kind) { return h('span', { class: 'state ' + kind }, h('i'), STATE_TEXT[kind]); }
 function stationHead(unit, tone, meta, ...tools) {
-  return h('div', 'station-head', glyph(unit.category, tone), h('div', 'station-title', h('h3', { class: 'station-name', text: unit.name }), meta), h('div', 'station-tools', tools, collapseButton(unit)));
+  return h('div', 'station-head', glyph(unit.category, tone), h('div', 'station-title', h('h3', { class: 'station-name', text: unit.name }), meta), h('div', 'station-tools', tools));
 }
 // The photograph of the machine, under its name.
 const stationArt = () => h('div', { class: 'station-art', 'aria-hidden': 'true' });
@@ -5128,7 +5176,7 @@ function stationCardBody(unit) {
     const several = players.length > 1, others = groupable(unit);
     card.append(stationHead(unit, tone, null,
       statePill(held ? 'held' : 'live'),
-      menu([costItem, ...extraItems(unit),
+      menu([costItem, controllersItem(unit), ...extraItems(unit),
         ...(others.length ? [['Group with another console', () => groupSheet(unit), false, 'users']] : [])], 'Options for ' + unit.name)));
     const first = players.reduce((a, b) => (b.startMs < a.startMs ? b : a));
     // Pause sits on the card itself (owner, 20 October): all the console's controllers at once; one at a time in its list.
@@ -5387,7 +5435,8 @@ function productPicker(onchange) {
     node: h('div', null, h('div', { class: 'field' }, category.node), grid),
     items: () => [...cart].map(([productId, quantity]) => ({ productId, quantity })),
     // What is in the basket, for showing it back: name, how many, and what that comes to.
-    lines: () => [...cart].map(([id, quantity]) => { const p = products.find(p => p.id === id); return { name: p.name, quantity, unitPaise: p.pricePaise, totalPaise: p.pricePaise * quantity }; }),
+    lines: () => [...cart].map(([id, quantity]) => { const p = products.find(p => p.id === id); return { id, name: p.name, quantity, unitPaise: p.pricePaise, totalPaise: p.pricePaise * quantity }; }),
+    change,
     count: () => [...cart.values()].reduce((a, b) => a + b, 0),
     total: () => [...cart].reduce((sum, [id, quantity]) => sum + products.find(p => p.id === id).pricePaise * quantity, 0),
     clear() { cart.clear(); draw(); }
@@ -5599,7 +5648,7 @@ function tableCollectSheet(unit, tab, game) {
     focus: false,
     build(ui) {
       const { total, owed, items, paid: before } = gameOwed(tab.id, game);
-      drawLines(ui.body, { segments: [game], orders: items, customer: tab.customer, editable: false });
+      drawLines(ui.body, { segments: [game], orders: items, customer: tab.customer, editable: false, after: () => tableCollectSheet(unit, tab, game) });
       if (before) ui.body.append(h('div', 'summary', h('div', 'kv', h('span', { text: 'This game' }), h('b', { text: money(total) })), h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
       const received = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.edited ? draft.received : String(owed / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
       const restBox = h('div');
@@ -5731,13 +5780,13 @@ function drawLines(body, lines) {
     const card = h('div', 'lines');
     for (const o of goods) {
       const product = !!o.productId;
-      card.append(h('div', { class: 'line', data: { order: o.id } },
-        h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
-        h('span', { class: 'line-amount', text: money(o.totalPaise) }),
-        editable ? menu([
-          ...(product ? [['Change quantity', () => quantitySheet(o, tab), false, 'pencil']] : []),
-          ['Remove', () => runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: 0, reason: 'Removed before billing' }, () => settleSheet(tab.id)), true, 'trash']
-        ], 'Change ' + o.label) : null));
+      // On a bill not yet closed every item can be one fewer, one more or removed, right on its line (owner, 20 October).
+      const open = lines.after && (tabOf(o.tabId) || {}).status === 'open';
+      const change = n => runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: n, reason: n ? 'Quantity changed before billing' : 'Removed before billing' }, lines.after);
+      card.append(h('div', { class: 'line' + (open ? ' with-tools' : ''), data: { order: o.id } },
+        h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && !open ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
+        open ? itemTools(o.label, Number(o.quantity), change, product) : null,
+        h('span', { class: 'line-amount', text: money(o.totalPaise) })));
     }
     body.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages'), card));
   }
@@ -5788,7 +5837,7 @@ function settleSheet(tabId, mode = 'pay') {
     // Closing one player's bill returns to the list of players still to settle, when there is one.
     onClose: () => returnToSplit(tab.id),
     build(ui) {
-      const lines = drawLines(ui.body, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids }), playing = stillPlaying(tab.id);
+      const lines = drawLines(ui.body, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids, after: () => settleSheet(tab.id, mode) }), playing = stillPlaying(tab.id);
       const notes = notesBlock([tab.id]);
       if (notes) ui.body.append(notes);
       const adds = h('div', 'station-links', btn([icon('sales'), 'Add Items'], () => addItemsSheet(tab), 'quiet', { data: { action: 'items' } }));
@@ -6099,7 +6148,7 @@ async function costSheet(unit) {
     build(ui) {
       for (const t of tabs) {
         if (tabs.length > 1) ui.body.append(h('p', { class: 'muted', style: 'margin:16px 0 -8px', text: t.customer + ' · ' + money(quote.tabTotals[t.id] || 0) }));
-        drawLines(ui.body, { segments: segmentsOf(t.id), orders: ordersOf(t.id), customer: t.customer, editable: false, quotes: quote.quotes });
+        drawLines(ui.body, { segments: segmentsOf(t.id), orders: ordersOf(t.id), customer: t.customer, editable: false, quotes: quote.quotes, after: () => { costSheet(unit); } });
       }
       const chosen = players.filter(g => !unpicked.has(g.id));
       ui.foot.append(
@@ -6126,24 +6175,6 @@ function billBreakdown(holder, data, back) {
     paidThen ? kv('Paid at the counter', money(paidThen)) : null,
     moved !== null ? kv('Moved to credit', money(moved)) : null),
   h('div', 'station-links', btn([icon('bills'), 'Open bill ' + data.number], () => receiptSheet(bill.id, back), 'quiet', { data: { action: 'open-bill' } })));
-}
-
-function quantitySheet(order, tab) {
-  let quantity = order.quantity;
-  openSheet({
-    title: order.label,
-    icon: 'sales',
-    focus: false,
-    build(ui) {
-      const count = h('b', { text: String(quantity) });
-      ui.body.append(h('div', 'foot-row', h('span', { text: 'Quantity' }), h('span', 'step',
-        h('button', { type: 'button', 'aria-label': 'One fewer', onclick: () => { quantity = Math.max(1, quantity - 1); count.textContent = String(quantity); } }, icon('minus')), count,
-        h('button', { type: 'button', 'aria-label': 'One more', onclick: () => { quantity = Math.min(999, quantity + 1); count.textContent = String(quantity); } }, icon('plus')))));
-      ui.primary('Save');
-    },
-    command() { if (quantity === order.quantity) { settleSheet(tab.id); return null; } return { type: 'UPDATE_ORDER', id: order.id, revision: order.revision, quantity, reason: 'Quantity changed before billing' }; },
-    then: () => settleSheet(tab.id)
-  });
 }
 
 // Quick Sale only: a gaming charge by duration, or any other charge with a reason. No timer and no unit is occupied.
@@ -7050,7 +7081,7 @@ const salesPage = {
     salePaint = () => {
       const n = salePicker.count(), lines = salePicker.lines();
       basket.replaceChildren(...(lines.length
-        ? lines.map(line => h('div', 'basket-line', h('span', { text: line.name + (line.quantity > 1 ? ' × ' + line.quantity : '') }), h('b', { text: money(line.totalPaise) })))
+        ? lines.map(line => h('div', { class: 'basket-line', data: { basket: line.id } }, h('span', { text: line.name }), itemTools(line.name, line.quantity, n => salePicker.change(line.id, n)), h('b', { text: money(line.totalPaise) })))
         : [h('div', 'basket-empty', icon('sales'), h('span', { text: 'Nothing added yet.' }))]));
       total.textContent = money(salePicker.total());
       collect.textContent = n ? 'Collect Payment · ' + money(salePicker.total()) : 'Choose items';
@@ -7482,75 +7513,62 @@ function reportRange() {
   const start = key => Date.parse(key + 'T00:00:00+05:30') + settingValue('businessDayStartMinutes', 0) * 60000;
   return { fromMs: start(reportFrom), toMs: start(reportTo) + 86400000 };
 }
-// ---------- The Reports PIN (owner, 20 October): the staff share the sign-in, so Reports asks for the owner's PIN ----------
-// The server checks it on every report. A device ticked "Remember" keeps it and never asks again.
-const REPORT_PIN_KEY = 'arenaReportPin';
-let reportPin = (() => { try { return (storage && storage.getItem(REPORT_PIN_KEY)) || ''; } catch (e) { return ''; } })();
-// Why Reports is locked: the server's words, or '' when it is open.
+// ---------- The Reports PIN, kept on Vercel (owner, 20 October): the staff share the sign-in, so Reports asks for the PIN ----------
+// Vercel checks the PIN and gives a pass; the server checks the pass on every report. A device ticked "Remember" keeps its
+// pass (a year) and is not asked again; otherwise the pass lasts twelve hours in this window only.
+const REPORT_PASS_KEY = 'arenaReportPass', REPORT_PASS_URL = 'https://cityarena.vercel.app/api/report-pin';
+let reportPass = (() => { try { return (storage && storage.getItem(REPORT_PASS_KEY)) || ''; } catch (e) { return ''; } })();
+// Why Reports is locked: the server's or Vercel's words, or '' when it is open.
 let reportLocked = '';
-const PIN_REFUSED = /^(Reports PIN needed|That PIN is not right|Too many wrong PINs)/;
-function keepReportPin(pin, remember) {
-  reportPin = pin;
+const PIN_REFUSED = /^(Reports PIN needed|That PIN is not right|The Reports PIN is not set up)/;
+function keepReportPass(pass, remember) {
+  reportPass = pass;
   try {
-    if (storage && remember) storage.setItem(REPORT_PIN_KEY, pin);
-    else if (storage) storage.removeItem(REPORT_PIN_KEY);
+    if (storage && remember && pass) storage.setItem(REPORT_PASS_KEY, pass);
+    else if (storage) storage.removeItem(REPORT_PASS_KEY);
   } catch (e) { /* only a convenience */ }
 }
-const pinRemembered = () => { try { return !!(storage && storage.getItem(REPORT_PIN_KEY)); } catch (e) { return false; } };
+async function askReportPass(pin, remember) {
+  let reply;
+  try { reply = await fetch(REPORT_PASS_URL, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ pin, remember }) }); }
+  catch (e) { throw new Error('Could not reach the PIN check. Check the connection and try again.'); }
+  const data = await reply.json().catch(() => ({}));
+  if (!reply.ok || !data.pass) throw new Error(data.error || 'That PIN is not right.');
+  return data.pass;
+}
 function reportLock(target) {
-  const pin = h('input', { type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: '6', 'aria-label': 'Reports PIN', data: { field: 'report-pin' } });
+  const pin = h('input', { type: 'password', inputmode: 'numeric', autocomplete: 'off', maxlength: '12', 'aria-label': 'Reports PIN', data: { field: 'report-pin' } });
   const remember = h('input', { type: 'checkbox', data: { field: 'report-remember' } });
-  const open = () => {
+  const say = h('p', { class: 'warn-text small', data: { lockSays: '1' }, text: reportLocked === 'Reports PIN needed.' ? '' : reportLocked });
+  const open = btn([icon('lock'), 'Open Reports'], async () => {
     if (!pin.value) return;
-    keepReportPin(pin.value, remember.checked);
-    reportLocked = '';
-    reportCache = { key: '', data: null };
-    render();
-  };
-  pin.onkeydown = e => { if (e.key === 'Enter') open(); };
+    open.disabled = true;
+    try {
+      keepReportPass(await askReportPass(pin.value, remember.checked), remember.checked);
+      reportLocked = '';
+      reportCache = { key: '', data: null };
+      render();
+    } catch (e) { say.textContent = e.message; open.disabled = false; pin.select(); }
+  }, 'primary', { data: { action: 'report-open' } });
+  pin.onkeydown = e => { if (e.key === 'Enter') open.click(); };
   target.append(h('section', { class: 'panel report-lock', data: { lock: 'reports' } },
     h('div', 'panel-head', glyph('lock', 'gold'), h('h2', { text: 'Reports are locked' })),
-    reportLocked === 'Reports PIN needed.' ? null : h('p', { class: 'warn-text small', text: reportLocked }),
-    field('PIN', pin),
+    say, field('PIN', pin),
     h('label', 'check', remember, h('span', { text: 'Remember on this device' })),
-    btn([icon('lock'), 'Open Reports'], open, 'primary', { data: { action: 'report-open' } })));
+    open));
   setTimeout(() => pin.focus(), 0);
-}
-// Set the PIN the first time, or change it with the current one.
-function reportPinSheet() {
-  const set = !!(reportCache.data && reportCache.data.pinSet);
-  let current, next;
-  openSheet({
-    title: set ? 'Change Reports PIN' : 'Set a Reports PIN',
-    icon: 'lock',
-    build(ui) {
-      current = set ? h('input', { type: 'password', inputmode: 'numeric', maxlength: '6', autocomplete: 'off', 'aria-label': 'Current PIN', data: { field: 'pin-current' } }) : null;
-      next = h('input', { type: 'password', inputmode: 'numeric', maxlength: '6', autocomplete: 'off', 'aria-label': 'New PIN', data: { field: 'pin-new' } });
-      ui.body.append(...[current ? field('Current PIN', current) : null, field('New PIN (4 to 6 digits)', next)].filter(Boolean));
-      ui.foot.append(btn('Save PIN', async () => {
-        try {
-          await rpc('rpcReportPin', token, current ? current.value : '', next.value);
-          keepReportPin(next.value, pinRemembered());
-          if (reportCache.data) reportCache.data.pinSet = true;
-          closeSheet();
-          notify('success', 'Reports PIN saved.');
-          render();
-        } catch (e) { sheetStatus('error', e.message); }
-      }, 'primary block', { data: { action: 'pin-save' } }));
-    }
-  });
 }
 async function loadReport(key) {
   try {
-    const r = reportRange(), data = await rpc('rpcReport', token, r.fromMs, r.toMs, reportPin);
+    const r = reportRange(), data = await rpc('rpcReport', token, r.fromMs, r.toMs, reportPass);
     reportLocked = '';
     if (key === reportKey()) reportCache = { key, data };
   } catch (e) {
     reportCache = { key, data: null };
     if (!PIN_REFUSED.test(e.message)) { notify('error', e.message); return; }
-    // A wrong or missing PIN locks Reports; a remembered one that no longer works is forgotten.
+    // A missing or expired pass locks Reports; a remembered one that no longer works is forgotten.
     reportLocked = e.message;
-    if (reportPin) keepReportPin('', false);
+    if (reportPass) keepReportPass('', false);
   }
   if (page === 'settings' && settingsMode === 'reports') render();
 }
@@ -7622,7 +7640,6 @@ const reportsPage = {
     to.onchange = pick;
     bar.append(h('div', 'rep-range', presets.node, h('div', 'rep-dates', from, h('span', { class: 'muted', text: 'to' }), to)),
       h('div', 'rep-export desk-only',
-        btn([icon('lock'), reportCache.data && reportCache.data.pinSet ? 'Change PIN' : 'Set a PIN'], reportPinSheet, 'quiet', { data: { action: 'report-pin' } }),
         btn([icon('download'), 'Export'], exportReport, 'quiet', { data: { action: 'export-report' } })));
   },
   render(page) {
@@ -7987,7 +8004,8 @@ const settingsPage = {
 
 // ---------- Turf: two outdoor courts booked by the hour, 6 AM to 10 PM ----------
 // The board shows one day: an hour per row and a column per court. A free hour is tapped to book it; a booking is one block.
-const TURF_COURTS = ['5-a-side', '6-a-side'];
+// 6A Side first, then 5A Side, on the board and everywhere a court is chosen (owner, 20 October).
+const TURF_COURTS = ['6-a-side', '5-a-side'];
 // As the owner says them, 5A Side on the left of the board and 6A Side on the right (owner, 20 October).
 const courtLabel = court => (court === '5-a-side' ? '5A Side' : '6A Side');
 const TURF_OPEN = 6, TURF_CLOSE = 22;
@@ -8012,8 +8030,6 @@ const turfEnded = b => hourStart(b.dateKey, Number(b.startHour) + Number(b.hours
 // How a booking stands: from the live snapshot, or as an older day was fetched.
 const turfSettled = b => { const known = (state.TurfStatus || []).find(s => s.bookingId === b.id); return known ? known.state : b.settledState || 'open'; };
 // Over and settled, or left pending to be cleared later: it leaves the board for the day's past bookings.
-// Done with: every bill settled or left pending (owner, 20 October). It leaves the board at once, played or not.
-const turfDone = b => ['settled', 'pending'].includes(turfSettled(b));
 const sportIcon = sport => (sport === 'Cricket' ? 'cricket' : 'football');
 
 // Bookings on a day. Yesterday onwards come with the snapshot; an older day is fetched once (null while it loads).
@@ -8173,12 +8189,12 @@ function turfMessage(b, cancelled, wishes, slots) {
 function turfAvailabilityText(key, list) {
   const d = new Date(key + 'T00:00:00+05:30'), lines = ['*City Arena - Mangalore*', ''];
   lines.push('Slot availability on *' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
-  lines.push('*Timings' + ' '.repeat(16) + '5A side | 6A side*', '');
+  lines.push('*Timings' + ' '.repeat(16) + '6A side | 5A side*', '');
   const short = hour => (hour % 12 || 12) + (hour < 12 ? 'am' : 'pm');
   for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) {
     if (hourStart(key, hour + 1) <= nowMs()) continue;
     const mark = court => (bookingAt(list, court, hour) ? '❌' : '✅');
-    lines.push((short(hour) + ' - ' + short(hour + 1)).padEnd(25) + mark('5-a-side') + '  |  ' + mark('6-a-side'));
+    lines.push((short(hour) + ' - ' + short(hour + 1)).padEnd(25) + mark('6-a-side') + '  |  ' + mark('5-a-side'));
   }
   lines.push('', '✅ : Slot available', '❌ : Not available', '', 'For bookings,', 'Contact 📱: ' + TURF_CONTACT, '', '#playatcityarena');
   return lines.join('\n');
@@ -8489,9 +8505,15 @@ function turfDetailSheet(id) {
         const card = h('div', 'lines'), players = turfPlayersOf(b).filter(p => (tabOf(p.tabId) || {}).status === 'open' && !p.movedTo);
         for (const o of general) {
           const group = turfMeta(o).pool, fixed = turfMeta(o).fixed || status.locked;
-          const fix = split && !fixed ? menu([...players.map(p => ['Give to ' + p.name, () => runCommand({ type: 'TURF_POOL', id: b.id, orderId: o.id, playerId: p.id }, back), false, 'user']), ['Remove', () => runCommand({ type: 'TURF_POOL', id: b.id, orderId: o.id, remove: true }, back), true, 'trash']], 'Change ' + o.label) : null;
-          card.append(h('div', { class: 'line', data: { order: o.id } },
-            h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (split ? TURF_GROUP[group] + ' · ' : '') + money(o.unitPricePaise) + ' each' })),
+          const fix = split && !fixed && players.length ? menu(players.map(p => ['Give to ' + p.name, () => runCommand({ type: 'TURF_POOL', id: b.id, orderId: o.id, playerId: p.id }, back), false, 'user']), 'Give ' + o.label + ' to one player') : null;
+          // One fewer, one more or removed, right on the line (owner, 20 October).
+          const change = split
+            ? n => runCommand({ type: 'TURF_POOL', id: b.id, orderId: o.id, ...(n ? { quantity: n } : { remove: true }) }, back)
+            : n => runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: n, reason: n ? 'Quantity changed before billing' : 'Removed before billing' }, back);
+          const editable = split ? !fixed : true;
+          card.append(h('div', { class: 'line' + (editable ? ' with-tools' : ''), data: { order: o.id } },
+            h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && !editable ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (split ? TURF_GROUP[group] + ' · ' : '') + money(o.unitPricePaise) + ' each' })),
+            editable ? itemTools(o.label, Number(o.quantity), change) : null,
             h('span', { class: 'line-amount', text: money(o.totalPaise) }), fix));
         }
         ui.body.append(h('div', 'group-title', icon('sales'), split ? 'Shared items' : 'Snacks & beverages'), card);
@@ -8500,7 +8522,10 @@ function turfDetailSheet(id) {
       // Settled: the footer says so and offers nothing more.
       if (status.state === 'settled') {
         ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', h('span', { class: 'badge good', data: { turfState: status.state }, text: stateText }))));
-        if (!split && mainPart && mainPart.billId) ui.foot.append(btn([icon('bills'), 'View Bill'], () => receiptSheet(mainPart.billId, back), 'block', { data: { action: 'turf-bill' } }));
+        // Juice and snacks after the booking is paid (owner, 20 October): Add Items stays, onto a new bill for the customer.
+        ui.foot.append(h('div', 'foot-row',
+          btn([icon('sales'), 'Add Items'], () => turfLaterItemsSheet(b), 'block', { data: { action: 'turf-items-later' } }),
+          !split && mainPart && mainPart.billId ? btn([icon('bills'), 'View Bill'], () => receiptSheet(mainPart.billId, back), 'block', { data: { action: 'turf-bill' } }) : null));
         return;
       }
       // The footer: how the booking stands, and what is still owed when that is not simply the turf charge shown above.
@@ -8514,6 +8539,8 @@ function turfDetailSheet(id) {
         const links = h('div', 'actions');
         const link = (key, name, label, hint, run) => links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, data: { action: key }, onclick: run }, icon(name), h('span', { text: label })));
         if (mainOpen) link('turf-items', 'sales', 'Add Items', split ? 'Snacks and beverages for a team or everyone' : 'Snacks and beverages on this booking', () => turfItemsSheet(b, null));
+        // Every bill of the booking closed (paid in part or pending): items bought after go on a new bill for the customer.
+        else if (!split || !turfPlayersOf(b).some(p => (tabOf(p.tabId) || {}).status === 'open')) link('turf-items-later', 'sales', 'Add Items', 'Snacks and beverages bought after the bill was closed', () => turfLaterItemsSheet(b));
         // Slots booked together are paid by one payer, so they are not split.
         if (!split && mainOpen && !status.locked) link('turf-split', 'split', 'Split', 'Each player pays a share', () => runCommand({ type: 'TURF_SPLIT', id: b.id, revision: b.revision, on: true, discountPaise: 0 }, () => { turfDetailSheet(b.id); const box = $('sheetBody').querySelector('[data-field=turf-discount]'); if (box) { box.focus(); box.select(); } }));
         if (split && collect > 0) link('turf-credit', 'credits', 'Credit', 'Move everything still owed to one credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: collect, billId: '', all: true }));
@@ -8628,7 +8655,7 @@ function turfPlayerRow(b, p, status) {
     ...(owing && open && part.state === 'open' ? [tool('clock', 'Keep ' + p.name + '’s amount pending', 'player-pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back))] : []),
     ...(open ? [tool('transfer', 'Move ' + p.name + '’s amount to a system', 'player-move', () => turfMoveSheet(b, p))] : []),
     ...(part.billId && !owing ? [tool('bills', p.name + '’s bill', 'player-bill', () => receiptSheet(part.billId, back))] : []),
-    menu([['Name or team', () => turfPlayerSheet(b, p, p.team), false, 'pencil'], ...(!status.locked && open && !own ? [['Remove', () => runCommand({ type: 'TURF_PLAYER', playerId: p.id, revision: p.revision, name: p.name, team: p.team, remove: true }, back), true, 'trash']] : []),
+    menu([['Name or team', () => turfPlayerSheet(b, p, p.team), false, 'pencil'], ...(open && own ? [['Change items', () => settleSheet(p.tabId, 'pay'), false, 'sales']] : []), ...(!status.locked && open && !own ? [['Remove', () => runCommand({ type: 'TURF_PLAYER', playerId: p.id, revision: p.revision, name: p.name, team: p.team, remove: true }, back), true, 'trash']] : []),
       ...(open ? [['Part payment or discount', () => settleSheet(p.tabId, 'pay'), false, 'wallet']] : [])], 'Change ' + p.name)];
   return h('div', { class: 'turf-player' + (settled ? ' cleared' : ''), data: { player: p.id, state: part.state } },
     settled ? h('span', 'turf-tick', icon('checkCircle')) : avatar(p.name),
@@ -8769,6 +8796,30 @@ function turfItemsSheet(b, p) {
     then() { turfDetailSheet(b.id); }
   });
 }
+// Items bought after a booking's bill is closed: a new bill for the booking's customer, collected at once (or kept pending or
+// put on credit) on the usual bill sheet. The closed bill is never reopened.
+function turfLaterItemsSheet(b) {
+  let picker = null;
+  openSheet({
+    title: 'Add Items',
+    sub: b.customer + ' · after the booking',
+    icon: 'sales',
+    focus: false,
+    onClose: () => turfDetailSheet(b.id),
+    build(ui) {
+      picker = picker || productPicker(() => ui.redraw());
+      ui.body.append(picker.node);
+      const n = picker.count();
+      ui.primary(n ? 'Add ' + n + (n === 1 ? ' item' : ' items') + ' · ' + money(picker.total()) : 'Choose items', !n);
+    },
+    command() {
+      const items = picker.items();
+      if (!items.length) throw new Error('Choose items.');
+      return { type: 'QUICK_TAB', customer: b.customer, phone: b.phone || '', items };
+    },
+    then(result) { settleSheet(result.tabId); }
+  });
+}
 // A player's amount goes onto a bill already running on a system, named so it is never the wrong bill; or they start playing.
 function turfMoveSheet(b, p) {
   const owed = tabTotal(p.tabId), running = state.Tabs.filter(t => t.status === 'open' && t.id !== p.tabId && stillPlaying(t.id)), comment = commentField();
@@ -8809,9 +8860,13 @@ function turfMoveSheet(b, p) {
 // own; a day's slots share that day's bill. Hours already taken are left out and named.
 const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
 function turfBulkSheet() {
-  const today = dayKey(nowMs()), days = [{ weekday: new Date(today + 'T00:00:00Z').getUTCDay(), courts: ['5-a-side'], start: 18, hours: 1 }];
+  const today = dayKey(nowMs()), days = [{ weekday: new Date(today + 'T00:00:00Z').getUTCDay(), courts: ['6-a-side'], start: 18, hours: 1 }];
   const clubs = turfAcademies();
+  // The day being set; the others show as one line each ("Mon · 6A Side · 6 PM – 8 PM").
+  let editing = 0;
   let who, sport, from, until, forWho;
+  const courtsText = d => (d.courts.length > 1 ? '6A & 5A Side' : courtLabel(d.courts[0]));
+  const dayText = d => WEEKDAYS.find(([n]) => n === d.weekday)[1] + ' · ' + courtsText(d) + ' · ' + hourLabel(d.start) + ' – ' + hourLabel(d.start + d.hours);
   openSheet({
     title: 'Bulk booking',
     icon: 'reservations',
@@ -8828,19 +8883,29 @@ function turfBulkSheet() {
       }
       ui.body.append(who.node, h('div', 'field', h('span', { text: 'Sport' }), sport.node));
       days.forEach((d, i) => {
-        const hours = [];
-        for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) hours.push(hour);
-        const start = h('select', { 'aria-label': 'Starts', data: { field: 'bulk-start' }, onchange: () => { d.start = Number(start.value); d.hours = Math.min(d.hours, TURF_CLOSE - d.start); ui.redraw(); } }, hours.map(hour => h('option', { value: String(hour) }, turfChipText(hour))));
+        const remove = days.length > 1 ? iconButton('close', 'Remove day ' + (i + 1), e => { e.stopPropagation(); days.splice(i, 1); editing = Math.min(editing, days.length - 1); ui.redraw(); }, { data: { action: 'bulk-remove' } }) : null;
+        // A day already set: one line, tapped to change it.
+        if (i !== editing) {
+          ui.body.append(h('div', { class: 'bulk-day-line', role: 'button', tabindex: '0', data: { bulkDay: String(i), bulkLine: '1' }, onclick: () => { editing = i; ui.redraw(); } },
+            icon('check'), h('b', { text: dayText(d) }), icon('pencil'), remove));
+          return;
+        }
+        // From and To: the hours as times, so 6 PM to 8 PM is two hours at a glance.
+        const starts = [], ends = [];
+        for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) starts.push(hour);
+        for (let hour = d.start + 1; hour <= Math.min(TURF_CLOSE, d.start + 4); hour++) ends.push(hour);
+        const start = h('select', { 'aria-label': 'From', data: { field: 'bulk-start' }, onchange: () => { d.start = Number(start.value); d.hours = Math.max(1, Math.min(d.hours, TURF_CLOSE - d.start)); ui.redraw(); } }, starts.map(hour => h('option', { value: String(hour) }, hourLabel(hour))));
         start.value = String(d.start);
-        const length = h('select', { 'aria-label': 'For', data: { field: 'bulk-hours' }, onchange: () => { d.hours = Number(length.value); } }, [1, 2, 3, 4].filter(n => d.start + n <= TURF_CLOSE).map(n => h('option', { value: String(n) }, n + (n === 1 ? ' hour' : ' hours'))));
-        length.value = String(d.hours);
+        const end = h('select', { 'aria-label': 'To', data: { field: 'bulk-end' }, onchange: () => { d.hours = Number(end.value) - d.start; ui.redraw(); } }, ends.map(hour => h('option', { value: String(hour) }, hourLabel(hour))));
+        end.value = String(d.start + d.hours);
         ui.body.append(h('section', { class: 'turf-slot', data: { bulkDay: String(i) } },
-          h('div', 'group-title', icon('reservations'), 'Day ' + (i + 1), days.length > 1 ? iconButton('close', 'Remove day ' + (i + 1), () => { days.splice(i, 1); ui.redraw(); }, { data: { action: 'bulk-remove' } }) : null),
+          h('div', 'group-title', icon('reservations'), 'Day ' + (i + 1), remove),
           h('div', 'chips bulk-days', WEEKDAYS.map(([n, name]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(d.weekday === n), data: { weekday: String(n) }, onclick: () => { d.weekday = n; ui.redraw(); } }, name))),
-          h('div', 'field', h('span', { text: 'Court' }), segmented([['5-a-side', '5A Side', 'turf'], ['6-a-side', '6A Side', 'turf'], ['both', 'Both']], d.courts.length > 1 ? 'both' : d.courts[0], v => { d.courts = v === 'both' ? ['5-a-side', '6-a-side'] : [v]; ui.redraw(); }).node),
-          h('div', 'foot-row', field('Starts', start), field('For', length))));
+          h('div', 'field', h('span', { text: 'Court' }), segmented([['6-a-side', '6A Side', 'turf'], ['5-a-side', '5A Side', 'turf'], ['both', 'Both']], d.courts.length > 1 ? 'both' : d.courts[0], v => { d.courts = v === 'both' ? ['6-a-side', '5-a-side'] : [v]; ui.redraw(); }).node),
+          h('div', 'foot-row', field('From', start), field('To', end))));
       });
-      if (days.length < 14) ui.body.append(h('div', { class: 'station-links', style: 'margin:0 0 14px' }, btn([icon('plus'), 'Another day'], () => { const last = days[days.length - 1]; days.push({ weekday: (last.weekday + 2) % 7, courts: last.courts.slice(), start: last.start, hours: last.hours }); ui.redraw(); }, 'quiet', { data: { action: 'bulk-add-day' } })));
+      if (days.length < 14) ui.body.append(h('div', { class: 'station-links', style: 'margin:0 0 14px' }, btn([icon('plus'), 'Another day'], () => { const last = days[days.length - 1]; days.push({ weekday: (last.weekday + 2) % 7, courts: last.courts.slice(), start: last.start, hours: last.hours }); editing = days.length - 1; ui.redraw(); }, 'quiet', { data: { action: 'bulk-add-day' } })));
+      ui.body.append(h('div', 'group-title', icon('reservations'), 'Every week'));
       ui.body.append(h('div', 'foot-row', field('From', from), field('Until', until)));
       // How many bookings it comes to, before anything taken is left out.
       let count = 0;
@@ -8977,14 +9042,16 @@ function turfBlock(b, row, column, rows) {
   const cancel = turfCancellable(b) ? h('button', { type: 'button', class: 'turf-x', title: 'Cancel booking', 'aria-label': 'Cancel ' + b.customer + '’s booking', data: { action: 'turf-cancel' }, onclick: e => { e.stopPropagation(); turfCancelSheet(b, null); } }, icon('close')) : null;
   // The card opens the booking from anywhere on it; the name is the button a keyboard reaches. Under the name, the sport in
   // words (Football or Cricket) and the time.
-  return h('div', { class: 'turf-block' + (ended ? ' ended' : '') + (hold ? ' hold' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
+  const tone = settled === 'settled' ? ' paid' : settled === 'pending' || settled === 'part' ? ' owing' : '';
+  return h('div', { class: 'turf-block' + tone + (hold ? ' hold' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
     h('span', 'turf-block-top', h('button', { type: 'button', class: 'turf-name', 'aria-label': b.customer + ', ' + courtLabel(b.court) + ', ' + b.sport + ', ' + turfRange(b), text: b.customer }), send, mark, cancel),
     h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('span', { class: 'turf-hold-tag', text: 'On hold' }) : null, h('span', { class: 'turf-time', text: turfRange(b) })));
 }
 // The board keeps the hours still to come, and any earlier hour of a booking not yet settled (it stays until it is).
-function turfBoardHours(key, list) {
+// Every hour of the day stays on the board (owner, 20 October): nothing leaves it, its colour says what it is.
+function turfBoardHours() {
   const hours = [];
-  for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) if (hourStart(key, hour + 1) > nowMs() || TURF_COURTS.some(court => bookingAt(list, court, hour))) hours.push(hour);
+  for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) hours.push(hour);
   return hours;
 }
 // Free hours picked on the board, booked together in one go (owner, 20 October): 5A and 6A, or two hours on 5A, then the
@@ -9009,8 +9076,7 @@ const turfHourText = hour => (hour % 12 || 12) + '–' + ((hour + 1) % 12 || 12)
 const turfChipText = hour => turfHourText(hour) + ' ' + (hour < 12 ? 'AM' : 'PM');
 function turfBoard(key, all) {
   if (turfPicked.day !== key) turfPicked = { day: key, cells: new Set() };
-  const now = nowMs(), list = all.filter(b => !turfDone(b)), closed = all.filter(turfDone), hours = turfBoardHours(key, list);
-  if (!hours.length) return all.length ? null : emptyState('turf', key === dayKey(now) ? 'The turf has closed for today.' : 'No bookings on this day.');
+  const now = nowMs(), list = all, hours = turfBoardHours();
   const board = h('div', { class: 'turf-board', role: 'grid', 'aria-label': 'Turf, ' + turfDayName(key) });
   board.append(h('div', 'turf-corner'), ...TURF_COURTS.map((court, i) => h('div', { class: 'turf-court-head', style: 'grid-column:' + (i + 2), data: { court } }, icon('turf'), h('b', { text: courtLabel(court) }))));
   hours.forEach((hour, index) => {
@@ -9020,10 +9086,8 @@ function turfBoard(key, all) {
       const where = 'grid-row:' + row + ';grid-column:' + (i + 2), taken = bookingAt(list, court, hour);
       // A booking is drawn once, from its first hour on the board; every hour of it is on the board.
       if (taken) { if (Number(taken.startHour) === hour || hours[index - 1] !== hour - 1) board.append(turfBlock(taken, row, i + 2, Number(taken.startHour) + Number(taken.hours) - hour)); return; }
-      if (over) { board.append(h('div', { class: 'turf-cell over', style: where })); return; }
-      // An hour whose booking is done with stays taken: a quiet cell with the name, never offered as free.
-      const shut = bookingAt(closed, court, hour);
-      if (shut) { board.append(h('button', { type: 'button', class: 'turf-cell closed', style: where, data: { closed: shut.id }, onclick: () => turfOpenBooking(shut.id) }, icon(turfSettled(shut) === 'pending' ? 'clock' : 'checkCircle'), h('span', { text: shut.customer }))); return; }
+      // A free hour whose time has gone: red, never offered.
+      if (over) { board.append(h('div', { class: 'turf-cell over', style: where, data: { missed: '1' } }, h('span', { text: 'Not booked' }))); return; }
       const picked = turfPicked.cells.has(pickKey(court, hour));
       board.append(h('button', { type: 'button', class: 'turf-cell' + (picked ? ' picked' : ''), style: where, 'aria-pressed': String(picked), 'aria-label': (picked ? 'Picked: ' : 'Pick ') + courtLabel(court) + ' ' + hourLabel(hour), data: { court, hour: String(hour) },
         onclick: () => { const k = pickKey(court, hour); if (turfPicked.cells.has(k)) turfPicked.cells.delete(k); else turfPicked.cells.add(k); render(); } },
@@ -9037,19 +9101,10 @@ function turfBoard(key, all) {
     btn([icon('plus'), turfPickedSlots().length === 1 ? 'Book' : 'Book ' + turfPickedSlots().length + ' slots'], () => turfBookingSheet(null, { dateKey: key, slots: turfPickedSlots() }), 'primary', { data: { action: 'turf-book-picked' } })));
   return board;
 }
-// The day's bookings that are settled (or left pending), under the board, quieter: they need nothing more here.
-function turfPast(all) {
-  const done = all.filter(turfDone).sort((a, b) => Number(a.startHour) - Number(b.startHour) || a.court.localeCompare(b.court));
-  if (!done.length) return null;
-  return h('section', { class: 'turf-past', data: { past: String(done.length) } },
-    h('div', 'group-title', icon('history'), 'Closed bookings'),
-    h('div', 'turf-past-list', done.map(b => {
-      const pending = turfSettled(b) === 'pending';
-      return h('button', { type: 'button', class: 'turf-past-item', data: { booking: b.id, state: pending ? 'pending' : 'settled' }, onclick: () => turfOpenBooking(b.id) },
-        icon(sportIcon(b.sport)),
-        h('span', 'turf-past-main', h('b', { text: b.customer }), h('span', { class: 'small muted', text: courtLabel(b.court) + ' · ' + turfRange(b) })),
-        pending ? h('span', { class: 'badge warn', text: 'Pending ' + money(turfStatusOf(b.id).owedPaise) }) : h('span', { class: 'turf-mark ok', title: 'Settled' }, icon('checkCircle')));
-    })));
+let turfScrolledTo = '';
+// What each colour on the board means.
+function turfLegend() {
+  return h('div', { class: 'turf-legend', 'aria-hidden': 'true' }, [['free', 'Free'], ['booked', 'Booked'], ['paid', 'Paid'], ['owing', 'Pending · part paid'], ['missed', 'Time gone, not booked']].map(([k, t]) => h('span', 'turf-key ' + k, h('i'), t)));
 }
 // Every booking still to come, soonest first.
 function turfUpcoming(target) {
@@ -9091,7 +9146,9 @@ const turfPage = {
     if (turfView === 'upcoming') { turfUpcoming(target); return; }
     const list = turfBookingsOn(turfDay);
     if (!list) { loadTurfDay(turfDay); target.append(loadingRows(6)); return; }
-    target.append(...[turfBoard(turfDay, list), turfPast(list)].filter(Boolean));
+    target.append(...[turfLegend(), turfBoard(turfDay, list)].filter(Boolean));
+    // Today opens at the hour now (the hours gone by are still there above); once a day, so a refresh never moves the page.
+    if (turfDay === dayKey(nowMs()) && turfScrolledTo !== turfDay) { turfScrolledTo = turfDay; setTimeout(() => { const now = document.querySelector('.turf-hour.now'); if (now) now.scrollIntoView({ block: 'center' }); }, 0); }
   }
 };
 
