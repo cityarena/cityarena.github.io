@@ -1106,7 +1106,14 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .sheet-body .pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; }
 /* The name's suggestions run under both boxes. */
 .sheet-body .pair > .suggest { grid-column: 1 / -1; grid-row: 2; }
-.bulk-dates { margin-bottom: 16px; }
+.bulk-dates { margin-bottom: 16px; align-items: flex-end; flex-wrap: wrap; row-gap: 12px; }
+/* On a phone Forever goes under the two dates. */
+.bulk-dates .field:not(.bulk-forever) { flex: 1 1 130px; min-width: 0; }
+.bulk-dates .field { margin-bottom: 0; }
+.bulk-forever { flex: none !important; }
+.bulk-forever .chip { min-height: 44px; }
+/* The line under All from here, clear of the reason below it. */
+[data-cancel-from] { margin: 0 0 16px; }
 /* A bulk booking's day already set: one line, tapped to change it. */
 .bulk-day-line { display: flex; align-items: center; gap: 10px; min-height: 48px; margin-bottom: 10px; padding: 6px 6px 6px 14px; border: 1px solid var(--primary-line); border-radius: 12px; background: var(--primary-soft); cursor: pointer; }
 .bulk-day-line > svg { width: 16px; height: 16px; color: var(--primary); flex: none; }
@@ -1252,6 +1259,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 
 /* ---------- Phone ---------- */
 @media (max-width: 900px) {
+  /* The cancel choices one under another, full width, on a phone. */
+  [data-field=cancel-what] .seg { display: grid; grid-template-columns: minmax(0, 1fr); justify-self: stretch; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
   .side { display: none; }
   main { padding: 0 16px 24px; }
@@ -3110,7 +3119,7 @@ var ArenaReports = (function () {
    their own items, settled through the usual checkout. Every amount is an ordinary order on an ordinary tab. */
 var ArenaTurf = (function () {
   'use strict';
-  var types = ['TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE'];
+  var types = ['TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
   // Items bought for Team A, Team B or everyone are kept once, as bought, and each player's part is one line on their bill.
   var SHARED = 'Shared items', GROUPS = ['A', 'B', 'all'];
   var COURTS = ['6-a-side', '5-a-side', '1v1'], SPORTS = ['Football', 'Cricket'], TEAMS = ['A', 'B'], OPEN_HOUR = 6, CLOSE_HOUR = 22, DAY_MS = 86400000;
@@ -3196,6 +3205,42 @@ var ArenaTurf = (function () {
   // their bill from the start, so they are paid once, together.
   // On hold (owner, 20 October): a slot kept for a new customer until they pay an advance. The advance asked for is kept in
   // the confirmation field as 'hold:<paise>'; confirming clears it, and the usual confirmation then marks it sent.
+  // A weekly series (Bulk booking, owner 21 October): Settings 'turfSeries-<id>' holds its plan; each booking of it carries
+  // 'series:<id>' in its reason while booked. Forever keeps about twelve weeks booked ahead and is topped up as days pass.
+  var SERIES_AHEAD_DAYS = 84;
+  function seriesOf(booking) { var m = /^series:([^ ]+)/.exec(String(booking.reason || '')); return m ? m[1] : ''; }
+  function seriesPlan(state, sid) { var row = (state.Settings || []).find(function (r) { return r.id === 'turfSeries-' + sid; }); try { return row ? JSON.parse(row.value) : null; } catch (e) { return null; } }
+  function saveSeries(state, sid, plan) {
+    state.Settings = state.Settings || [];
+    var row = state.Settings.find(function (r) { return r.id === 'turfSeries-' + sid; });
+    if (row) row.value = JSON.stringify(plan); else state.Settings.push({ id: 'turfSeries-' + sid, value: JSON.stringify(plan) });
+  }
+  function seriesBookings(state, sid) { return booked(state).filter(function (b) { return seriesOf(b) === sid; }); }
+  // Books the plan's days from one date to another, leaving out hours taken or over. Returns what was made and skipped.
+  function bookPlan(state, plan, from, until, now, id, sid) {
+    var made = [], skipped = [], club = plan.academyId ? academy(state, plan.academyId) : null;
+    for (var key = from; key <= until; key = addDays(key, 1)) {
+      var weekday = new Date(key + 'T00:00:00Z').getUTCDay(), together = [];
+      plan.days.forEach(function (d, k) {
+        if (d.weekday !== weekday) return;
+        d.courts.forEach(function (court, m) {
+          var draft = { dateKey: key, startHour: d.startHour, hours: d.hours };
+          if (endOf(draft) <= now || clash(state, key, court, d.startHour, d.hours, '')) { skipped.push(key + ' · ' + court); return; }
+          var fresh = { id: id + '-' + key + '-' + k + '-' + m, dateKey: key, startHour: d.startHour, hours: d.hours, court: court, sport: plan.sport, customer: plan.customer, phone: plan.phone, status: 'booked', confirmSent: plan.onHold || '', reason: sid ? 'series:' + sid : '', createdMs: now, updatedMs: now, revision: 1, ratePaise: club ? coachRate(state, club, court) : rateFor(state, court), tabId: '', split: '', discountPaise: 0 };
+          state.TurfBookings.push(fresh);
+          if (club) markAccount(state, fresh.id, { accountId: club.accountId, mode: 'coaching' }, now, fresh.id + '-account');
+          together.push(fresh);
+          made.push(fresh.id);
+        });
+      });
+      if (together.length > 1) {
+        var dayBill = { id: together[0].id + '-tab', customer: plan.customer, phone: plan.phone, status: 'open', createdMs: now, kind: 'turf' };
+        state.Tabs.push(dayBill);
+        together.forEach(function (b) { b.tabId = dayBill.id; });
+      }
+    }
+    return { made: made, skipped: skipped };
+  }
   function holdOf(booking) { var m = /^hold:(\d+)$/.exec(String(booking.confirmSent || '')); return m ? Number(m[1]) : 0; }
   function holdMark(value) { check(Number.isSafeInteger(value) && value > 0 && value <= 10000000, 'Enter the advance to ask for.'); return 'hold:' + value; }
   // Money paid towards a one-payer booking before it is billed, at any time: held on the booking's bill, taken off at checkout.
@@ -3477,6 +3522,17 @@ var ArenaTurf = (function () {
       check(posted > 0, 'Nothing is due to an academy.');
       return { posted: posted, message: posted + (posted === 1 ? ' academy bill' : ' academy bills') + ' moved to credit.' };
     }
+    if (cmd.type === 'TURF_SERIES_EXTEND') {
+      // A forever series topped up to about twelve weeks ahead, from the day after its last booking (any device may ask;
+      // asking twice books nothing twice, and nothing to do is not an error).
+      var plan2 = seriesPlan(state, String(cmd.seriesId || ''));
+      check(!!plan2 && plan2.forever && !plan2.stopped, 'This weekly booking is not running.');
+      var today = dateKeyOf(now), horizon = addDays(today, SERIES_AHEAD_DAYS), last = seriesBookings(state, cmd.seriesId).concat((state.TurfBookings || []).filter(function (b) { return b.status === 'cancelled' && String(b.reason || '').indexOf('series:' + cmd.seriesId) === 0; })).reduce(function (k, b) { return b.dateKey > k ? b.dateKey : k; }, plan2.from);
+      var from2 = addDays(last > today ? last : today, 1);
+      if (from2 > horizon) return { seriesId: cmd.seriesId, bookingIds: [], message: 'Already booked ahead.' };
+      var run2 = bookPlan(state, plan2, from2, horizon, now, id, String(cmd.seriesId));
+      return { seriesId: cmd.seriesId, bookingIds: run2.made, skipped: run2.skipped, message: run2.made.length + ' more weeks booked.' };
+    }
     if (cmd.type === 'TURF_BOOK') {
       // A regular customer can be booked every week until a date. Each week is its own booking, with its own
       // confirmation and its own bill; a week already taken by someone else is left out and named.
@@ -3492,6 +3548,8 @@ var ArenaTurf = (function () {
         // one date to another. A day's slots share that day's bill; each booking is its own, cancelled on its own. An hour
         // already taken (or already over) is left out and named.
         var plan = cmd.bulk, rows = Array.isArray(plan.days) ? plan.days : [];
+        // Forever: no last date; about twelve weeks are booked now and more as they pass.
+        if (plan.forever === true) plan = Object.assign({}, plan, { until: addDays(plan.from, SERIES_AHEAD_DAYS) });
         check(validKey(plan.from) && validKey(plan.until) && plan.until >= plan.from, 'Choose the first and the last date.');
         check(Date.parse(plan.until + 'T00:00:00Z') - Date.parse(plan.from + 'T00:00:00Z') <= 366 * DAY_MS, 'Book up to a year at a time.');
         check(rows.length > 0 && rows.length <= 14, 'Choose the days.');
@@ -3500,26 +3558,12 @@ var ArenaTurf = (function () {
           check(Array.isArray(d.courts) && d.courts.length > 0 && d.courts.every(function (c) { return COURTS.indexOf(c) >= 0; }) && new Set(d.courts).size === d.courts.length, 'Choose a court.');
           check(Number.isSafeInteger(d.startHour) && Number.isSafeInteger(d.hours) && d.hours >= 1 && d.startHour >= OPEN_HOUR && d.startHour + d.hours <= CLOSE_HOUR, 'Choose hours between 6 AM and 10 PM.');
         });
-        for (var key = plan.from; key <= plan.until; key = addDays(key, 1)) {
-          var weekday = new Date(key + 'T00:00:00Z').getUTCDay(), together = [];
-          rows.forEach(function (d, k) {
-            if (d.weekday !== weekday) return;
-            d.courts.forEach(function (court, m) {
-              var draft = { dateKey: key, startHour: d.startHour, hours: d.hours };
-              if (endOf(draft) <= now || clash(state, key, court, d.startHour, d.hours, '')) { skipped.push(key + ' · ' + court); return; }
-              var fresh = { id: id + '-' + key + '-' + k + '-' + m, dateKey: key, startHour: d.startHour, hours: d.hours, court: court, sport: person.sport, customer: person.customer, phone: person.phone, status: 'booked', confirmSent: onHold, reason: '', createdMs: now, updatedMs: now, revision: 1, ratePaise: club2 ? coachRate(state, club2, court) : rateFor(state, court), tabId: '', split: '', discountPaise: 0 };
-              state.TurfBookings.push(fresh);
-              if (club2) markAccount(state, fresh.id, { accountId: club2.accountId, mode: 'coaching' }, now, fresh.id + '-account');
-              together.push(fresh);
-              made.push(fresh.id);
-            });
-          });
-          if (together.length > 1) {
-            var dayBill = { id: together[0].id + '-tab', customer: person.customer, phone: person.phone, status: 'open', createdMs: now, kind: 'turf' };
-            state.Tabs.push(dayBill);
-            together.forEach(function (b) { b.tabId = dayBill.id; });
-          }
-        }
+        // Every Bulk booking is a series, so its weeks can later be cancelled together or chosen (owner, 21 October).
+        var sid = id, series = { customer: person.customer, phone: person.phone, sport: person.sport, academyId: club2 ? cmd.academyId : '', onHold: onHold, days: rows.map(function (d) { return { weekday: d.weekday, courts: d.courts, startHour: d.startHour, hours: d.hours }; }), from: plan.from, until: cmd.bulk.forever === true ? '' : plan.until, forever: cmd.bulk.forever === true, stopped: false, createdMs: now };
+        var run = bookPlan(state, series, plan.from, plan.until, now, id, sid);
+        run.made.forEach(function (x) { made.push(x); });
+        run.skipped.forEach(function (x) { skipped.push(x); });
+        saveSeries(state, sid, series);
         check(made.length > 0, 'Every chosen hour is already taken.');
         check(made.length <= 400, 'Book fewer at a time.');
         if (typeof ArenaCustomers !== 'undefined' && !club2) ArenaCustomers.touch(state, person.customer, person.phone, now, id + '-customer');
@@ -3632,6 +3676,23 @@ var ArenaTurf = (function () {
         });
         return { bookingId: booking.id, cancelledIds: apart.laterIds, cancelled: cmd.hours.length, message: cmd.hours.length + (cmd.hours.length === 1 ? ' hour' : ' hours') + ' cancelled; the rest stays booked.' };
       }
+      // A weekly series (owner, 21 October): chosen bookings of it, or all from this one on (which also stops it).
+      var sid2 = seriesOf(booking);
+      if (sid2 && (Array.isArray(cmd.ids) || cmd.fromHere === true)) {
+        var mine = seriesBookings(state, sid2), chosen2 = cmd.fromHere === true ? mine.filter(function (b) { return b.dateKey >= booking.dateKey; }) : mine.filter(function (b) { return cmd.ids.indexOf(b.id) >= 0; });
+        check(cmd.fromHere === true || chosen2.length === cmd.ids.length, 'Some of these bookings changed. Refresh and try again.');
+        var kept = chosen2.filter(function (b) { return moneyMoved(state, b); });
+        chosen2 = chosen2.filter(function (b) { return !moneyMoved(state, b); });
+        check(chosen2.length > 0, 'These bookings have items, bills or payments. Settle them first.');
+        chosen2.forEach(function (b) {
+          turfLines(state, b.id).forEach(function (o) { voidLine(o, 'Booking cancelled'); });
+          var t = tabOf(state, b.tabId);
+          if (t && t.status === 'open' && !linked(state, b).some(function (x) { return chosen2.indexOf(x) < 0; })) t.status = 'void';
+          b.status = 'cancelled'; b.reason = 'series:' + sid2 + (reason ? ' · ' + reason : ''); b.updatedMs = now; b.revision = b.revision + 1;
+        });
+        if (cmd.fromHere === true) { var p3 = seriesPlan(state, sid2); if (p3) { p3.stopped = true; p3.until = addDays(booking.dateKey, -1); saveSeries(state, sid2, p3); } }
+        return { bookingId: booking.id, cancelledIds: chosen2.map(function (b) { return b.id; }), kept: kept.length, stopped: cmd.fromHere === true, message: chosen2.length + (chosen2.length === 1 ? ' booking' : ' bookings') + ' cancelled' + (kept.length ? '; ' + kept.length + ' with money on them left' : '') + '.' };
+      }
       // One slot, or (owner, 20 October) every slot booked with it.
       var going = cmd.all === true ? [booking].concat(linked(state, booking)) : [booking];
       going.forEach(function (b) { check(!moneyMoved(state, b), 'This booking has items, bills or payments. Settle them first.'); });
@@ -3641,7 +3702,7 @@ var ArenaTurf = (function () {
         var stays = linked(state, b).length > 0;
         [stays ? '' : b.tabId].concat(players(state, b).map(function (p) { return p.tabId; })).forEach(function (tid) { var t = tabOf(state, tid); if (t && t.status === 'open') t.status = 'void'; });
         players(state, b).forEach(function (p) { p.status = 'removed'; p.revision++; });
-        b.status = 'cancelled'; b.reason = reason; b.updatedMs = now; b.revision = b.revision + 1;
+        b.status = 'cancelled'; b.reason = seriesOf(b) ? 'series:' + seriesOf(b) + (reason ? ' · ' + reason : '') : reason; b.updatedMs = now; b.revision = b.revision + 1;
       });
       // A slot still on the bill: its shares or fee are worked out again without the cancelled one.
       var left = linked(state, booking)[0];
@@ -8270,7 +8331,8 @@ function turfMessage(b, cancelled, wishes, slots) {
   const lines = [greetingLine(b.customer, nowMs()), ''];
   if (cancelled) lines.push('*Your booking has been successfully cancelled.* ✅', '', 'We’re sorry to miss you this time!', '', '*Cancelled Booking Details*', '');
   else lines.push('*Your booking at City Arena is confirmed!* ✅', '', 'We’re delighted to have you join us. Here are your booking details:', '', '*📋 Booking Details*', '');
-  if (together.length > 1) lines.push('📅 *Date:* ' + ordinalDate(b.dateKey), ...together.map(x => '⏰ *Time:* ' + paddedHour(Number(x.startHour)) + ' – ' + paddedHour(Number(x.startHour) + Number(x.hours)) + ' · ' + courtLabel(x.court)), (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '');
+  if (together.length > 1 && new Set(together.map(x => x.dateKey)).size > 1) lines.push(...together.slice().sort((x, y) => x.dateKey.localeCompare(y.dateKey)).map(x => '📅 *' + ordinalDate(x.dateKey) + '* · ' + paddedHour(Number(x.startHour)) + ' – ' + paddedHour(Number(x.startHour) + Number(x.hours)) + ' · ' + courtLabel(x.court)), (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '');
+  else if (together.length > 1) lines.push('📅 *Date:* ' + ordinalDate(b.dateKey), ...together.map(x => '⏰ *Time:* ' + paddedHour(Number(x.startHour)) + ' – ' + paddedHour(Number(x.startHour) + Number(x.hours)) + ' · ' + courtLabel(x.court)), (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '');
   else lines.push('📅 *Date:* ' + ordinalDate(b.dateKey), '⏰ *Time:* ' + paddedHour(start) + ' – ' + paddedHour(end), '📍 *Turf:* ' + court, (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '');
   if (cancelled) lines.push('We understand that plans can change, and we hope to welcome you back for another game soon!', '', 'Until then, take care and see you next time! 🙌');
   else {
@@ -9015,7 +9077,7 @@ function turfBulkSheet() {
   const clubs = turfAcademies();
   // The day being set; the others show as one line each ("Mon · 6A Side · 6 PM – 8 PM").
   let editing = 0;
-  let who, sport, from, until, forWho;
+  let who, sport, from, until, forWho, forever = false;
   const courtsText = d => d.courts.map(courtLabel).join(' & ');
   const dayText = d => WEEKDAYS.find(([n]) => n === d.weekday)[1] + ' · ' + courtsText(d) + ' · ' + hourLabel(d.start) + ' – ' + hourLabel(d.start + d.hours);
   openSheet({
@@ -9034,7 +9096,10 @@ function turfBulkSheet() {
       }
       // Name and mobile side by side, then the weeks it runs, then the sport: less to scroll (owner, 21 October).
       who.node.classList.add('pair');
-      ui.body.append(who.node, h('div', 'foot-row bulk-dates', field('From', from), field('Until', until)), h('div', 'field', h('span', { text: 'Sport' }), sport.node));
+      // Until a date, or Forever: twelve weeks booked now and more as they pass, until it is stopped (owner, 21 October).
+      until.disabled = forever;
+      const always = h('button', { type: 'button', class: 'chip', 'aria-pressed': String(forever), data: { action: 'bulk-forever' }, onclick: () => { forever = !forever; ui.redraw(); } }, icon('refresh'), 'Forever');
+      ui.body.append(who.node, h('div', 'foot-row bulk-dates', field('From', from), field('Until', until), h('div', 'field bulk-forever', always)), h('div', 'field', h('span', { text: 'Sport' }), sport.node));
       days.forEach((d, i) => {
         const remove = days.length > 1 ? iconButton('close', 'Remove day ' + (i + 1), e => { e.stopPropagation(); days.splice(i, 1); editing = Math.min(editing, days.length - 1); ui.redraw(); }, { data: { action: 'bulk-remove' } }) : null;
         // A day already set: one line, tapped to change it.
@@ -9046,8 +9111,9 @@ function turfBulkSheet() {
         // From and To: the hours as times, so 6 PM to 8 PM is two hours at a glance.
         const starts = [], ends = [];
         for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) starts.push(hour);
-        for (let hour = d.start + 1; hour <= Math.min(TURF_CLOSE, d.start + 4); hour++) ends.push(hour);
-        const start = h('select', { 'aria-label': 'From', data: { field: 'bulk-start' }, onchange: () => { d.start = Number(start.value); d.hours = Math.max(1, Math.min(d.hours, TURF_CLOSE - d.start)); ui.redraw(); } }, starts.map(hour => h('option', { value: String(hour) }, hourLabel(hour))));
+        for (let hour = d.start + 1; hour <= TURF_CLOSE; hour++) ends.push(hour);
+        // A new From keeps To where it was (owner, 21 October); only a From at or after To moves To to an hour later.
+        const start = h('select', { 'aria-label': 'From', data: { field: 'bulk-start' }, onchange: () => { const end = d.start + d.hours; d.start = Number(start.value); d.hours = end > d.start ? end - d.start : 1; ui.redraw(); } }, starts.map(hour => h('option', { value: String(hour) }, hourLabel(hour))));
         start.value = String(d.start);
         const end = h('select', { 'aria-label': 'To', data: { field: 'bulk-end' }, onchange: () => { d.hours = Number(end.value) - d.start; ui.redraw(); } }, ends.map(hour => h('option', { value: String(hour) }, hourLabel(hour))));
         end.value = String(d.start + d.hours);
@@ -9061,16 +9127,17 @@ function turfBulkSheet() {
       if (days.length < 14) ui.body.append(h('div', { class: 'station-links', style: 'margin:0 0 14px' }, btn([icon('plus'), 'Another day'], () => { const last = days[days.length - 1]; days.push({ weekday: (last.weekday + 2) % 7, courts: last.courts.slice(), start: last.start, hours: last.hours }); editing = days.length - 1; ui.redraw(); }, 'quiet', { data: { action: 'bulk-add-day' } })));
       // How many bookings it comes to, before anything taken is left out.
       let count = 0;
-      if (from.value && until.value >= from.value) for (let key = from.value; key <= until.value; key = shiftDay(key, 1)) { const wd = new Date(key + 'T00:00:00Z').getUTCDay(); for (const d of days) if (d.weekday === wd) count += d.courts.length; }
-      ui.primary(count ? 'Book ' + count + (count === 1 ? ' slot' : ' slots') : 'Choose the dates', !count);
+      const last = forever ? shiftDay(from.value, 84) : until.value;
+      if (from.value && last >= from.value) for (let key = from.value; key <= last; key = shiftDay(key, 1)) { const wd = new Date(key + 'T00:00:00Z').getUTCDay(); for (const d of days) if (d.weekday === wd) count += d.courts.length; }
+      ui.primary(!count ? 'Choose the dates' : forever ? 'Book every week · ' + count + ' now' : 'Book ' + count + (count === 1 ? ' slot' : ' slots'), !count);
     },
     command() {
       if (who.phone.value.replace(/\D/g, '').length < 10) throw new Error('Enter a 10-digit mobile number.');
       if (!sport.value()) throw new Error('Choose Football or Cricket.');
-      if (!until.value) throw new Error('Choose the last date.');
+      if (!forever && !until.value) throw new Error('Choose the last date, or Forever.');
       const club = clubs.find(a => forWho && a.accountId === forWho.value());
       return { type: 'TURF_BOOK', dateKey: from.value, court: days[0].courts[0], startHour: days[0].start, hours: days[0].hours, customer: who.name.value.trim(), phone: who.phone.value.trim(), sport: sport.value(), academyId: club ? club.accountId : undefined,
-        bulk: { from: from.value, until: until.value, days: days.map(d => ({ weekday: d.weekday, courts: d.courts, startHour: d.start, hours: d.hours })) } };
+        bulk: { from: from.value, until: forever ? from.value : until.value, forever: forever || undefined, days: days.map(d => ({ weekday: d.weekday, courts: d.courts, startHour: d.start, hours: d.hours })) } };
     },
     then(result) {
       closeSheet();
@@ -9088,6 +9155,11 @@ function turfCancelSheet(b, back) {
   const together = [b, ...turfLinkedOf(b)];
   // A long booking: the whole booking, or only the hours tapped (owner, 21 October).
   const byHour = turfSeparable(b), hours = [], picked = new Set();
+  // A weekly series (owner, 21 October): this booking, chosen dates, or all from here (which stops the series).
+  // Choose dates lists every week still to come, whichever was tapped; All from here counts this one and those after it.
+  const series = turfSeriesOf(b), ahead = series ? (state.TurfBookings || []).filter(x => x.status === 'booked' && turfSeriesOf(x) === series && x.dateKey >= dayKey(nowMs())).sort((x, y) => x.dateKey.localeCompare(y.dateKey) || Number(x.startHour) - Number(y.startHour)) : [];
+  const weeks = ahead.filter(x => x.dateKey >= b.dateKey), chosenWeeks = new Set();
+  let what = 'one';
   for (let hour = Number(b.startHour); hour < Number(b.startHour) + Number(b.hours); hour++) hours.push(hour);
   let reason, message = null, all = false, some = false, cancelled = [];
   openSheet({
@@ -9100,19 +9172,27 @@ function turfCancelSheet(b, back) {
       reason = reason || textInput({ 'aria-label': 'Reason', data: { field: 'reason' } });
       if (together.length > 1) ui.body.append(h('div', { class: 'field', data: { field: 'cancel-which' } }, h('span', { text: 'Cancel' }),
         segmented([['one', 'This slot · ' + turfRange(b)], ['all', 'All ' + together.length + ' slots']], all ? 'all' : 'one', v => { all = v === 'all'; ui.redraw(); }).node));
-      if (byHour) {
+      const choices = [['one', byHour ? 'Whole booking · ' + turfRange(b) : 'This booking'], ...(byHour ? [['some', 'Some hours']] : []), ...(ahead.length > 1 ? [['dates', 'Choose dates']] : []), ...(weeks.length > 1 ? [['from', 'All from here']] : [])];
+      if (choices.length > 1) {
         ui.body.append(h('div', { class: 'field', data: { field: 'cancel-what' } }, h('span', { text: 'Cancel' }),
-          segmented([['whole', 'Whole booking · ' + turfRange(b)], ['some', 'Some hours']], some ? 'some' : 'whole', v => { some = v === 'some'; picked.clear(); ui.redraw(); }).node));
+          segmented(choices, what, v => { what = v; some = v === 'some'; picked.clear(); chosenWeeks.clear(); ui.redraw(); }).node));
+        if (what === 'dates') ui.body.append(h('div', 'field', h('span', { text: 'Dates to cancel' }), h('div', { class: 'chips', data: { field: 'cancel-dates' } }, ahead.map(x => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosenWeeks.has(x.id)), data: { week: x.id },
+          onclick: () => { if (chosenWeeks.has(x.id)) chosenWeeks.delete(x.id); else chosenWeeks.add(x.id); ui.redraw(); } }, turfDayName(x.dateKey) + ' · ' + turfRange(x))))));
+        if (what === 'from') ui.body.append(h('p', { class: 'muted', data: { cancelFrom: '1' }, text: weeks.length + (weeks.length === 1 ? ' booking' : ' bookings') + ' from ' + turfDayName(b.dateKey) + (turfSeriesPlan(series) && turfSeriesPlan(series).forever ? '; the weekly booking stops.' : '.') }));
         if (some) ui.body.append(h('div', 'field', h('span', { text: 'Hours to cancel' }), h('div', { class: 'chips', data: { field: 'cancel-hours' } }, hours.map(hour => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(picked.has(hour)), data: { hour: String(hour) },
           onclick: () => { if (picked.has(hour)) picked.delete(hour); else picked.add(hour); ui.redraw(); } }, turfChipText(hour))))));
       }
       ui.body.append(field('Reason (optional)', reason));
       const part = some && picked.size && picked.size < hours.length;
-      ui.primary(some && !picked.size ? 'Choose the hours' : part ? 'Cancel ' + picked.size + (picked.size === 1 ? ' Hour' : ' Hours') : all ? 'Cancel ' + together.length + ' Slots' : 'Cancel Booking', some && !picked.size);
+      if (what === 'dates') ui.primary(chosenWeeks.size ? 'Cancel ' + chosenWeeks.size + (chosenWeeks.size === 1 ? ' Booking' : ' Bookings') : 'Choose the dates', !chosenWeeks.size);
+      else if (what === 'from') ui.primary('Cancel ' + weeks.length + (weeks.length === 1 ? ' Booking' : ' Bookings'));
+      else ui.primary(some && !picked.size ? 'Choose the hours' : part ? 'Cancel ' + picked.size + (picked.size === 1 ? ' Hour' : ' Hours') : all ? 'Cancel ' + together.length + ' Slots' : 'Cancel Booking', some && !picked.size);
     },
     command() {
       if (b.confirmSent === 'yes') message = whatsappAfterSave();
       const part = some && picked.size && picked.size < hours.length;
+      if (what === 'dates') return { type: 'TURF_CANCEL', id: b.id, revision: b.revision, reason: reason.value.trim(), ids: [...chosenWeeks] };
+      if (what === 'from') return { type: 'TURF_CANCEL', id: b.id, revision: b.revision, reason: reason.value.trim(), fromHere: true };
       return { type: 'TURF_CANCEL', id: b.id, revision: b.revision, reason: reason.value.trim(), all: all || undefined, hours: part ? [...picked] : undefined };
     },
     onFailed() {
@@ -9121,8 +9201,10 @@ function turfCancelSheet(b, back) {
     },
     then(result) {
       // Some hours only: the message and the note name the hours cancelled.
+      // Several dates: named from the bookings as they were before the save.
+      if (what === 'dates' || what === 'from') cancelled = weeks.filter(x => (result.cancelledIds || []).includes(x.id));
       // Named from the hours tapped, as runs ("6 AM – 8 AM"): a cancelled booking is no longer on this screen.
-      if (result && result.cancelledIds) for (const hour of [...picked].sort((x, y) => x - y)) {
+      else if (result && result.cancelledIds) for (const hour of [...picked].sort((x, y) => x - y)) {
         const last = cancelled[cancelled.length - 1];
         if (last && Number(last.startHour) + Number(last.hours) === hour) last.hours++;
         else cancelled.push({ ...b, startHour: hour, hours: 1 });
@@ -9130,7 +9212,8 @@ function turfCancelSheet(b, back) {
       const gone = cancelled.length ? cancelled : all ? together : [b];
       if (message) message.send(b.phone, turfMessage(gone[0], true, null, gone.length > 1 ? gone : null));
       closeSheet();
-      return { text: 'Cancelled · ' + b.customer + ' · ' + gone.map(turfRange).join(', ') + (cancelled.length ? ' · the rest stays booked' : '') + (message ? '. The cancellation is ready in WhatsApp.' : '.') };
+      const several = new Set(gone.map(x => x.dateKey)).size > 1;
+      return { text: 'Cancelled · ' + b.customer + ' · ' + (several ? gone.length + ' bookings' : gone.map(turfRange).join(', ')) + (cancelled.length && !several ? ' · the rest stays booked' : '') + (message ? '. The cancellation is ready in WhatsApp.' : '.') };
     }
   });
 }
@@ -9326,6 +9409,26 @@ const turfPage = {
 // An academy's slot that has ended goes to its credit account by itself (owner, 20 October): any screen that is open sends
 // it once the slot is over; the server moves each one once and names its items.
 let academyDueTried = 0;
+// A weekly series: its id on a booking, and its plan (the same rules as Turf.gs).
+const turfSeriesOf = b => { const m = /^series:([^ ]+)/.exec(String((b && b.reason) || '')); return m ? m[1] : ''; };
+function turfSeriesPlan(id) { const row = (state.Settings || []).find(r => r.id === 'turfSeries-' + id); try { return row ? JSON.parse(row.value) : null; } catch (e) { return null; } }
+// A forever series is topped up to twelve weeks ahead when its last booking is less than eight weeks away. Any open screen
+// asks; the server books nothing twice.
+let seriesTried = 0;
+function extendSeries() {
+  if (!state || outbox.length || flow.saving() || nowMs() - seriesTried < 60000) return;
+  const soon = shiftDay(dayKey(nowMs()), 56);
+  const due = (state.Settings || []).filter(r => String(r.id).startsWith('turfSeries-')).map(r => String(r.id).slice(11)).find(id => {
+    const plan = turfSeriesPlan(id);
+    if (!plan || !plan.forever || plan.stopped) return false;
+    const last = (state.TurfBookings || []).filter(x => turfSeriesOf(x) === id).reduce((k, x) => (x.dateKey > k ? x.dateKey : k), plan.from);
+    return last < soon;
+  });
+  if (!due) return;
+  seriesTried = nowMs();
+  const here = trySaveHere({ type: 'TURF_SERIES_EXTEND', seriesId: due });
+  if (here && !here.refused) render();
+}
 function postAcademyDue() {
   if (!state || outbox.length || flow.saving() || nowMs() - academyDueTried < 60000) return;
   const owing = tabId => { const t = tabOf(tabId); return !!t && t.status === 'open' && !stillPlaying(t.id) && ordersOf(t.id).length > 0; };
@@ -9636,6 +9739,7 @@ function applySnapshot(data) {
   if (!data.unchanged || first) render();
   watchArrivals();
   postAcademyDue();
+  extendSeries();
   if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
 }
 // The data that came back with a save: the screen is brought up to date without asking again.
