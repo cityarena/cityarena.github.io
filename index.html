@@ -918,6 +918,23 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 
 /* A bill reads as a ledger: a panel per system with its name, one framed row per charge, amounts in one right-hand column. */
 .group-title { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 15px; font-weight: 600; margin: 18px 0 8px; }
+/* Move: systems by category, one row each; the category on the left, its systems beside it (under it on a phone). */
+.move-cats { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--card); }
+.move-cat { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 12px; align-items: start; }
+.move-cat + .move-cat { padding-top: 8px; border-top: 1px solid var(--line); }
+.move-cat-name { display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--ink-2); font-weight: 600; }
+.move-cat-name svg { width: 18px; height: 18px; }
+/* A bill brought onto another: one line with its total; + shows its lines. */
+.fold-head { align-items: center; }
+.fold-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--card); border: 1px solid var(--line); color: var(--ink-2); flex: none; }
+.fold-icon svg { width: 18px; height: 18px; }
+.fold-toggle { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border: 1px solid var(--line-strong); border-radius: 9px; background: #ffffff; color: var(--ink); cursor: pointer; }
+.fold-toggle svg { width: 16px; height: 16px; }
+.fold-body { margin-top: 10px; }
+/* A bill being settled: a tick on each line, paid now when ticked. */
+.line-tick { width: 20px; height: 20px; flex: none; accent-color: var(--primary); cursor: pointer; }
+/* Ending some controllers: what they pay for, ticked or counted. */
+.end-pick .qty-n { min-width: 52px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .group-title:first-child { margin-top: 0; }
 .group-title > svg { width: 17px; height: 17px; color: var(--ink-2); }
 .group-title .glyph { width: 30px; height: 30px; border-radius: 9px; }
@@ -1259,6 +1276,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 
 /* ---------- Phone ---------- */
 @media (max-width: 900px) {
+  .move-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .move-cat-name { min-height: 0; }
   /* The cancel choices one under another, full width, on a phone. */
   [data-field=cancel-what] .seg { display: grid; grid-template-columns: minmax(0, 1fr); justify-self: stretch; }
   .app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
@@ -1892,6 +1911,18 @@ var ArenaLifecycle=(function(){
  function running(s,t){return s.Segments.some(function(g){return g.tabId===t&&g.status==='active';});}
  function newTab(s,id,name,phone,now,kind){var t={id:id,customer:name,phone:phone||'',status:'open',createdMs:now,kind:kind||'individual'};s.Tabs.push(t);return t;}
  function lines(s,id){return s.Segments.concat(s.Orders||[]).filter(function(g){return g.tabId===id;});}
+ // The rest of a bill when some players stop (owner, 21 October): ended time and items owned by nobody still playing (a bill
+ // moved onto it, items for everyone). Time left for the others to pay (End · Others Will Pay) stays out of it.
+ // Takes the rest onto bill `to`: all of it ('these'), or the time chosen and how many of each item ({ids, items}; owner, 21
+ // October: two of them pay for one juice of ten). Returns how many lines or items were taken.
+ function takeRest(s,origins,to,choice,actor,now,id){var rest=restLines(s,origins);
+  if(choice==='these'){rest.forEach(function(x){x.tabId=to;});return rest.length;}
+  if(!choice||typeof choice!=='object')return 0;var ids=Array.isArray(choice.ids)?choice.ids:[],items=Array.isArray(choice.items)?choice.items:[];
+  check(ids.length+items.length<=60&&items.every(function(i){return i&&ids.indexOf(i.orderId)<0;}),'Invalid selection.');
+  ids.forEach(function(lid){var x=rest.find(function(r){return r.id===lid;});check(!!x,'This charge is no longer on the bill. Refresh and try again.');x.tabId=to;});
+  items.forEach(function(item,i){var o=rest.find(function(r){return r.id===item.orderId&&!r.unitId;});check(!!o,'This item is no longer on the bill. Refresh and try again.');ArenaSales.execute(s,{type:'TAKE_ITEMS',fromTabId:o.tabId,tabId:to,items:[{orderId:o.id,quantity:item.quantity}]},actor,now,id+'-take-'+i);});
+  return ids.length+items.length;}
+ function restLines(s,origins){var staying=s.Segments.filter(function(g){return origins.indexOf(g.tabId)>=0&&g.status==='active';}).map(function(g){return g.id;}),theirs=(s.OrderOwners||[]).filter(function(w){return staying.indexOf(w.segmentId)>=0;}).map(function(w){return w.id;}),left=s.Endings.filter(function(e){return e.status==='shared'&&origins.indexOf(e.originalTabId)>=0;}).map(function(e){return e.segmentId;});return s.Segments.filter(function(g){return origins.indexOf(g.tabId)>=0&&g.status==='ended'&&left.indexOf(g.id)<0;}).concat((s.Orders||[]).filter(function(o){return origins.indexOf(o.tabId)>=0&&o.status==='active'&&theirs.indexOf(o.id)<0;}));}
  function carry(s,from,to){(s.Advances||[]).forEach(function(a){if(a.tabId===from&&a.status==='held')a.tabId=to;});}
  function merge(s,from,to){if(from===to)return;tab(s,from);check(!running(s,from),'This tab still has active players.');lines(s,from).forEach(function(g){g.tabId=to;});(s.Advances||[]).forEach(function(a){if(a.tabId===from&&a.status==='held')a.tabId=to;});row(s.Tabs,from).status='merged';}
  // A controller is "Controller 3" unless a name was typed for it.
@@ -2021,8 +2052,20 @@ var ArenaLifecycle=(function(){
    if(c.keep===true){
     check(!allSelected,'Everyone on this bill is stopping, so nobody is left to pay later. Settle it now.');
     selected.forEach(function(g,i){ArenaApp.internal.end(s,g,at);s.Endings.push({id:id+'-'+i,segmentId:g.id,originalTabId:g.tabId,reviewTabId:g.tabId,lineIdsJson:JSON.stringify([g.id]),status:'shared',createdMs:now});});
+    // Their own time stays for the others, while the rest of the bill (a bill moved onto it) is paid now by them: it goes
+    // to a bill of its own, to be settled now (owner, 21 October).
+    var restTab=c.shared?newTab(s,id+'-rest',tab(s,origins[0]).customer,same?tab(s,origins[0]).phone:'',now,'settlement'):null,taken=restTab?takeRest(s,origins,restTab.id,c.shared,actor,now,id):0;
+    if(restTab&&!taken)restTab.status='merged';
+    if(taken){s.Endings.push({id:id+'-rest',segmentId:'',originalTabId:origins[0],reviewTabId:restTab.id,lineIdsJson:JSON.stringify(lines(s,restTab.id).map(function(x){return x.id;})),status:'review',createdMs:now});
+     return {tabId:restTab.id,kept:true,restTabId:restTab.id,segmentIds:c.segmentIds,message:'Stopped. Their time stays on the bill for the others; the rest of the bill is paid now.'};}
     return {tabId:origins[0],kept:true,segmentIds:c.segmentIds,message:'Stopped. The charge stays on the bill for the others to pay at the end.'};
    }
+   // Ticked apart (owner, 21 October): those stopping whose time is not paid now leave it on the system for the others,
+   // as End · Others Will Pay does; the rest of them settle now.
+   var leave=Array.isArray(c.leave)?c.leave:[];
+   if(leave.length){check(!allSelected&&leave.length<selected.length&&leave.every(function(lid){return c.segmentIds.indexOf(lid)>=0;}),'Invalid selection.');
+    selected.filter(function(g){return leave.indexOf(g.id)>=0;}).forEach(function(g,i){ArenaApp.internal.end(s,g,at);s.Endings.push({id:id+'-left-'+i,segmentId:g.id,originalTabId:g.tabId,reviewTabId:g.tabId,lineIdsJson:JSON.stringify([g.id]),status:'shared',createdMs:now});});
+    selected=selected.filter(function(g){return leave.indexOf(g.id)<0;});}
    var target=same&&allSelected?tab(s,origins[0]):newTab(s,id+'-review',reviewName(s,selected,origins),same?tab(s,origins[0]).phone:'',now,'settlement');
    selected.forEach(function(g,i){var original=g.tabId,source=tab(s,original),alone=source.kind!=='group'&&!s.Segments.some(function(x){return x.tabId===original&&x.status==='active'&&x.id!==g.id;}),owned=alone?lines(s,original).map(function(x){return x.id;}):[g.id];
     // Items ordered for this player (see ADD_ITEMS) travel with them; the group's own orders stay put.
@@ -2031,6 +2074,10 @@ var ArenaLifecycle=(function(){
     if(alone&&original!==target.id){lines(s,original).forEach(function(x){x.tabId=target.id;});carry(s,original,target.id);source.status='merged';}
     s.Endings.push({id:id+'-'+i,segmentId:g.id,originalTabId:original,reviewTabId:target.id,lineIdsJson:JSON.stringify(owned),status:'review',createdMs:now});
    });
+   // The rest of the bill (owner, 21 October): a bill moved onto this one, or items for the whole group, is paid now by
+   // those stopping when chosen (shared:'these'); otherwise it stays for the ones still playing. Charges left for the others
+   // (End · Others Will Pay) and items of a player still playing stay.
+   if(c.shared&&!allSelected)takeRest(s,origins,target.id,c.shared,actor,now,id);
    if(allSelected&&origins.length>1)origins.forEach(function(original){var t=row(s.Tabs,original);if(t.status==='open')merge(s,original,target.id);});
    if(typeof ArenaReservations!=='undefined')ArenaReservations.complete(s);
    return {tabId:target.id,segmentIds:c.segmentIds,message:'Selected timers stopped. Review charges and choose the next step.'};
@@ -2075,19 +2122,34 @@ var ArenaLifecycle=(function(){
    // In part with the rest kept on the table, what was paid counts as paid towards that game and the game stays.
    var at2=tab(s,c.tabId),game=row(s.Segments,c.segmentId);
    check(game.tabId===at2.id&&game.status==='ended','This game is no longer waiting to be paid.');
+   // Chosen at Collect (owner, 21 October): every item on the table can be paid with this game, by how many, whichever game
+   // it was added during (a juice added in game 3 may be game 1's); extra.items lists exactly what this game pays and what
+   // it does not take stays on the table. Time moved onto the table (extra.ids) is paid with it when ticked.
+   var extraTimers=[];
+   if(c.extra&&typeof c.extra==='object'){var xids=Array.isArray(c.extra.ids)?c.extra.ids:[],xitems=Array.isArray(c.extra.items)?c.extra.items:[],want={};
+    check(xids.length+xitems.length<=60,'Invalid selection.');
+    xids.forEach(function(xid){var g=row(s.Segments,xid);check(g.tabId===at2.id&&g.status==='ended'&&g.unitId!==game.unitId,'This charge is no longer on the table. Refresh and try again.');extraTimers.push(g);});
+    var onTable=(s.Orders||[]).filter(function(o){return o.tabId===at2.id&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried';});
+    xitems.forEach(function(item){var o=onTable.find(function(x){return x.id===(item&&item.orderId);});check(!!o,'This item is no longer on the table. Refresh and try again.');check(Number.isInteger(item.quantity)&&item.quantity>=0&&item.quantity<=Number(o.quantity),'Invalid quantity.');want[o.id]=item.quantity;});
+    s.OrderOwners=s.OrderOwners||[];
+    onTable.forEach(function(o,i){var q=want[o.id]||0,w=s.OrderOwners.find(function(x){return x.id===o.id;}),mine=!!w&&w.segmentId===game.id;
+     if(q===Number(o.quantity)){if(w)w.segmentId=game.id;else s.OrderOwners.push({id:o.id,segmentId:game.id,createdMs:now});return;}
+     if(q>0){o.quantity=Number(o.quantity)-q;o.totalPaise=o.unitPricePaise*o.quantity;o.revision++;var taken=Object.assign({},o,{id:id+'-extra-'+i,quantity:q,totalPaise:o.unitPricePaise*q,revision:1});s.Orders.push(taken);s.OrderOwners.push({id:taken.id,segmentId:game.id,createdMs:now});}
+     if(mine)s.OrderOwners=s.OrderOwners.filter(function(x){return x.id!==o.id;});});}
    var gameItems=gameOrders(s,at2.id,[game]),forGame=(s.Advances||[]).filter(function(a){return a.tabId===at2.id&&a.status==='held'&&String(a.id).slice(-('-games-'+game.id).length)==='-games-'+game.id;});
-   var owing=[game].concat(gameItems).reduce(function(n,g){return n+g.totalPaise;},0)-forGame.reduce(function(n,a){return n+a.amountPaise;},0),got2=c.amountPaise;
+   var owing=[game].concat(gameItems,extraTimers).reduce(function(n,g){return n+g.totalPaise;},0)-forGame.reduce(function(n,a){return n+a.amountPaise;},0),got2=c.amountPaise;
    check(owing>0,'This game is already paid.');
    check(Number.isSafeInteger(got2)&&got2>=0&&got2<=owing,'Enter up to '+(owing/100)+' for this game.');
    var parts2=got2>0?ArenaCore.payParts(s,c):[];check(parts2.reduce(function(n,p){return n+p.amountPaise;},0)===got2,'The parts must add up to the amount received.');
    if(got2<owing&&c.rest==='keep'){
     check(got2>0,'Enter the amount received.');
+    check(!extraTimers.length,'Pay the moved bill in full with this game, or leave it on the table.');
     var numbers2=parts2.map(function(p,i){return ArenaApp.internal.advance(s,at2.id,p.amountPaise,p.method,now,id+(i?'-'+i:'')+'-games-'+game.id);});
     return {tabId:at2.id,amountPaise:got2,method:parts2.map(function(p){return p.method;}).join('+'),receiptNumber:numbers2.join(', '),paymentId:id+'-games-'+game.id,keptPaise:owing-got2,message:'Paid towards this game. The rest stays on the table.'};
    }
    if(got2<owing)check(c.rest==='credit'||c.rest==='pending','Choose what happens to the rest.');
    var own=newTab(s,id+'-games',at2.customer,at2.phone,now,'individual');
-   [game].concat(gameItems).forEach(function(x){x.tabId=own.id;});forGame.forEach(function(a){a.tabId=own.id;});
+   [game].concat(gameItems,extraTimers).forEach(function(x){x.tabId=own.id;});forGame.forEach(function(a){a.tabId=own.id;});
    var closed=execute(s,{type:'SETTLE_REVIEW',tabId:own.id,settlement:got2<owing&&c.rest==='credit'?'credit':'pay',discountType:'none',discountValue:0,amountPaise:got2,method:c.method||'cash',payments:c.payments,accountId:c.accountId,newAccount:c.newAccount,pending:got2<owing&&c.rest==='pending'?(c.pending||{}):undefined},actor,now,id+'-settle');
    closed.tabId=own.id;closed.tableTabId=at2.id;
    return closed;
@@ -2101,15 +2163,43 @@ var ArenaLifecycle=(function(){
    // counts as paid towards the group's bill.
    check(Number.isSafeInteger(got)&&got>=0&&(got===0||got<owed),'Enter less than this bill to keep the rest on the group’s bill.');
    var keepParts=got>0?ArenaCore.payParts(s,c):[];check(keepParts.reduce(function(n,p){return n+p.amountPaise;},0)===got,'The parts must add up to the amount received.');
+   // What is paid now settles whole lines, a bill brought onto this one first, then the players' own time and items (owner,
+   // 21 October: they paid the moved bill, so it must not come back on the group's bill). Those lines go to a bill of their
+   // own, paid in full now with a receipt; only lines left unpaid go back to the group's bill, and money beyond whole lines
+   // is held towards it as before.
+   var mine=endings.map(function(e){return e.segmentId;}).filter(Boolean),mineItems=(s.OrderOwners||[]).filter(function(w){return mine.indexOf(w.segmentId)>=0;}).map(function(w){return w.id;}),isMine=function(x){return mine.indexOf(x.id)>=0||mineItems.indexOf(x.id)>=0;};
+   var live=lines(s,target.id).filter(function(x){return x.status!=='void';}),covered=[],coveredPaise=0;
+   live.filter(function(x){return !isMine(x);}).concat(live.filter(isMine)).forEach(function(x){if(x.totalPaise>0&&coveredPaise+x.totalPaise<=got){covered.push(x);coveredPaise+=x.totalPaise;}});
+   var settled=null;
+   if(coveredPaise>0){var paidTab=newTab(s,id+'-paid',target.customer,target.phone,now,'settlement'),need=coveredPaise,forBill=[];
+    keepParts=keepParts.map(function(p){var take=Math.min(need,p.amountPaise);need-=take;if(take)forBill.push({method:p.method,amountPaise:take});return {method:p.method,amountPaise:p.amountPaise-take};}).filter(function(p){return p.amountPaise>0;});
+    covered.forEach(function(x){x.tabId=paidTab.id;});endings.forEach(function(e){if(covered.some(function(x){return x.id===e.segmentId;}))e.reviewTabId=paidTab.id;});
+    settled=execute(s,Object.assign({type:'SETTLE_REVIEW',tabId:paidTab.id,settlement:'pay',discountType:'none',discountValue:0,amountPaise:coveredPaise},forBill.length>1?{method:forBill[0].method,payments:forBill}:{method:forBill[0].method}),actor,now,id+'-paid');got-=coveredPaise;}
+   endings=endings.filter(function(e){return e.reviewTabId===target.id;});
    lines(s,target.id).forEach(function(x){x.tabId=original.id;});carry(s,target.id,original.id);target.status='merged';endings.forEach(function(e){e.status='shared';});
    var kept={tabId:original.id,message:'Ended charges retained once on the shared tab. Other timers continue.'};
-   if(got>0){s.Advances=s.Advances||[];var keptNumbers=[];keepParts.forEach(function(p,i){var aid=id+(i?'-'+i:'')+'-advance';s.Advances.push({id:aid,tabId:original.id,amountPaise:p.amountPaise,method:p.method,status:'held',sourceTabId:target.id,createdMs:now});s.Payments.push({id:aid,billId:'',amountPaise:p.amountPaise,method:p.method,createdMs:now});keptNumbers.push(ArenaCore.nextNumber(s,'receipt',aid,now));});kept.receiptNumber=keptNumbers.join(', ');kept.paymentId=id+'-advance';kept.amountPaise=got;kept.method=keepParts.map(function(p){return p.method;}).join('+');kept.message='Paid '+(got/100)+'. The rest stays on '+original.customer+'’s bill.';}
+   if(settled){kept.receiptNumber=settled.receiptNumber;kept.amountPaise=coveredPaise;kept.method=settled.method||(c.method||'cash');kept.paidTabId=paidTab.id;kept.message='Paid '+(coveredPaise/100)+'. The rest stays on '+original.customer+'’s bill.';}
+   if(got>0){s.Advances=s.Advances||[];var keptNumbers=[];keepParts.forEach(function(p,i){var aid=id+(i?'-'+i:'')+'-advance';s.Advances.push({id:aid,tabId:original.id,amountPaise:p.amountPaise,method:p.method,status:'held',sourceTabId:target.id,createdMs:now});s.Payments.push({id:aid,billId:'',amountPaise:p.amountPaise,method:p.method,createdMs:now});keptNumbers.push(ArenaCore.nextNumber(s,'receipt',aid,now));});kept.receiptNumber=[kept.receiptNumber].concat(keptNumbers).filter(Boolean).join(', ');kept.paymentId=id+'-advance';kept.amountPaise=(kept.amountPaise||0)+got;kept.method=keepParts.map(function(p){return p.method;}).join('+');kept.message='Paid '+(kept.amountPaise/100)+'. The rest stays on '+original.customer+'’s bill.';}
    return kept;
   }
   if(c.type==='SPLIT_REVIEW'){
    check(endings.length>1,'This selection is already individual.');
    check(!(s.Advances||[]).some(function(a){return a.tabId===target.id&&a.status==='held';}),'Money was paid in advance on this bill. Settle it as one bill.');var ids=[],groupName=row(s.Tabs,endings[0].originalTabId).customer;endings.forEach(function(e,i){var g=e.segmentId?row(s.Segments,e.segmentId):null,own=newTab(s,id+'-'+i,underGroup(row(s.Tabs,e.originalTabId).customer,g?(g.controller?playerName(g):g.player):'Items'),target.phone,now),owned=JSON.parse(e.lineIdsJson);lines(s,target.id).filter(function(x){return owned.indexOf(x.id)>=0;}).forEach(function(x){x.tabId=own.id;});e.reviewTabId=own.id;ids.push(own.id);});
    if(lines(s,target.id).length)ids.push(target.id);else target.status='merged';return {tabIds:ids,groupName:groupName,message:'Individual charges separated. Shared extras remain on their own tab for assignment.'};
+  }
+  if(c.type==='SETTLE_REVIEW'&&c.only&&typeof c.only==='object'){
+   // Part of a bill settled now (owner, 21 October: they pay the juice; the controllers' time is moved, or the other way):
+   // the lines ticked go to a bill of their own and are settled as asked; the rest stays on this bill, open, to be moved,
+   // put on credit or kept pending. Money paid in advance stays with the rest.
+   var oids=Array.isArray(c.only.ids)?c.only.ids:[],oitems=Array.isArray(c.only.items)?c.only.items:[];
+   check(oids.length+oitems.length>0&&oids.length+oitems.length<=60,'Tick what they are paying for.');
+   var part=newTab(s,id+'-part',target.customer,target.phone,now,'settlement');
+   oids.forEach(function(sid){var g=row(s.Segments,sid);check(g.tabId===target.id&&g.status==='ended','This charge is no longer on the bill. Refresh and try again.');g.tabId=part.id;s.Endings.forEach(function(e){if(e.segmentId===sid&&e.reviewTabId===target.id)e.reviewTabId=part.id;});});
+   if(oitems.length)ArenaSales.execute(s,{type:'TAKE_ITEMS',fromTabId:target.id,tabId:part.id,items:oitems},actor,now,id+'-items');
+   check(lines(s,target.id).some(function(x){return x.status!=='void';}),'Everything is ticked: settle the whole bill.');
+   var settledPart=execute(s,Object.assign({},c,{tabId:part.id,only:undefined}),actor,now,id+'-pay');
+   settledPart.restTabId=target.id;settledPart.partTabId=part.id;
+   return settledPart;
   }
   if(c.type==='SETTLE_REVIEW'){
    check(c.settlement==='pay'||c.settlement==='credit','Invalid settlement choice.');
@@ -4806,6 +4896,8 @@ function dismissSheet() {
 let sheetAfterSave = false;
 function openSheet(config) {
   const before = $('sheet').open && current && !sheetAfterSave ? current.config : null;
+  // The same sheet opened again (a bill after one of its items changed) stays scrolled where it was (owner, 21 October).
+  const again = $('sheet').open && current && current.config.title === config.title && (current.config.sub || '') === (config.sub || '') ? $('sheetBody').scrollTop : 0;
   if (before && config.onClose === undefined) config = { ...config, onClose: before.title === config.title ? before.onClose : () => openSheet(before) };
   current = { ...config, config, ack: { reservation: false, time: false }, primaryButton: null };
   const sheet = current;
@@ -4840,7 +4932,7 @@ function openSheet(config) {
   sheet.ui = ui;
   ui.redraw();
   if (!$('sheet').open) $('sheet').showModal();
-  $('sheetBody').scrollTop = 0;
+  $('sheetBody').scrollTop = again;
   const first = $('sheetBody').querySelector('input:not([type=hidden]):not([hidden])');
   if (first && config.focus !== false) first.focus();
 }
@@ -5683,38 +5775,80 @@ function addItemsSheet(tab, options = {}) {
 }
 
 // ---------- Ending ----------
+// The rest of a bill when some of its players stop: a bill moved onto it, or items for everyone, owned by nobody still
+// playing (the same rule as END_SELECTION's shared:'these'). Charges left for the others to pay stay out of it.
+function restOfBill(segments) {
+  const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
+  const staying = new Set(state.Segments.filter(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id)).map(g => g.id));
+  const owned = new Set((state.OrderOwners || []).filter(w => staying.has(w.segmentId) || ids.has(w.segmentId)).map(w => w.id));
+  const left = new Set(state.Endings.filter(e => e.status === 'shared' && tabs.has(e.originalTabId)).map(e => e.segmentId));
+  return [...tabs].flatMap(t => segmentsOf(t).filter(g => g.status === 'ended' && !left.has(g.id)).concat(ordersOf(t).filter(o => !owned.has(o.id))));
+}
 function endSheet(segments) {
   if (!segments.length) return;
   const unit = unitOf(segments[0].unitId);
   const ps5 = unit.category === 'PS5', units = [...new Set(segments.map(g => g.unitId))];
   // A group over several consoles ends all of them together (owner, 20 October).
   const title = units.length > 1 ? 'End Group · ' + units.length + ' consoles' : !ps5 ? 'End ' + unit.name : segments.length === 1 ? 'End Controller ' + segments[0].controller : 'End ' + segments.length + ' controllers';
-  let time;
+  // Some stop while others play on (owner, 21 October): one list of what they can pay for now: their own time (ticked),
+  // the items on the system and any bill moved onto it (none of them yet). They tick what they pay; End & Settle opens the
+  // bill with just that, to pay, put on credit, move or keep pending; everything not ticked stays on the system.
+  // own: their controllers paying now. rows: the rest, one row per system moved here and one per item; picks: how many.
+  let time, rows = [];
+  const own = new Set(segments.map(g => g.id)), picks = new Map();
+  const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
+  const others = () => state.Segments.filter(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id));
+  const shared = () => pickedLines(rows, picks);
   openSheet({
     title,
     sub: ps5 ? groupNames(segments) : '',
     icon: unit.category,
     focus: false,
     build(ui) {
-      // The same cards as on the bill: each unit on top, then who is stopping there.
-      for (const unitId of units) {
-        const card = h('div', 'lines'), here = unitOf(unitId);
-        for (const g of segments.filter(x => x.unitId === unitId)) card.append(h('div', 'line', ps5 ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, h('div', 'line-main', h('b', null, ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player), h('span', { class: 'small muted', text: 'since ' + when(g.startMs) })), timer(g, true)));
-        ui.body.append(h('section', 'bill-group', h('div', 'group-title', icon(here.category), here.name), card));
+      time = time || timeChoice('Ends');
+      if (!others().length) {
+        // Everyone stops: the same cards as on the bill, each unit on top, then who is stopping there.
+        for (const unitId of units) {
+          const card = h('div', 'lines'), here = unitOf(unitId);
+          for (const g of segments.filter(x => x.unitId === unitId)) card.append(h('div', 'line', ps5 ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, h('div', 'line-main', h('b', null, ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player), h('span', { class: 'small muted', text: 'since ' + when(g.startMs) })), timer(g, true)));
+          ui.body.append(h('section', 'bill-group', h('div', 'group-title', icon(here.category), here.name), card));
+        }
+        ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
+        ui.primary('End Session');
+        tick();
+        return;
       }
-      time = timeChoice('Ends');
+      rows = pickRows(restOfBill(segments));
+      // Their own time: a tick each.
+      const tickLine = (selected, onclick, main, right, data) => h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(selected), data, onclick },
+        h('input', { type: 'checkbox', checked: selected, tabindex: '-1', 'aria-hidden': 'true' }), main, right);
+      const card = h('div', { class: 'lines end-pick', data: { field: 'end-pick' } });
+      for (const g of segments) {
+        card.append(tickLine(own.has(g.id), () => { if (own.has(g.id)) own.delete(g.id); else own.add(g.id); ui.redraw(); },
+          h('div', 'line-main', h('b', null, ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player), h('span', { class: 'small muted', text: (units.length > 1 ? (unitOf(g.unitId) || {}).name + ' · ' : '') + 'since ' + when(g.startMs) })), timer(g, true), { segment: g.id }));
+      }
+      card.append(...pickLines(rows, picks, () => ui.redraw(), o => removeOne(o, () => { picks.set(o.id, Math.min(picks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; })));
+      ui.body.append(h('div', 'group-title', icon('wallet'), (segments.length === 1 ? 'This one pays' : 'These ' + segments.length + ' pay') + ' for'), card);
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
-      // Some of a group stop and the rest play on: settle these now, or leave their charge for the others to pay at the end.
-      const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
-      const othersPlaying = state.Segments.some(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id));
-      ui.primary(othersPlaying ? 'End & Settle' : 'End Session');
-      if (othersPlaying) ui.foot.append(btn([icon('users'), 'End · Others Will Pay'], () => runCommand({ type: 'END_SELECTION', segmentIds: segments.map(g => g.id), endMs: time.value(), keep: true },
-        () => { for (const g of segments) picked.delete(g.id); closeSheet(); render(); }), 'block', { data: { action: 'end-keep' } }));
+      const paying = own.size > 0 || rows.some(row => (picks.get(row.key) || 0) > 0);
+      ui.primary(paying ? 'End & Settle' : 'End · All Stays on the System');
       tick();
     },
-    command: () => ({ type: 'END_SELECTION', segmentIds: segments.map(g => g.id), endMs: time.value() }),
-    // The controllers ended are forgotten; the ones still playing stay unchosen.
-    then(result) { for (const g of segments) picked.delete(g.id); render(); settleSheet(result.tabId); }
+    command: () => {
+      const segmentIds = segments.map(g => g.id);
+      if (!others().length) return { type: 'END_SELECTION', segmentIds, endMs: time.value() };
+      const leave = segmentIds.filter(id => !own.has(id));
+      if (leave.length === segmentIds.length) return { type: 'END_SELECTION', segmentIds, endMs: time.value(), keep: true, shared: shared() };
+      return { type: 'END_SELECTION', segmentIds, endMs: time.value(), leave: leave.length ? leave : undefined, shared: shared() };
+    },
+    // The controllers ended are forgotten; the ones still playing stay unchosen. What they pay opens to be settled.
+    then(result) {
+      for (const g of segments) picked.delete(g.id);
+      render();
+      if (result.kept && !result.restTabId) { closeSheet(); return null; }
+      settleSheet(result.restTabId || result.tabId);
+      return null;
+    }
   });
 }
 
@@ -5786,10 +5920,52 @@ function pendingFields(draft) {
   return { node: h('div', 'foot-row pending-who', field('Name', name), field('Mobile (optional)', phone)), name, phone };
 }
 // One closed game, collected on its own: in full, or in part with the rest kept on the table, to credit or pending.
+// What can be paid with a closed game (owner, 21 October): every item on the table, whichever game it was added during (a
+// juice added in game 3 may be game 1's), and time moved onto the table. One row per item and per system moved here.
+function tableExtras(tab, game) {
+  return segmentsOf(tab.id).filter(g => g.status === 'ended' && g.unitId !== game.unitId).concat(ordersOf(tab.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried'));
+}
+// Rows to tick or count: one per system (all its time) and one per item. picks holds how many of each row.
+function pickRows(lines) {
+  return [...new Set(lines.filter(x => x.unitId).map(x => x.unitId))].map(unitId => {
+    const timers = lines.filter(x => x.unitId === unitId), same = timers.every(g => g.totalPaise === timers[0].totalPaise);
+    return { key: 'unit:' + unitId, name: (unitOf(unitId) || {}).name || unitId, timers, most: timers.length, price: (same ? money(timers[0].totalPaise) + ' each' : money(timers.reduce((total, g) => total + g.totalPaise, 0)) + ' in all') + ' · moved here', worth: n => timers.slice(0, n).reduce((total, g) => total + g.totalPaise, 0) };
+  }).concat(lines.filter(x => !x.unitId).map(o => ({ key: o.id, name: o.label, order: o, most: Number(o.quantity), price: money(o.unitPricePaise) + ' each', worth: n => n * o.unitPricePaise })));
+}
+// The bin (owner, 21 October): an item added by mistake comes off the bill one at a time (2 becomes 1; the last one takes the
+// line), recorded with its reason; then runs `after`.
+function removeOne(o, after) {
+  const left = Number(o.quantity) - 1;
+  return runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: left, reason: left ? 'Quantity changed before billing' : 'Removed before billing' }, after);
+}
+// The rows as lines: a tick for one thing, − n of N + for more; the amount beside each. With remove, an item added by
+// mistake can be taken off the bill from here too (owner, 21 October), with the bin, as on the bill.
+function pickLines(rows, picks, redraw, remove = null) {
+  return rows.map(row => {
+    const n = picks.get(row.key) || 0, set = v => { picks.set(row.key, Math.max(0, Math.min(row.most, v))); redraw(); }, data = { pick: row.order ? row.order.id : row.key };
+    const main = h('div', 'line-main', h('b', { text: row.name }), h('span', { class: 'small muted', text: row.price + (row.most > 1 ? ' · ' + row.most + ' on the bill' : '') }));
+    const bin = remove && row.order ? h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove one ' + row.name + ' from the bill', title: 'Remove one from the bill', data: { action: 'item-remove' }, onclick: e => { e.stopPropagation(); remove(row.order); } }, icon('trash')) : null;
+    if (row.most === 1) return h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(n === 1), data, onclick: () => set(n ? 0 : 1) },
+      h('input', { type: 'checkbox', checked: n === 1, tabindex: '-1', 'aria-hidden': 'true' }), main, bin, h('span', { class: 'line-amount', text: money(row.worth(1)) }));
+    return h('div', { class: 'line', data }, main,
+      h('span', 'item-tools', h('span', 'step', h('button', { type: 'button', 'aria-label': 'One fewer ' + row.name, disabled: n === 0, data: { action: 'pick-less' }, onclick: () => set(n - 1) }, icon('minus')), h('b', { class: 'qty-n', text: n + ' of ' + row.most }), h('button', { type: 'button', 'aria-label': 'One more ' + row.name, disabled: n === row.most, data: { action: 'pick-more' }, onclick: () => set(n + 1) }, icon('plus'))), bin),
+      h('span', { class: 'line-amount', text: money(row.worth(n)) }));
+  });
+}
+// The picks as the server takes them: the time ticked (ids) and how many of each item.
+function pickedLines(rows, picks) {
+  const chosen = rows.map(row => [row, picks.get(row.key) || 0]).filter(([, n]) => n > 0);
+  return chosen.length ? { ids: chosen.filter(([row]) => row.timers).flatMap(([row, n]) => row.timers.slice(0, n).map(g => g.id)), items: chosen.filter(([row]) => row.order).map(([row, n]) => ({ orderId: row.order.id, quantity: n })) } : undefined;
+}
 function tableCollectSheet(unit, tab, game) {
   const draft = { received: '', edited: false, pay: {}, rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '', account: newAccountStore() };
   const number = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs).findIndex(g => g.id === game.id) + 1;
-  let picker = null;
+  // The items and moved time paid with this game, counted: at first the items added during it; the rest stays on the table.
+  // The − and + here choose how many are paid now; they never take anything off the bill.
+  const picks = new Map();
+  for (const o of gameOwed(tab.id, game).items) picks.set(o.id, Number(o.quantity));
+  let picker = null, extras = [];
+  const due = () => Math.max(0, game.totalPaise - gameOwed(tab.id, game).paid + extras.reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0));
   openSheet({
     title: 'Game ' + number + ' · ' + unit.name,
     sub: tab.customer,
@@ -5797,9 +5973,15 @@ function tableCollectSheet(unit, tab, game) {
     tone: 'jade',
     focus: false,
     build(ui) {
-      const { total, owed, items, paid: before } = gameOwed(tab.id, game);
-      drawLines(ui.body, { segments: [game], orders: items, customer: tab.customer, editable: false, after: () => tableCollectSheet(unit, tab, game) });
-      if (before) ui.body.append(h('div', 'summary', h('div', 'kv', h('span', { text: 'This game' }), h('b', { text: money(total) })), h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
+      const { paid: before } = gameOwed(tab.id, game);
+      drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false });
+      if (before) ui.body.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
+      // Each item says which game it was added during, or that it is for the table.
+      const games = closedGames(tab.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active')).sort((x, y) => x.startMs - y.startMs);
+      const during = o => { const w = (state.OrderOwners || []).find(x => x.id === o.id), at = w ? games.findIndex(g => g.id === w.segmentId) : -1; return w && w.segmentId === game.id ? 'this game' : at >= 0 ? 'game ' + (at + 1) : 'the table'; };
+      extras = pickRows(tableExtras(tab, game)).map(row => (row.order ? { ...row, price: row.price + ' · ' + during(row.order) } : row));
+      if (extras.length) ui.body.append(h('div', 'group-title', icon('wallet'), 'Paid with this game'), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(extras, picks, () => ui.redraw(), o => removeOne(o, () => { picks.set(o.id, Math.min(picks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))));
+      const owed = due();
       const received = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.edited ? draft.received : String(owed / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
       const restBox = h('div');
       // Split: what the cash and UPI boxes add up to; otherwise the amount typed, or all of it.
@@ -5828,11 +6010,11 @@ function tableCollectSheet(unit, tab, game) {
       paint();
     },
     command() {
-      const { owed } = gameOwed(tab.id, game), split = draft.how.paid(), paid = split != null ? split : draft.edited ? toPaise(draft.received || 0) : owed;
+      const owed = due(), split = draft.how.paid(), paid = split != null ? split : draft.edited ? toPaise(draft.received || 0) : owed;
       if (!(paid >= 0) || paid > owed) throw new Error('Enter up to ' + money(owed) + '.');
       const rest = paid < owed ? draft.rest : undefined;
       if (paid < owed && !rest) throw new Error('Choose what happens to the rest.');
-      return { type: 'TABLE_COLLECT', tabId: tab.id, segmentId: game.id, amountPaise: paid, ...(paid > 0 ? draft.how.value(paid) : { method: 'cash' }), rest,
+      return { type: 'TABLE_COLLECT', tabId: tab.id, segmentId: game.id, extra: pickedLines(extras, picks) || { ids: [], items: [] }, amountPaise: paid, ...(paid > 0 ? draft.how.value(paid) : { method: 'cash' }), rest,
         ...(rest === 'credit' ? picker.value() : {}), ...(rest === 'pending' ? { pending: { name: draft.pendingName.trim(), phone: draft.pendingPhone.trim() } } : {}) };
     },
     then(result, command) {
@@ -5893,8 +6075,21 @@ const newAccountStore = () => ({ mode: 'existing', id: '', name: '', phone: '', 
 // listed under their console, and one card for snacks and beverages.
 // lines: { segments, orders, customer, tab (when editable), editable, detail (receipt: also show time played),
 //          quotes (cost so far: what each running timer would bill if it stopped now) }
+// A bill brought onto another, as one line with its total; + shows it line by line, − folds it again (owner, 21 October:
+// "keep the total and then + if i need to expand"). Returns the line and the hidden lines, to be placed by the caller.
+function folded(glyph, title, sub, totalPaise, fill, lead = null) {
+  const details = h('div', { class: 'fold-body', hidden: true });
+  fill(details);
+  const toggle = h('button', { type: 'button', class: 'fold-toggle', 'aria-expanded': 'false', 'aria-label': 'Show every line', data: { action: 'fold' } }, icon('plus'));
+  toggle.onclick = () => { const open = details.hidden; details.hidden = !open; toggle.setAttribute('aria-expanded', String(open)); toggle.setAttribute('aria-label', open ? 'Hide the lines' : 'Show every line'); toggle.replaceChildren(icon(open ? 'minus' : 'plus')); };
+  const head = h('div', 'lines', h('div', 'line fold-head', lead, h('span', { class: 'fold-icon', 'aria-hidden': 'true' }, icon(glyph)), h('div', 'line-main', h('b', { text: title }), sub ? h('span', { class: 'small muted', text: sub }) : null), h('span', { class: 'line-amount', text: money(totalPaise) }), toggle));
+  return { head, details };
+}
 function drawLines(body, lines) {
   const { segments, orders, customer, tab, editable, detail } = lines, byUnit = new Map();
+  // Ticks (a bill being settled, owner 21 October): every line ticked to be paid now; untick what they are not paying now.
+  // ticks: { off: Set of line ids unticked, toggle(ids) }.
+  const tickBox = ids => (lines.ticks ? h('input', { type: 'checkbox', class: 'line-tick', checked: !ids.some(lid => lines.ticks.off.has(lid)), 'aria-label': 'Paying now', data: { action: 'line-tick' }, onclick: e => { e.stopPropagation(); lines.ticks.toggle(ids); } }) : null);
   for (const g of segments) { if (!byUnit.has(g.unitId)) byUnit.set(g.unitId, []); byUnit.get(g.unitId).push(g); }
   for (const [unitId, list] of byUnit) {
     const unit = unitOf(unitId), card = h('div', 'lines');
@@ -5908,11 +6103,15 @@ function drawLines(body, lines) {
       const main = g.controller
         ? h('div', 'line-main', h('b', null, controllerNode(g)), h('span', { class: 'small muted', text: [span, billed].filter(Boolean).join(' · ') }))
         : h('div', 'line-main', h('b', { text: span }), h('span', { class: 'small muted', text: [billed, g.player && g.player !== customer ? g.player : ''].filter(Boolean).join(' · ') }));
-      card.append(h('div', { class: 'line', data: { segment: g.id } }, g.controller ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, main,
+      card.append(h('div', { class: 'line', data: { segment: g.id } }, tickBox([g.id]), g.controller ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, main,
         quote ? h('span', { class: 'line-amount', text: money(quote.totalPaise) }) : running ? timer(g, true) : h('span', { class: 'line-amount', text: money(g.totalPaise) }),
         editable ? sessionMenu(g) : null));
     }
-    body.append(h('section', 'bill-group', h('div', 'group-title', icon(unit ? unit.category : 'floor'), unit ? unit.name : unitId), card));
+    if (lines.brought && list.every(g => lines.brought.has(g.id))) {
+      const count = list.length > 1 ? list.length + (unit && unit.category === 'PS5' ? ' controllers' : ' sessions') + ' · ' : '';
+      const fold = folded(unit ? unit.category : 'floor', unit ? unit.name : unitId, count + 'added from another bill', list.reduce((sum, g) => sum + g.totalPaise, 0), box => box.append(card), tickBox(list.map(g => g.id)));
+      body.append(h('section', 'bill-group folded', fold.head, fold.details));
+    } else body.append(h('section', 'bill-group', h('div', 'group-title', icon(unit ? unit.category : 'floor'), unit ? unit.name : unitId), card));
   }
   // The turf fee or a player's share of it: its own heading, and it follows the booking, so it has no edit menu here.
   const turf = orders.filter(o => o.category === 'Turf'), brought = orders.filter(o => o.category === 'Carried'), goods = orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
@@ -5933,6 +6132,21 @@ function drawLines(body, lines) {
       // On a bill not yet closed every item can be one fewer, one more or removed, right on its line (owner, 20 October).
       const open = lines.after && (tabOf(o.tabId) || {}).status === 'open';
       const change = n => runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: n, reason: n ? 'Quantity changed before billing' : 'Removed before billing' }, lines.after);
+      // A bill being settled (owner, 21 October): − pays for fewer now ("2 of 3"), the rest staying on the bill to move, put
+      // on credit or keep pending; + pays for them again and, past what is on the bill, adds one more of the same item (3 to
+      // 4). Nothing is taken off the bill except with the bin, for an item added by mistake.
+      if (lines.ticks && open) {
+        const qty = Number(o.quantity), n = lines.ticks.count(o);
+        card.append(h('div', { class: 'line with-tools', data: { order: o.id } },
+          h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
+          h('span', { class: 'item-tools', data: { itemTools: o.label } }, h('span', 'step',
+            h('button', { type: 'button', 'aria-label': 'Pay for one fewer ' + o.label, disabled: n === 0, data: { action: 'pay-less' }, onclick: () => lines.ticks.setCount(o, n - 1) }, icon('minus')),
+            h('b', { class: 'qty-n', text: n < qty ? n + ' of ' + qty : String(qty) }),
+            h('button', { type: 'button', 'aria-label': n < qty ? 'Pay for one more ' + o.label : 'One more ' + o.label, disabled: n >= qty && (!product || qty >= 999), data: { action: 'pay-more' }, onclick: () => { if (n < qty) lines.ticks.setCount(o, n + 1); else { lines.ticks.full(o); change(qty + 1); } } }, icon('plus'))),
+            h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove one ' + o.label + ' from the bill', title: 'Remove one from the bill', data: { action: 'item-remove' }, onclick: () => removeOne(o, lines.after) }, icon('trash'))),
+          h('span', { class: 'line-amount', text: money(o.unitPricePaise * n) })));
+        continue;
+      }
       card.append(h('div', { class: 'line' + (open ? ' with-tools' : ''), data: { order: o.id } },
         h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && !open ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
         open ? itemTools(o.label, Number(o.quantity), change, product) : null,
@@ -5942,6 +6156,11 @@ function drawLines(body, lines) {
   }
   return segments.length + turf.length + brought.length + goods.length;
 }
+// Time brought onto this bill from another (Move · add to their bill, or the rest of a bill taken by the players who stopped):
+// an ended timer whose ending was reviewed on some other bill. Shown folded, as one line with its total.
+function broughtIn(tab, earlier) {
+  return new Set(segmentsOf(tab.id).filter(g => g.status === 'ended' && !earlier.has(g.id) && !state.Endings.some(e => e.segmentId === g.id && e.reviewTabId === tab.id)).map(g => g.id));
+}
 
 function settleSheet(tabId, mode = 'pay') {
   const tab = tabOf(tabId);
@@ -5949,7 +6168,12 @@ function settleSheet(tabId, mode = 'pay') {
   const draft = { discountOn: false, discount: '', received: '', edited: false, pay: {}, account: newAccountStore(), toAccount: mode === 'credit', unpaid: new Map(), rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '' };
   let picker = null, unpaidChooser = null;
   const comment = commentField();
-  const subtotal = () => tabTotal(tab.id);
+  // Lines not paid now (unticked): they stay on this bill, to be moved, put on credit or kept pending after.
+  // skip: time unticked; payCount: how many of an item are paid now (all of it unless lowered).
+  const skip = new Set(), payCount = new Map();
+  const paying = o => Math.min(Number(o.quantity), payCount.has(o.id) ? payCount.get(o.id) : Number(o.quantity));
+  const partly = () => skip.size > 0 || ordersOf(tab.id).some(o => paying(o) < Number(o.quantity));
+  const subtotal = () => tabTotal(tab.id) - segmentsOf(tab.id).filter(g => skip.has(g.id)).reduce((total, g) => total + g.totalPaise, 0) - ordersOf(tab.id).reduce((total, o) => total + (Number(o.quantity) - paying(o)) * o.unitPricePaise, 0);
   // Charges from earlier on this bill (owner, 20 October): players who stopped and left their charge for the others, and a
   // table's games closed with Close & Open; with what was paid towards them. Shown apart from this session.
   const earlier = (() => {
@@ -5966,7 +6190,7 @@ function settleSheet(tabId, mode = 'pay') {
   const totalPaise = () => subtotal() - discountPaise();
   // Money already paid towards this bill (up front, or left by another player) comes off what is collected now.
   // If more was paid up front than the bill comes to, the difference is handed back when the bill is closed.
-  const heldPaise = () => heldFor([tab.id]);
+  const heldPaise = () => (partly() ? 0 : heldFor([tab.id]));
   const advancePaise = () => Math.min(totalPaise(), heldPaise());
   const handBackPaise = () => Math.max(0, heldPaise() - totalPaise());
   const duePaise = () => totalPaise() - advancePaise();
@@ -5987,7 +6211,17 @@ function settleSheet(tabId, mode = 'pay') {
     // Closing one player's bill returns to the list of players still to settle, when there is one.
     onClose: () => returnToSplit(tab.id),
     build(ui) {
-      const lines = drawLines(ui.body, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids, after: () => settleSheet(tab.id, mode) }), playing = stillPlaying(tab.id);
+      // An item changed here redraws this bill in place, so the ticks and what was typed stay (owner, 21 October).
+      // Ticks when there is more than one line and nothing that must go with the bill (a turf fee, a carried amount).
+      const all = segmentsOf(tab.id).concat(ordersOf(tab.id)), tickable = all.length > 1 && !stillPlaying(tab.id) && !all.some(x => x.category === 'Turf' || x.category === 'Carried');
+      const ticks = tickable ? {
+        off: skip,
+        toggle: ids => { const on = ids.some(lid => skip.has(lid)); ids.forEach(lid => { if (on) skip.delete(lid); else skip.add(lid); }); draft.edited = false; ui.redraw(); },
+        count: paying,
+        setCount: (o, n) => { payCount.set(o.id, Math.max(0, Math.min(Number(o.quantity), n))); draft.edited = false; ui.redraw(); },
+        full: o => { payCount.delete(o.id); draft.edited = false; }
+      } : null;
+      const lines = drawLines(ui.body, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids, brought: broughtIn(tab, earlier.ids), ticks, after: () => { ui.redraw(); return null; } }), playing = stillPlaying(tab.id);
       const notes = notesBlock([tab.id]);
       if (notes) ui.body.append(notes);
       const adds = h('div', 'station-links', btn([icon('sales'), 'Add Items'], () => addItemsSheet(tab), 'quiet', { data: { action: 'items' } }));
@@ -6058,8 +6292,8 @@ function settleSheet(tabId, mode = 'pay') {
         if (heldPaise() < totalPaise()) action('credit', 'credits', 'Move to Credit', 'Put the outstanding amount on a credit account', () => { mode = 'credit'; draft.edited = false; draft.toAccount = true; ui.redraw(); });
         // Pending beside credit, wherever credit is offered (owner, 20 October): nothing received now, kept under a name.
         if (heldPaise() < totalPaise()) action('pending', 'clock', 'Pending', 'Keep it pending under a name, to be cleared later', () => { draft.edited = true; draft.received = '0'; draft.rest = 'pending'; ui.redraw(); focusRest(ui); });
-        if (segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player') action('move', 'transfer', 'Move System', 'They carry on playing on another system', () => moveSheet(tab));
-        if (state.Tabs.some(t => t.status === 'open' && t.id !== tab.id && (segmentsOf(t.id).length || ordersOf(t.id).length))) action('add-to-bill', 'users', 'Add to Bill', 'Someone else will pay: add this to their bill', () => addToBillSheet(tab));
+        // One Move (owner, 21 October): onto a bill playing now, today's turf, or a free system to carry on playing.
+        if (segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player' || playingBills(tab).length || turfTakers(tab).length) action('move', 'transfer', 'Move', 'Add to a bill playing now, to today’s turf, or carry on playing on a free system', () => moveSheet(tab));
         if (endings.length > 1 && !held.length) action('split', 'split', 'Split Bill', 'Each player pays their own', () => runCommand({ type: 'SPLIT_REVIEW', tabId: tab.id }, result => chooseTabSheet(result.tabIds, result.groupName)));
         ui.foot.append(actions);
       } else ui.foot.append(h('div', 'foot-links', btn([icon('back'), 'Back to payment'], () => { mode = 'pay'; draft.edited = false; ui.redraw(); }, 'quiet')));
@@ -6107,6 +6341,7 @@ function settleSheet(tabId, mode = 'pay') {
       if (accountTitle && draft.toAccount) { draft.toAccount = false; accountTitle.scrollIntoView({ block: 'start' }); picker.focus(); }
     },
     command() {
+      if (partly() && segmentsOf(tab.id).every(g => skip.has(g.id)) && ordersOf(tab.id).every(o => paying(o) === 0)) throw new Error('Tick or count what they are paying for.');
       const sub = subtotal(), discount = discountPaise(), paid = receivedPaise();
       if (!Number.isSafeInteger(discount) || discount < 0 || discount > sub) throw new Error('Discount must be between zero and the subtotal.');
       const due = duePaise(), over = mode === 'pay' && paid > due && !!group;
@@ -6114,6 +6349,7 @@ function settleSheet(tabId, mode = 'pay') {
       const back = handBackPaise(), asking = mode === 'pay' && back <= 0 && paid < due;
       if (asking && !draft.rest) throw new Error('Choose what happens to the other ' + money(due - paid) + '.');
       if (asking && draft.rest === 'keep') {
+        if (partly()) throw new Error('Pay for everything to keep the rest on the system.');
         if (discount > 0) throw new Error('Give the discount on the group’s bill, when it is paid.');
         return { type: 'KEEP_SHARED', tabId: tab.id, amountPaise: paid, ...(paid > 0 ? draft.how.value(paid) : { method: 'cash' }) };
       }
@@ -6121,12 +6357,16 @@ function settleSheet(tabId, mode = 'pay') {
       if (over && how.payments) throw new Error('Take money for another bill in one way, cash or UPI.');
       return { type: 'SETTLE_REVIEW', tabId: tab.id, settlement: mode, discountType: discount > 0 ? 'fixed' : 'none', discountValue: discount, amountPaise: back > 0 ? 0 : paid, ...how, surplusTabId: over ? group.id : undefined, refundPaise: back > 0 ? back : undefined,
         ...(asking && draft.rest === 'pending' ? { pending: { name: draft.pendingName.trim(), phone: draft.pendingPhone.trim() } } : {}),
-        ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: unpaidChooser ? unpaidChooser.items() : undefined } : {}) };
+        ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: unpaidChooser ? unpaidChooser.items() : undefined } : {}),
+        // Some lines unticked: only the ticked ones are settled now; the rest stays on this bill.
+        ...(partly() ? { only: { ids: segmentsOf(tab.id).filter(g => !skip.has(g.id)).map(g => g.id), items: ordersOf(tab.id).filter(o => paying(o) > 0).map(o => ({ orderId: o.id, quantity: paying(o) })) } } : {}) };
     },
     // Paid in full: nothing more to look at. The sheet closes to where the receptionist was (the floor, the list of players
     // still to settle, or the turf booking), with a short note and the receipt one tap away. Anything still owing shows the bill.
     then: (result, command) => {
       const took = command.amountPaise ? 'Paid ' + money(command.amountPaise) + ' · ' + methodText(result.method || command.method) + (result.receiptNumber ? ' · ' + result.receiptNumber : '') + '. ' : '';
+      // Part settled: back to this bill with what was not ticked, to move it, put it on credit or keep it pending.
+      if (result.restTabId) { settleSheet(result.restTabId); return { text: took + 'The rest is still on this bill.' }; }
       // Kept on the group's system, or left pending: back to where the receptionist was, with a note.
       if (command.type === 'KEEP_SHARED') { closeSheet(); render(); return { text: took + 'The rest stays on ' + keepLabel.replace(/^Keep on /, '') + '.' }; }
       if (command.pending) {
@@ -6218,67 +6458,36 @@ function chooseTabSheet(tabIds, groupName) {
   });
 }
 
-// "Put it on my friends' bill": the whole visit moves onto another open bill, once. Nobody starts playing anywhere.
-function addToBillSheet(tab) {
-  // One entry per group, not per player: "PS5 1" rather than each of its controllers.
+// Today's turf bookings still to be paid, for a bill from the gaming floor: the group goes on to the turf and pays there,
+// once, with the booking.
+function turfTakers(tab) {
+  if (tab.kind === 'turf' || tab.kind === 'turf_player') return [];
+  return (state.TurfBookings || []).filter(b => b.status === 'booked' && b.dateKey === dayKey(nowMs()) && turfStatusOf(b.id).state !== 'settled' && !(b.tabId && tabOf(b.tabId) && tabOf(b.tabId).status !== 'open')).sort((a, b) => Number(a.startHour) - Number(b.startHour));
+}
+const turfTakerText = b => b.customer + ' · ' + turfRange(b) + ' · ' + courtLabel(b.court);
+// Systems laid out by category, one row each (owner, 21 October: "organise properly"): the category on the left and its
+// systems as chips beside it (on a phone, under it). Each entry: { category, text, selected, data, onclick }.
+function systemRows(entries) {
+  return h('div', 'move-cats', CATEGORIES.map(category => {
+    const mine = entries.filter(entry => entry.category === category);
+    if (!mine.length) return null;
+    return h('div', 'move-cat', h('div', 'move-cat-name', icon(category), catName(category)),
+      h('div', 'chips', mine.map(entry => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(entry.selected), data: entry.data, onclick: entry.onclick }, entry.text))));
+  }));
+}
+// The systems playing now, one entry per group (a console once, not per controller), their own group first.
+function playingBills(tab) {
   const mine = originOf(tab.id), groups = new Map();
   for (const t of state.Tabs) {
-    if (t.status !== 'open' || t.id === tab.id || !(segmentsOf(t.id).length || ordersOf(t.id).length)) continue;
+    if (t.status !== 'open' || t.id === tab.id || !stillPlaying(t.id)) continue;
     const origin = originOf(t.id);
-    // Their own group's bill is offered first (the others will pay); its other separate bills are combined under "Who is paying?".
-    if (origin === mine && t.id !== origin) continue;
     if (!groups.has(origin)) groups.set(origin, []);
     groups.get(origin).push(t);
   }
-  const entries = [...groups].map(([origin, members]) => {
-    const home = members.find(t => t.id === origin) || null, played = members.flatMap(t => segmentsOf(t.id)), now = played.filter(g => g.status === 'active');
-    return {
-      origin, members, home,
-      name: home ? home.customer : members[0].customer.split(' · ')[0],
-      // Where they are playing now; if they have stopped, where they played.
-      units: [...new Set((now.length ? now : played).map(g => (unitOf(g.unitId) || {}).name || g.unitId))],
-      playing: members.some(t => stillPlaying(t.id)),
-      total: members.reduce((sum, t) => sum + tabTotal(t.id), 0),
-      own: origin === mine
-    };
-  }).sort((a, b) => Number(b.own) - Number(a.own));
-  let chosen = '';
-  const comment = commentField();
-  openSheet({
-    title: 'Add to another bill',
-    icon: 'users',
-    sub: tab.customer + ' · ' + money(tabTotal(tab.id)),
-    focus: false,
-    onClose: () => settleSheet(tab.id),
-    build(ui) {
-      if (!entries.length) { ui.body.append(h('p', { class: 'muted', text: 'No other bill is open.' })); return; }
-      const card = h('div', 'lines');
-      for (const entry of entries) {
-        const place = entry.units.join(', ');
-        card.append(h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(chosen === entry.origin), data: { bill: entry.origin }, onclick: () => { chosen = entry.origin; ui.redraw(); } },
-          h('input', { type: 'checkbox', checked: chosen === entry.origin, tabindex: '-1', 'aria-hidden': 'true' }),
-          h('div', 'line-main', h('b', { text: place || entry.name }), h('span', { class: 'small muted', text: [place ? entry.name : (entry.members[0].kind === 'quick_sale' ? 'Quick Sale' : ''), entry.own ? 'their own group' : '', entry.playing ? 'playing' : '', !entry.home && entry.members.length > 1 ? entry.members.length + ' separate bills' : ''].filter(Boolean).join(' · ') })),
-          h('span', { class: 'line-amount', text: money(entry.total) })));
-      }
-      ui.body.append(card, comment.node);
-      const target = entries.find(entry => entry.origin === chosen);
-      ui.primary(target ? 'Add ' + money(tabTotal(tab.id)) + ' to ' + (target.units.join(', ') || target.name) : 'Choose a bill', !target);
-    },
-    command() {
-      const target = entries.find(entry => entry.origin === chosen);
-      if (!target) throw new Error('Choose a bill.');
-      // A group still on one bill takes the charges onto that bill. A group already being settled player by player
-      // gets this bill as one more row in its list, to be paid alone or together with any of them.
-      const note = comment.value();
-      if (target.own) return { type: 'KEEP_SHARED', tabId: tab.id, note };
-      return target.home ? { type: 'CONSOLIDATE_TABS', sourceTabId: tab.id, tabId: target.home.id, note } : { type: 'ATTACH_TO_GROUP', sourceTabId: tab.id, memberTabId: target.members[0].id, note };
-    },
-    then(result, command) {
-      if (command.type !== 'ATTACH_TO_GROUP') { closeSheet(); return; }
-      const target = entries.find(entry => entry.origin === chosen);
-      chooseTabSheet(groupTabIds(tab.id), target ? target.name : '');
-    }
-  });
+  return [...groups].map(([origin, members]) => {
+    const playing = members.flatMap(t => segmentsOf(t.id)).filter(g => g.status === 'active');
+    return { origin, members, home: members.find(t => t.id === origin) || null, own: origin === mine, name: [...new Set(playing.map(g => (unitOf(g.unitId) || {}).name || g.unitId))].join(', '), category: (unitOf(playing[0].unitId) || {}).category };
+  }).sort((x, y) => Number(y.own) - Number(x.own) || x.name.localeCompare(y.name, 'en', { numeric: true }));
 }
 
 // "What does it come to so far?" Tap a station in use: every running timer priced as if it stopped now, plus items.
@@ -6362,43 +6571,45 @@ function manualChargeSheet(tab) {
 }
 
 // ---------- Moving ----------
-// Pick one system and the whole bill goes there on one timer. Pick two or more and a timer starts on each, all on this bill.
+// One Move (owner, 21 October), three places: a system playing now (this bill goes onto theirs, nobody starts playing),
+// today's turf (paid with the booking), or a free system (they carry on playing there; pick two or more and a timer
+// starts on each, all on this bill).
 function moveSheet(tab) {
   const freeSlots = unit => 4 - activeOn(unit.id).length;
   // A free system, or a PS5 in use that still has a free controller (to join friends there).
   const offered = unit => !inUse(unit) || (unit.category === 'PS5' && !legacyOn(unit.id) && freeSlots(unit) > 0);
+  // Carrying on playing is for a bill that played; a turf player's share joins a system from the turf booking itself.
+  const canPlayOn = segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player';
+  const systems = tab.kind === 'turf_player' ? [] : playingBills(tab), turf = turfTakers(tab);
+  const free = canPlayOn ? CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && offered(u))) : [];
   const chosen = new Set();
   // How many stopped on this bill; the usual number to start again, but fewer may play on.
   const movers = Math.max(1, state.Endings.filter(e => e.reviewTabId === tab.id && e.status === 'review' && e.segmentId).length);
-  let joinTab = '', time, controllers = 0, acked = false, turfTo = '';
+  let joinTab = '', time, controllers = 0, acked = false, turfTo = '', billTo = '';
   const comment = commentField();
-  // Today's turf bookings still to be paid: a group that played here and goes on to the turf pays there, once.
-  const fromFloor = tab.kind !== 'turf' && tab.kind !== 'turf_player';
-  const turfToday = fromFloor ? (state.TurfBookings || []).filter(b => b.status === 'booked' && b.dateKey === dayKey(nowMs()) && turfStatusOf(b.id).state !== 'settled' && !(b.tabId && tabOf(b.tabId) && tabOf(b.tabId).status !== 'open')).sort((a, b) => Number(a.startHour) - Number(b.startHour)) : [];
   const onePs5 = () => { const only = chosen.size === 1 ? unitOf([...chosen][0]) : null; return only && only.category === 'PS5' ? only : null; };
   const seatCount = () => { const unit = onePs5(); return unit ? Math.min(controllers || movers, freeSlots(unit)) : 0; };
+  const clear = () => { chosen.clear(); turfTo = ''; billTo = ''; joinTab = ''; acked = false; current.ack.reservation = false; };
   openSheet({
-    title: 'Move to another system',
-    sub: tab.customer,
+    title: 'Move',
+    sub: tab.customer + ' · ' + money(tabTotal(tab.id)),
     icon: 'transfer',
     focus: false,
     onClose: () => settleSheet(tab.id),
     build(ui) {
-      for (const category of CATEGORIES) {
-        const units = state.Equipment.filter(u => u.category === category && offered(u));
-        if (!units.length) continue;
-        ui.body.append(h('div', 'group-title', icon(category), catName(category)), h('div', 'chips', units.map(u => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen.has(u.id)), data: { unit: u.id },
-          onclick: () => { if (chosen.has(u.id)) chosen.delete(u.id); else chosen.add(u.id); turfTo = ''; joinTab = ''; acked = false; current.ack.reservation = false; ui.redraw(); } }, u.name + (inUse(u) ? ' · ' + freeSlots(u) + ' free' : '')))));
-      }
-      if (turfToday.length) ui.body.append(h('div', 'group-title', icon('turf'), 'Turf'), h('div', 'chips', turfToday.map(b => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(turfTo === b.id), data: { turfTo: b.id },
-        onclick: () => { turfTo = turfTo === b.id ? '' : b.id; chosen.clear(); joinTab = ''; acked = false; current.ack.reservation = false; ui.redraw(); } }, b.customer + ' · ' + turfRange(b)))));
-      if (turfTo) {
-        const b = turfBookingOf(turfTo);
+      if (!systems.length && !turf.length && !free.length) { ui.body.append(h('p', { class: 'muted', text: 'No system is playing or free and no turf booking is open today.' })); return; }
+      if (systems.length) ui.body.append(h('div', 'group-title', icon('users'), 'Playing now · add to their bill'), systemRows(systems.map(entry => ({ category: entry.category, text: entry.name, selected: billTo === entry.origin, data: { bill: entry.origin }, onclick: () => { clear(); billTo = entry.origin; ui.redraw(); } }))));
+      if (turf.length) ui.body.append(h('div', 'group-title', icon('turf'), 'Turf · pay with the booking'), h('div', 'chips move-turf', turf.map(b => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(turfTo === b.id), data: { turfTo: b.id }, onclick: () => { clear(); turfTo = b.id; ui.redraw(); } }, turfTakerText(b)))));
+      if (free.length) ui.body.append(h('div', 'group-title', icon('play'), 'Free · carry on playing'), systemRows(free.map(u => ({ category: u.category, text: u.name + (inUse(u) ? ' · ' + freeSlots(u) + ' free' : ''), selected: chosen.has(u.id), data: { unit: u.id },
+        onclick: () => { const had = chosen.has(u.id), kept = [...chosen]; clear(); kept.forEach(id => chosen.add(id)); if (had) chosen.delete(u.id); else chosen.add(u.id); ui.redraw(); } }))));
+      const target = systems.find(entry => entry.origin === billTo), booking = turf.find(b => b.id === turfTo);
+      if (target || booking) {
         ui.body.append(h('div', { style: 'margin-top:16px' }, comment.node));
-        ui.primary('Move to ' + b.customer + '’s turf · ' + turfRange(b));
+        ui.primary('Add ' + money(tabTotal(tab.id)) + ' to ' + (target ? target.name : turfTakerText(booking)));
         return;
       }
       const units = [...chosen].map(unitOf), only = units.length === 1 ? units[0] : null;
+      if (!units.length) { ui.primary('Choose where', true); return; }
       if (only && inUse(only)) {
         // Joining friends on a console: keep a separate bill, or put everything on the friends' bill.
         const hosts = [...new Set(activeOn(only.id).map(g => g.tabId))].map(tabOf).filter(Boolean);
@@ -6406,8 +6617,8 @@ function moveSheet(tab) {
         ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'join-bill' } }, h('span', { text: 'Joining ' + hosts.map(t => t.customer).join(' and ') + ' · charge to' }), bill.node));
       }
       if (onePs5()) {
-        const free = freeSlots(onePs5()), options = [];
-        for (let n = 1; n <= free; n++) options.push([n, String(n)]);
+        const slots = freeSlots(onePs5()), options = [];
+        for (let n = 1; n <= slots; n++) options.push([n, String(n)]);
         ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented(options, seatCount(), v => { controllers = Number(v); }).node));
       }
       // A free system chosen here that someone has booked soon: said here, before the move.
@@ -6415,20 +6626,34 @@ function moveSheet(tab) {
       for (const [u, list] of clashes) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(u, list, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
       time = time || timeChoice('Starts');
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node), h('div', { style: 'margin-top:16px' }, comment.node));
-      ui.primary(!units.length ? 'Choose a system' : (only && inUse(only) ? 'Join ' : 'Move to ') + units.map(u => u.name).join(' + '), !units.length || (clashes.length > 0 && !acked));
+      ui.primary((only && inUse(only) ? 'Join ' : 'Move to ') + units.map(u => u.name).join(' + '), clashes.length > 0 && !acked);
     },
     command() {
-      if (turfTo) return { type: 'TURF_TAKE', id: turfTo, tabId: tab.id, note: comment.value() };
+      const note = comment.value();
+      if (turfTo) return { type: 'TURF_TAKE', id: turfTo, tabId: tab.id, note };
+      const target = systems.find(entry => entry.origin === billTo);
+      if (target) {
+        // A group still on one bill takes the charges onto that bill. A group already being settled player by player
+        // gets this bill as one more row in its list, to be paid alone or together with any of them.
+        if (target.own) return { type: 'KEEP_SHARED', tabId: tab.id, note };
+        return target.home ? { type: 'CONSOLIDATE_TABS', sourceTabId: tab.id, tabId: target.home.id, note } : { type: 'ATTACH_TO_GROUP', sourceTabId: tab.id, memberTabId: target.members[0].id, note };
+      }
       if (!chosen.size) throw new Error('Choose where they are moving to.');
-      return { type: 'MOVE_REVIEW', tabId: tab.id, unitIds: [...chosen], startMs: time.value(), joinTabId: chosen.size === 1 && joinTab ? joinTab : undefined, controllers: onePs5() ? seatCount() : undefined, note: comment.value() };
+      return { type: 'MOVE_REVIEW', tabId: tab.id, unitIds: [...chosen], startMs: time.value(), joinTabId: chosen.size === 1 && joinTab ? joinTab : undefined, controllers: onePs5() ? seatCount() : undefined, note };
     },
     then(result, command) {
+      if (command.type === 'ATTACH_TO_GROUP') {
+        const target = systems.find(entry => entry.origin === billTo);
+        chooseTabSheet(groupTabIds(tab.id), target ? (target.home || target.members[0]).customer.split(' · ')[0] : '');
+        return null;
+      }
       closeSheet();
       if (command.type === 'TURF_TAKE') {
         // Back where the receptionist was, with a note; the charges are on the booking, to be paid there.
         const b = turfBookingOf(command.id);
-        return { text: 'Moved to ' + b.customer + '’s turf · ' + turfRange(b) + '. Pay it with the booking.' };
+        return { text: 'Moved to ' + turfTakerText(b) + '. Pay it with the booking.' };
       }
+      if (command.type !== 'MOVE_REVIEW') return null;
       floorCategory = unitOf(command.unitIds[0]).category;
       go('floor');
       return null;
@@ -9035,7 +9260,17 @@ function turfLaterItemsSheet(b) {
 }
 // A player's amount goes onto a bill already running on a system, named so it is never the wrong bill; or they start playing.
 function turfMoveSheet(b, p) {
-  const owed = tabTotal(p.tabId), running = state.Tabs.filter(t => t.status === 'open' && t.id !== p.tabId && stillPlaying(t.id)), comment = commentField();
+  // Each system playing now by its name alone, once (owner, 21 October): a console's controllers on separate bills are
+  // one entry, its first bill.
+  const owed = tabTotal(p.tabId), comment = commentField(), seen = new Set(), running = [];
+  for (const t of state.Tabs) {
+    if (t.status !== 'open' || t.id === p.tabId || !stillPlaying(t.id)) continue;
+    const name = [...new Set(state.Segments.filter(g => g.tabId === t.id && g.status === 'active').map(g => (unitOf(g.unitId) || {}).name || g.unitId))].join(', ');
+    if (seen.has(name)) continue;
+    seen.add(name);
+    running.push({ t, name, category: (unitOf(state.Segments.find(g => g.tabId === t.id && g.status === 'active').unitId) || {}).category });
+  }
+  running.sort((x, y) => x.name.localeCompare(y.name, 'en', { numeric: true }));
   let chosen = '';
   openSheet({
     title: 'Move to System',
@@ -9045,20 +9280,12 @@ function turfMoveSheet(b, p) {
     onClose: () => turfDetailSheet(b.id),
     build(ui) {
       if (running.length) {
-        const card = h('div', 'lines');
-        for (const t of running) {
-          const units = [...new Set(state.Segments.filter(g => g.tabId === t.id && g.status === 'active').map(g => (unitOf(g.unitId) || {}).name || g.unitId))].join(', ');
-          card.append(h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(chosen === t.id), data: { bill: t.id }, onclick: () => { chosen = t.id; ui.redraw(); } },
-            h('input', { type: 'checkbox', checked: chosen === t.id, tabindex: '-1', 'aria-hidden': 'true' }),
-            h('div', 'line-main', h('b', { text: units }), h('span', { class: 'small muted', text: t.customer + '’s bill' })),
-            h('span', { class: 'line-amount', text: money(tabTotal(t.id)) })));
-        }
-        ui.body.append(h('div', 'group-title', icon('users'), 'Add to a bill on a system in use'), card);
+        ui.body.append(h('div', 'group-title', icon('users'), 'Playing now'), systemRows(running.map(({ t, name, category }) => ({ category, text: name, selected: chosen === t.id, data: { bill: t.id }, onclick: () => { chosen = t.id; ui.redraw(); } }))));
       } else ui.body.append(h('p', { class: 'muted', text: 'No system is in use.' }));
       ui.body.append(h('div', { class: 'station-links', style: 'margin-top:14px' }, btn([icon('play'), 'Start playing on a free system'], () => moveSheet(tabOf(p.tabId)), 'quiet', { data: { action: 'turf-start-system' } })));
-      const target = running.find(t => t.id === chosen);
+      const target = running.find(x => x.t.id === chosen);
       if (running.length) ui.body.append(h('div', { style: 'margin-top:14px' }, comment.node));
-      ui.primary(target ? 'Move ' + money(owed) + ' to ' + target.customer + '’s bill' : 'Choose a bill', !target);
+      ui.primary(target ? 'Move ' + money(owed) + ' to ' + target.name : 'Choose a system', !target);
     },
     command() {
       if (!chosen) throw new Error('Choose a bill.');
