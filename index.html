@@ -832,6 +832,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .sheet::backdrop { background: rgba(48, 40, 26, 0.32); animation: fade 200ms ease-out; }
 .sheet form { height: 100%; display: flex; flex-direction: column; min-height: 0; }
 .sheet-head { flex: none; display: flex; align-items: center; gap: 14px; padding: 16px 14px 12px 20px; }
+/* Back, before the title, when the sheet was opened from another. */
+.sheet-back { flex: none; min-height: 40px; padding: 0 12px 0 8px; gap: 4px; font-weight: 600; }
+.sheet-back svg { width: 18px; height: 18px; }
 .sheet-head > .glyph { width: 44px; height: 44px; border-radius: 12px; color: var(--primary); background: #e3eaec; border-color: var(--primary-line); }
 .sheet-head > .glyph svg { width: 21px; height: 21px; }
 .sheet-head > .glyph.gold { color: var(--gold); background: var(--gold-soft); border-color: var(--gold-line); }
@@ -864,6 +867,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .foot-row .field { margin: 0; flex: 1; }
 .foot-row > .seg { align-self: flex-end; }
 .foot-label { font-size: 14px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.01em; }
+/* An academy's slot: Turf ₹X + Items ₹Y on a line of its own under the state. */
+.foot-label [data-account-parts] { display: block; margin-top: 4px; }
 .foot-total { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.025em; }
 .foot-total.clear { color: var(--accent); }
 .foot-links { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px -10px; }
@@ -919,6 +924,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .action:hover { background: #ffffff; border-color: var(--primary-line); }
 .action:active { transform: translateY(1px); }
 .action svg { width: 19px; height: 19px; color: var(--ink); transition: color var(--ease); }
+/* At a sheet's foot the other ways to close it sit on one low row under the main button (owner, 22 October). */
+.sheet-foot .actions { display: flex; flex-wrap: wrap; }
+.sheet-foot .action { flex: 1 1 auto; flex-direction: row; gap: 7px; min-height: 42px; padding: 6px 8px; white-space: nowrap; }
+.sheet-foot .action svg { width: 17px; height: 17px; flex: none; }
 .action:hover svg { color: var(--primary); }
 
 /* A bill reads as a ledger: a panel per system with its name, one framed row per charge, amounts in one right-hand column. */
@@ -954,6 +963,20 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .bill-group .line-main b { font-size: 15px; }
 .bill-group .line-main .small { font-size: 13px; margin-top: 1px; }
 .bill-group .line-amount { font-size: 16px; }
+/* A bill being settled (owner, 22 October): Add Items and the discount on one row at the top, as on a split booking, and
+   the lines close together, so the whole bill shows without scrolling. */
+.settle-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.settle-top .station-links { margin: 0 -10px; }
+.settle-lines + .settle-top { margin: 2px 0 0; }
+.settle-discount { display: flex; align-items: center; gap: 10px; margin-left: auto; font-size: 14px; font-weight: 500; color: var(--ink-2); }
+.settle-discount input { width: 110px; min-height: 38px; padding: 0 10px; text-align: right; }
+/* In the turf card: a row under the charge, the box at the right, as on a split booking. */
+.bill-group > .settle-discount { justify-content: space-between; margin: 6px 0 0; padding: 4px 8px 0 12px; }
+.settle-lines .bill-group { margin-bottom: 8px; padding: 8px 10px; border-radius: 14px; }
+.settle-lines .bill-group > .group-title { margin: 0 2px 6px; font-size: 15px; }
+.settle-lines .bill-group > .group-title > svg { width: 18px; height: 18px; }
+.settle-lines .bill-group > .lines { gap: 6px; }
+.settle-lines .bill-group > .lines > .line { min-height: 46px; padding: 5px 8px 5px 12px; }
 .lines { border: 1px solid var(--line); border-radius: var(--r); background: var(--raised); box-shadow: var(--hi); padding: 0 16px; }
 .lines .line:first-child { border-top: 0; }
 .line { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); min-height: 54px; }
@@ -1165,6 +1188,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-team { display: grid; gap: 8px; }
 .turf-none { padding: 4px 2px; }
 .turf-player { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--raised); box-shadow: var(--hi); }
+.turf-player-tools { display: inline-flex; align-items: center; gap: 2px; }
+.turf-player-tools .icon-btn[data-action] { border-color: var(--line-strong); background: var(--surface); box-shadow: var(--hi); }
+.turf-player-tools .icon-btn[data-action]:hover { color: var(--ink); border-color: var(--line-bold); }
 /* Paid, on credit or moved: the card stays, green with a grey outline, so it is plain who is still to pay. */
 .turf-player.cleared { background: linear-gradient(180deg, rgba(31, 125, 74, 0.17) 0%, rgba(31, 125, 74, 0.093) 100%), var(--raised); border-color: var(--line-bold); }
 .turf-player.cleared .turf-player-main .muted { color: var(--ink-2); }
@@ -1198,9 +1224,6 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-player-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .turf-player-sum { display: grid; justify-items: end; gap: 3px; }
 .turf-player-sum b { font-size: 16px; }
-.turf-player-tools { display: inline-flex; align-items: center; gap: 2px; }
-.turf-player-tools .icon-btn[data-action] { border-color: var(--line-strong); background: var(--surface); box-shadow: var(--hi); }
-.turf-player-tools .icon-btn[data-action]:hover { color: var(--ink); border-color: var(--line-bold); }
 .turf-paid { display: flex; align-items: center; gap: 10px; }
 .turf-head-badge { margin-top: 6px; }
 /* A WhatsApp message as it will be sent. */
@@ -1424,7 +1447,15 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .sheet-head > .glyph svg { width: 19px; height: 19px; }
   .sheet-head h2 { font-size: 19px; }
   .foot-total { font-size: 30px; }
-  .sheet-foot .seg.method button { min-width: 0; padding: 0 12px; }
+  .sheet-foot .seg.method button { min-width: 0; }
+  /* The amount, Cash, UPI and Split on one row on a phone (with CA beside UPI, Split goes under). */
+  .pay-foot { gap: 8px; }
+  .pay-foot > .field { min-width: 104px; }
+  .pay-row { gap: 6px; }
+  .pay-row > .btn { padding: 0 6px; gap: 5px; }
+  .sheet-foot .seg.method button { padding: 0 9px; gap: 6px; }
+  .input-clear input { padding-right: 36px !important; }
+  .input-clear .icon-btn { right: 6px; width: 24px; height: 24px; margin-top: -12px; }
   .action { min-height: 56px; }
   .turf-board { grid-template-columns: 62px repeat(3, minmax(0, 1fr)); grid-template-rows: 40px; grid-auto-rows: 58px; gap: 5px; padding: 10px; }
   .turf-court-head { gap: 6px; font-size: 14px; }
@@ -1482,6 +1513,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   /* A tablet's turf columns are wide enough for the time beside the sport. */
   .turf-time { display: inline; }
 }
+/* Cash, UPI and CA side by side, the same width. */
+.turf-pay.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
 </style>
 </head>
 <body>
@@ -1550,6 +1583,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 <dialog id="sheet" class="sheet">
   <form id="sheetForm" novalidate>
     <header class="sheet-head">
+      <button id="sheetBack" type="button" class="btn quiet sheet-back" aria-label="Back" title="Back" hidden></button>
       <span id="sheetIcon" class="glyph" hidden></span>
       <div class="sheet-head-text"><h2 id="sheetTitle"></h2><p id="sheetSub" class="muted small"></p></div>
       <button id="sheetClose" type="button" class="icon-btn" aria-label="Close" title="Close"></button>
@@ -3498,7 +3532,11 @@ var ArenaTurf = (function () {
       // A slot on the same bill as a split slot is shared among that slot's players: no fee of its own.
       if (leadOf(state, booking)) { if (fee) voidLine(fee, 'Split among players'); return; }
       if (!main || main.status !== 'open') return;
-      setLine(state, fee, { tabId: main.id, label: 'Turf · ' + (COURT_NAMES[booking.court] || booking.court) + ' · ' + hoursText(booking.hours), quantity: Number(booking.hours), unitPricePaise: Number(booking.ratePaise), purchaser: booking.customer, reason: 'Turf booking', ratesJson: JSON.stringify({ bookingId: booking.id, part: 'fee', ratePaise: Number(booking.ratePaise), hours: Number(booking.hours) }) }, now, id + '-fee');
+      // A discount on the turf (owner, 22 October) makes the line the turf after discount, with the gross and the discount
+      // kept beside it for the reports, as a player's share is.
+      var off = Number(booking.discountPaise || 0), label = 'Turf · ' + (COURT_NAMES[booking.court] || booking.court) + ' · ' + hoursText(booking.hours);
+      if (off > 0) setLine(state, fee, { tabId: main.id, label: label, quantity: 1, unitPricePaise: feeOf(booking) - off, purchaser: booking.customer, reason: 'Turf booking', ratesJson: JSON.stringify({ bookingId: booking.id, part: 'fee', ratePaise: Number(booking.ratePaise), hours: Number(booking.hours), grossPaise: feeOf(booking), discountPaise: off }) }, now, id + '-fee');
+      else setLine(state, fee, { tabId: main.id, label: label, quantity: Number(booking.hours), unitPricePaise: Number(booking.ratePaise), purchaser: booking.customer, reason: 'Turf booking', ratesJson: JSON.stringify({ bookingId: booking.id, part: 'fee', ratePaise: Number(booking.ratePaise), hours: Number(booking.hours) }) }, now, id + '-fee');
       return;
     }
     if (fee) voidLine(fee, 'Split among players');
@@ -3622,12 +3660,13 @@ var ArenaTurf = (function () {
     }
     if (cmd.type === 'TURF_ACCOUNT_DUE') {
       // Academy slots that have ended go to the academy's credit account, with their items named; so do academy players in a
-      // match. Run by the screen once a slot is over; nothing is moved twice.
+      // match. Run by the screen once a slot is over; nothing is moved twice. Credit on the slot (owner, 21 October) moves one
+      // booking now (cmd.id), or one academy player of it (cmd.playerId), before it ends.
       var posted = 0;
       booked(state).forEach(function (b, n) {
-        if (endOf(b) > now) return;
+        if (cmd.id ? b.id !== cmd.id : endOf(b) > now) return;
         var coaching = accountOf(state, b.id), status = settlement(state, b);
-        if (coaching && b.split !== 'yes' && !leadOf(state, b) && status.state !== 'settled' && status.state !== 'pending') {
+        if (coaching && !cmd.playerId && b.split !== 'yes' && !leadOf(state, b) && status.state !== 'settled' && status.state !== 'pending') {
           var mainTab = tabOf(state, b.tabId);
           if (!mainTab || (mainTab.status === 'open' && !playing(state, mainTab.id))) {
             ensureMain(state, b, now, id + '-' + n);
@@ -3640,6 +3679,7 @@ var ArenaTurf = (function () {
         players(state, b).forEach(function (p, k) {
           var mark = accountOf(state, p.id), t = tabOf(state, p.tabId);
           if (!mark || !t || t.status !== 'open' || playing(state, t.id) || !(state.Orders || []).some(function (o) { return o.tabId === t.id && o.status === 'active'; })) return;
+          if (cmd.playerId && p.id !== cmd.playerId) return;
           ArenaLifecycle.execute(state, { type: 'SETTLE_REVIEW', tabId: t.id, settlement: 'credit', discountType: 'none', discountValue: 0, amountPaise: 0, method: 'cash', accountId: mark.accountId, unpaidItems: goodsOf(state, t.id) }, actor, now, id + '-due-' + n + '-' + k);
           posted++;
         });
@@ -4087,13 +4127,24 @@ var ArenaTurf = (function () {
     if (cmd.type === 'TURF_ITEMS_PAY') {
       // Items on an academy's slot paid at the counter now, all or some (owner, 21 October): the ones chosen, by how many,
       // go to a bill of their own, paid in full; the rest stay on the slot and go to the academy's account when it ends.
-      check(!!accountOf(state, booking.id) && booking.split !== 'yes', 'Only an academy\'s slot pays its items apart.');
       check(Array.isArray(cmd.items) && cmd.items.length > 0, 'Choose the items paid now.');
-      var slotBill = ensureMain(state, booking, now, id);
-      sync(state, booking, now, id);
+      var slotBill;
+      if (cmd.playerId) {
+        // An academy playing as a team: from its own bill on the booking.
+        var teamOf = row(state.TurfPlayers, cmd.playerId);
+        check(teamOf.bookingId === booking.id && !!accountOf(state, teamOf.id), 'Only an academy pays its items apart.');
+        slotBill = tabOf(state, teamOf.tabId);
+        check(!!slotBill && slotBill.status === 'open', 'This bill is already settled.');
+      } else {
+        check(!!accountOf(state, booking.id) && booking.split !== 'yes', 'Only an academy\'s slot pays its items apart.');
+        slotBill = ensureMain(state, booking, now, id);
+        sync(state, booking, now, id);
+      }
       var counter = { id: id + '-items', customer: booking.customer, phone: booking.phone || '', status: 'open', createdMs: now, kind: 'individual' };
       state.Tabs.push(counter);
       ArenaSales.execute(state, { type: 'TAKE_ITEMS', fromTabId: slotBill.id, tabId: counter.id, items: cmd.items }, actor, now, id + '-take');
+      // Or only taken apart (owner, 21 October): to be put on credit, kept pending or settled like any bill.
+      if (cmd.apart === true) return { bookingId: booking.id, tabId: counter.id, message: 'These items are on a bill of their own.' };
       var itemsPaise = (state.Orders || []).filter(function (o) { return o.tabId === counter.id && o.status === 'active'; }).reduce(function (n, o) { return n + o.totalPaise; }, 0);
       var paidItems = ArenaLifecycle.execute(state, { type: 'SETTLE_REVIEW', tabId: counter.id, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: itemsPaise, method: cmd.method, payments: cmd.payments }, actor, now, id + '-pay');
       return { bookingId: booking.id, tabId: counter.id, amountPaise: itemsPaise, receiptNumber: paidItems.receiptNumber, method: cmd.method, message: 'Items paid ' + (itemsPaise / 100) + '.' };
@@ -4113,12 +4164,13 @@ var ArenaTurf = (function () {
       return { bookingId: booking.id, amountPaise: total, bills: waiting, message: 'Pending ' + (total / 100) + '.' };
     }
     if (cmd.type === 'TURF_DISCOUNT') {
-      check(booking.split === 'yes', 'Split the booking among players first.');
-      check(!locked(state, booking), 'Turf shares are fixed once someone has paid.');
-      booking.discountPaise = discountOf(state, booking, cmd.discountPaise);
+      // Split: taken off before the shares. One payer (owner, 22 October): taken off the turf while its bill is open.
+      check(!locked(state, booking), booking.split === 'yes' ? 'Turf shares are fixed once someone has paid.' : 'This booking’s bill is already closed.');
+      check(booking.split === 'yes' || (billOpen(state, booking) && !leadOf(state, booking) && !accountOf(state, booking.id)), 'A discount on this slot is given on the booking it is paid with.');
+      booking.discountPaise = booking.split === 'yes' ? discountOf(state, booking, cmd.discountPaise) : (check(Number.isSafeInteger(cmd.discountPaise) && cmd.discountPaise >= 0 && cmd.discountPaise <= feeOf(booking), 'The discount must be between ₹0 and the turf charge.'), cmd.discountPaise);
       booking.updatedMs = now; booking.revision = booking.revision + 1;
       sync(state, booking, now, id);
-      return { bookingId: booking.id, message: 'Discount saved. Shares recalculated.' };
+      return { bookingId: booking.id, message: booking.split === 'yes' ? 'Discount saved. Shares recalculated.' : 'Discount saved.' };
     }
     // TURF_PLAYER without a playerId: a new player joins the split. Once shares are fixed, a late player has items only.
     check(booking.split === 'yes', 'Split the booking among players first.');
@@ -4180,7 +4232,7 @@ var ArenaTurf = (function () {
     // One payer with no bill opened yet: the whole fee is still to pay, with the fees of the slots booked on the same bill.
     if (booking.split !== 'yes' && !parts.some(function (p) { return !p.playerId && p.state !== 'empty'; })) {
       [booking].concat(linked(state, booking).filter(function (b) { return b.split !== 'yes'; })).forEach(function (b) {
-        if (!turfLines(state, b.id).some(function (o) { return meta(o).part === 'fee'; })) owed += feeOf(b);
+        if (!turfLines(state, b.id).some(function (o) { return meta(o).part === 'fee'; })) owed += feeOf(b) - Number(b.discountPaise || 0);
       });
     }
     var all = function (list) { return !unshared && parts.length > 0 && parts.every(function (p) { return list.indexOf(p.state) >= 0; }) && (booking.split === 'yes' ? parts.some(function (p) { return p.playerId; }) : parts.some(function (p) { return p.state !== 'empty'; })); };
@@ -4956,7 +5008,11 @@ let sheetAfterSave = false;
 function openSheet(config) {
   const before = $('sheet').open && current && !sheetAfterSave ? current.config : null;
   // The same sheet opened again (a bill after one of its items changed) stays scrolled where it was (owner, 21 October).
-  const again = $('sheet').open && current && current.config.title === config.title && (current.config.sub || '') === (config.sub || '') ? $('sheetBody').scrollTop : 0;
+  const same = $('sheet').open && current && current.config.title === config.title && (current.config.sub || '') === (config.sub || '');
+  const again = same ? $('sheetBody').scrollTop : 0;
+  // The same sheet drawn again after a save: the box being typed in keeps the cursor (owner, 22 October), unless the sheet
+  // puts the cursor somewhere itself (the next item's name).
+  const typing = same && config.focus === false && $('sheet').contains(document.activeElement) && document.activeElement.dataset ? document.activeElement.dataset.field || '' : '';
   if (before && config.onClose === undefined) config = { ...config, onClose: before.title === config.title ? before.onClose : () => openSheet(before) };
   current = { ...config, config, ack: { reservation: false, time: false }, primaryButton: null };
   const sheet = current;
@@ -4969,6 +5025,8 @@ function openSheet(config) {
   $('sheetIcon').className = ('glyph ' + (config.tone || '')).trim();
   $('sheetIcon').replaceChildren(...(config.icon ? [icon(config.icon)] : []));
   sheetStatus('', '');
+  // Back shows when there is a sheet to go back to (the one it was opened from, or the place it says).
+  $('sheetBack').hidden = !current.onClose;
   const ui = {
     body: $('sheetBody'), foot: $('sheetFoot'),
     primary(label, disabled) {
@@ -4979,21 +5037,34 @@ function openSheet(config) {
     },
     run: (command, then) => runCommand(command, then),
     // Redrawn in place: the sheet stays scrolled where it was, unless the redraw brought something into view itself.
+    // The box being typed in keeps the cursor, where it was in the text (owner, 22 October: the cursor must not jump).
     redraw() {
-      const top = ui.body.scrollTop;
+      const top = ui.body.scrollTop, typing = document.activeElement, field = typing && $('sheet').contains(typing) && typing.dataset ? typing.dataset.field : '';
+      const caret = field && typing.type === 'text' ? typing.selectionStart : null;
       ui.body.replaceChildren();
       ui.foot.replaceChildren();
       sheet.primaryButton = null;
       config.build(ui);
       if (ui.body.scrollTop === 0) ui.body.scrollTop = top;
+      const again = field && !document.activeElement.dataset.field ? $('sheet').querySelector('[data-field="' + field + '"]') : null;
+      if (again && again.offsetParent) {
+        again.focus({ preventScroll: true });
+        if (caret != null) again.setSelectionRange(caret, caret);
+      }
     }
   };
   sheet.ui = ui;
   ui.redraw();
   if (!$('sheet').open) $('sheet').showModal();
   $('sheetBody').scrollTop = again;
-  const first = $('sheetBody').querySelector('input:not([type=hidden]):not([hidden])');
-  if (first && config.focus !== false) first.focus();
+  // The cursor goes to the first box, or to the one the sheet names (focus: a selector), or nowhere (focus: false).
+  const first = $('sheetBody').querySelector(typeof config.focus === 'string' ? config.focus : 'input:not([type=hidden]):not([hidden])');
+  const kept = typing ? $('sheet').querySelector('[data-field="' + typing + '"]') : null;
+  if (kept && kept.offsetParent) kept.focus({ preventScroll: true });
+  else if (first && config.focus !== false) {
+    first.focus();
+    if (typeof config.focus === 'string' && first.select) first.select();
+  }
 }
 
 const flow = createSaveFlow(storage || { getItem: () => null, setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, request => rpc('rpcCommand', token, request), flowNotice);
@@ -6192,7 +6263,8 @@ function drawLines(body, lines) {
     for (const o of turf) card.append(h('div', { class: 'line', data: { order: o.id } },
       h('div', 'line-main', h('b', { text: o.label.replace(/6-a-side|5-a-side|1v1/, court => courtLabel(court)) }), h('span', { class: 'small muted', text: o.quantity > 1 ? money(o.unitPricePaise) + ' an hour' : o.purchaser && o.purchaser !== customer ? o.purchaser : o.reason || 'Turf' })),
       h('span', { class: 'line-amount', text: money(o.totalPaise) })));
-    body.append(h('section', 'bill-group', h('div', 'group-title', icon('turf'), 'Turf'), card));
+    // A discount on the turf sits in the turf card, under the charge (owner, 22 October).
+    body.append(h('section', 'bill-group', h('div', 'group-title', icon('turf'), 'Turf'), card, lines.turfExtra || null));
   }
   if (goods.length) {
     const card = h('div', 'lines');
@@ -6236,10 +6308,12 @@ function settleSheet(tabId, mode = 'pay') {
   if (!tab || tab.status !== 'open') { closeSheet(); return; }
   // Opened straight to Pending (a pool or snooker game's Pending): nothing received, kept under a name.
   const pendingFirst = mode === 'pending';
-  if (pendingFirst) mode = 'pay';
-  const draft = { discountOn: false, discount: '', received: '', edited: false, pay: {}, account: newAccountStore(), toAccount: mode === 'credit', unpaid: new Map(), rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '' };
+  // Opened from a booking's Discount: the cursor waits in the discount box.
+  const discountFirst = mode === 'discount';
+  if (pendingFirst || discountFirst) mode = 'pay';
+  const draft = { discount: '', received: '', edited: false, pay: {}, account: newAccountStore(), toAccount: mode === 'credit', rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '' };
   if (pendingFirst) { draft.edited = true; draft.received = '0'; draft.rest = 'pending'; }
-  let picker = null, unpaidChooser = null;
+  let picker = null;
   const comment = commentField();
   // Lines not paid now (unticked): they stay on this bill, to be moved, put on credit or kept pending after.
   // skip: time unticked; payCount: how many of an item are paid now (all of it unless lowered).
@@ -6259,7 +6333,7 @@ function settleSheet(tabId, mode = 'pay') {
     const paid = (state.Advances || []).filter(a => a.tabId === tab.id && a.status === 'held' && /-(advance|games)(-|$)/.test(a.id)).reduce((sum, a) => sum + a.amountPaise, 0);
     return { ids, total: segs.concat(items).reduce((sum, x) => sum + x.totalPaise, 0), paid };
   })();
-  const discountPaise = () => (draft.discountOn ? toPaise(draft.discount || 0) : 0);
+  const discountPaise = () => toPaise(draft.discount || 0);
   const totalPaise = () => subtotal() - discountPaise();
   // Money already paid towards this bill (up front, or left by another player) comes off what is collected now.
   // If more was paid up front than the bill comes to, the difference is handed back when the bill is closed.
@@ -6271,7 +6345,6 @@ function settleSheet(tabId, mode = 'pay') {
   const group = (() => { const origin = originOf(tab.id), home = tabOf(origin); return origin !== tab.id && home && home.status === 'open' ? home : null; })();
   // Split: what the cash and UPI boxes add up to; otherwise the amount typed, or what is due.
   const receivedPaise = () => { const split = draft.how ? draft.how.paid() : null; return split != null ? split : draft.edited ? toPaise(draft.received || 0) : mode === 'pay' ? duePaise() : 0; };
-  const unpaidPaise = () => (mode === 'credit' && unpaidChooser ? unpaidChooser.total() : 0);
   // Part of a group paying now: the rest can stay on the group's system, where the others pay it at the end.
   const keepLabel = group ? 'Keep on ' + (unitsOfTab(group.id).map(id => (unitOf(id) || {}).name || id).join(' + ') || group.customer + '’s bill') : '';
 
@@ -6280,7 +6353,7 @@ function settleSheet(tabId, mode = 'pay') {
     sub: [tab.phone, tab.kind === 'quick_sale' ? 'Quick Sale' : ''].filter(Boolean).join(' · ') || 'Customer',
     caption: !tab.phone && tab.kind !== 'quick_sale',
     icon: 'user',
-    focus: false,
+    focus: discountFirst ? '[data-field=discount]' : false,
     // Closing one player's bill returns to the list of players still to settle, when there is one.
     onClose: () => returnToSplit(tab.id),
     build(ui) {
@@ -6294,35 +6367,35 @@ function settleSheet(tabId, mode = 'pay') {
         setCount: (o, n) => { payCount.set(o.id, Math.max(0, Math.min(Number(o.quantity), n))); draft.edited = false; ui.redraw(); },
         full: o => { payCount.delete(o.id); draft.edited = false; }
       } : null;
-      const lines = drawLines(ui.body, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids, brought: broughtIn(tab, earlier.ids), ticks, after: () => { ui.redraw(); return null; } }), playing = stillPlaying(tab.id);
+      // Discount: one flat rupee amount, typed straight in; the figure below changes as it is typed. On a turf bill it sits in
+      // the turf card under the charge, as on a split booking (owner, 22 October: the discount is given on the turf);
+      // otherwise beside Add Items at the top.
+      const discountInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.discount, placeholder: '0', 'aria-label': 'Discount amount', data: { field: 'discount' }, oninput: () => { draft.discount = discountInput.value; paint(); } });
+      const discountRow = h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), discountInput), onTurf = ordersOf(tab.id).some(o => o.category === 'Turf');
+      // The lines, kept close together so the whole bill shows without scrolling (owner, 22 October).
+      const linesBox = h('div', 'settle-lines');
+      ui.body.append(linesBox);
+      const lines = drawLines(linesBox, { segments: segmentsOf(tab.id), orders: ordersOf(tab.id), customer: tab.customer, tab, editable: true, earlier: earlier.ids, brought: broughtIn(tab, earlier.ids), ticks, turfExtra: onTurf ? discountRow : null, after: () => { ui.redraw(); return null; } }), playing = stillPlaying(tab.id);
       const notes = notesBlock([tab.id]);
       if (notes) ui.body.append(notes);
       const adds = h('div', 'station-links', btn([icon('sales'), 'Add Items'], () => addItemsSheet(tab), 'quiet', { data: { action: 'items' } }));
       if (tab.kind === 'quick_sale') adds.append(btn([icon('plus'), 'Gaming or other charge'], () => manualChargeSheet(tab), 'quiet'));
       if (group && goodsOf(ordersOf(group.id)).length) adds.append(btn([icon('sales'), 'Items from ' + group.customer + '’s bill'], () => takeItemsSheet(tab, group), 'quiet', { data: { action: 'take-items' } }));
-      // One row of quiet extras under the lines: add items, add a charge, add a discount.
-      const discountSlot = h('span');
-      adds.append(discountSlot);
-      ui.body.append(h('div', { style: 'margin-top:8px' }, adds));
+      // One row at the top (owner, 22 October): add items or a charge, and the discount typed in. On a turf bill the turf card
+      // with its discount comes first and Add Items goes under the lines.
+      const top = h('div', 'settle-top', adds);
+      if (onTurf) ui.body.append(top);
+      else ui.body.prepend(top);
+      if (playing || !lines) discountRow.remove();
       if (playing) { ui.body.append(h('p', { class: 'muted', style: 'margin-top:16px', text: 'Still playing. End the remaining players to settle this bill.' })); tick(); return; }
       if (!lines) { ui.body.append(h('p', { class: 'muted', style: 'margin-top:16px', text: 'Nothing to settle yet.' })); return; }
 
-      // Discount: one flat rupee amount, shown only when wanted.
-      const discountInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.discount, 'aria-label': 'Discount amount', data: { field: 'discount' }, oninput: () => { draft.discount = discountInput.value; paint(); } });
-      const discountField = h('div', { hidden: !draft.discountOn }, field('Discount amount (₹)', discountInput));
-      const discountText = h('span', { text: draft.discountOn ? 'Remove Discount' : 'Add Discount' });
-      const discountToggle = btn([icon('percent'), discountText], () => { draft.discountOn = !draft.discountOn; discountField.hidden = !draft.discountOn; discountText.textContent = draft.discountOn ? 'Remove Discount' : 'Add Discount'; paint(); if (draft.discountOn) discountInput.focus(); }, 'quiet', { data: { action: 'discount' } });
-      discountSlot.append(discountToggle);
-      ui.body.append(discountField);
+      if (!onTurf) top.append(discountRow);
       let accountTitle = null;
       if (mode === 'credit') {
         picker = accountPicker(draft.account);
         accountTitle = h('div', 'group-title', icon('credits'), 'Move the outstanding amount to');
         ui.body.append(accountTitle, picker.node);
-        // Optional: which items are still unpaid, so the credit statement says what the amount was for.
-        const goods = goodsOf(ordersOf(tab.id));
-        unpaidChooser = goods.length ? itemChooser(goods, draft.unpaid, () => paint()) : null;
-        if (unpaidChooser) ui.body.append(h('div', 'group-title', icon('sales'), 'Items still unpaid (optional)'), unpaidChooser.node);
         ui.body.append(comment.node);
       }
 
@@ -6374,14 +6447,13 @@ function settleSheet(tabId, mode = 'pay') {
       function paint() {
         const sub = subtotal(), discount = discountPaise(), valid = Number.isSafeInteger(discount) && discount >= 0 && discount <= sub, total = valid ? sub - discount : sub;
         const advance = valid ? advancePaise() : 0, due = total - advance, back = valid ? handBackPaise() : 0;
-        // The large figure is what is still outstanding. Rows above it appear only when something changed that figure:
-        // a discount (subtotal, discount) or money already paid towards this bill (total bill, paid, and by whom).
+        // The large figure is what is still outstanding, after the discount typed at the top (not said again here). Rows above
+        // it appear only when money was already paid towards this bill (total bill, paid, and by whom).
         // With charges from earlier: this session's total, then what is still owed from earlier; the large figure is both.
         const owedEarlier = earlier.total - earlier.paid, ownAhead = advance - Math.min(advance, earlier.paid);
         sums.replaceChildren(...(mode === 'credit' ? [] : earlier.total > 0 && valid && back <= 0
-          ? [sum('This session', money(sub - earlier.total)), ...(owedEarlier > 0 ? [sum('Previous outstanding', money(owedEarlier))] : []), ...(discount > 0 ? [sum('Discount', '−' + money(discount))] : []), ...(ownAhead > 0 ? [sum('Paid in advance', '−' + money(ownAhead), 'good')] : [])]
-          : [...(discount > 0 && valid ? [sum('Subtotal', money(sub)), sum('Discount', '−' + money(discount))] : []),
-            ...(advance > 0 ? [sum('Total bill', money(total)), sum(paidLabel, '−' + money(advance + back), 'good')] : [])]));
+          ? [sum('This session', money(sub - earlier.total)), ...(owedEarlier > 0 ? [sum('Previous outstanding', money(owedEarlier))] : []), ...(ownAhead > 0 ? [sum('Paid in advance', '−' + money(ownAhead), 'good')] : [])]
+          : [...(advance > 0 ? [sum('Total bill', money(total)), sum(paidLabel, '−' + money(advance + back), 'good')] : [])]));
         // Nothing to take when the bill is already paid for; the form for money received steps aside.
         receivedRow.hidden = back > 0;
         totalValue.textContent = valid ? money(due) : 'Check discount';
@@ -6395,7 +6467,7 @@ function settleSheet(tabId, mode = 'pay') {
         const asking = mode === 'pay' && back <= 0 && sound && left > 0 && !blank;
         balance.replaceChildren(...(back > 0 ? [sum('Hand back to the customer', money(back), 'warn-text strong')] : !sound ? [sum(valid ? 'Received is more than this bill.' : 'Discount cannot be more than ' + money(sub) + '.', '', 'warn-text')]
           : over ? [sum('Towards this bill', money(due)), sum('Extra towards ' + group.customer + '’s bill', money(paid - due), 'extra'), sum('Total received now', money(paid), 'strong')]
-            : mode === 'credit' ? (left <= 0 ? [sum('Nothing is left to move to credit', '', 'extra')] : unpaidPaise() > left ? [sum('The unpaid items come to more than ' + money(left) + '.', '', 'warn-text')] : paid > 0 ? [sum('Paid now · ' + draft.how.text(), money(paid), 'good'), sum('To credit', money(left), 'extra strong')] : [])
+            : mode === 'credit' ? (left <= 0 ? [sum('Nothing is left to move to credit', '', 'extra')] : paid > 0 ? [sum('Paid now · ' + draft.how.text(), money(paid), 'good'), sum('To credit', money(left), 'extra strong')] : [])
               : []));
         // The rest: Pending, Credit, or kept on the group's system. A discount is given on the bill that is paid at the end.
         restBox.hidden = !asking;
@@ -6407,7 +6479,7 @@ function settleSheet(tabId, mode = 'pay') {
         primary.dataset.label = label;
         // Collecting money shows the wallet; every way of closing ends in an arrow, as in the owner's picture.
         primary.replaceChildren(...(mode === 'pay' && paid > 0 && back <= 0 ? [icon('wallet')] : []), h('span', { text: label }), h('span', 'go-arrow', icon('right')));
-        primary.disabled = !sound || (mode === 'credit' && (left <= 0 || unpaidPaise() > left)) || (asking && !draft.rest);
+        primary.disabled = !sound || (mode === 'credit' && left <= 0) || (asking && !draft.rest);
       }
       paint();
       // Straight to where the account is chosen: no scrolling to look for it.
@@ -6430,7 +6502,7 @@ function settleSheet(tabId, mode = 'pay') {
       if (over && how.payments) throw new Error('Take money for another bill in one way, cash or UPI.');
       return { type: 'SETTLE_REVIEW', tabId: tab.id, settlement: mode, discountType: discount > 0 ? 'fixed' : 'none', discountValue: discount, amountPaise: back > 0 ? 0 : paid, ...how, surplusTabId: over ? group.id : undefined, refundPaise: back > 0 ? back : undefined,
         ...(asking && draft.rest === 'pending' ? { pending: { name: draft.pendingName.trim(), phone: draft.pendingPhone.trim() } } : {}),
-        ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: unpaidChooser ? unpaidChooser.items() : undefined } : {}),
+        ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: itemsOnCredit(ordersOf(tab.id), due - paid) } : {}),
         // Some lines unticked: only the ticked ones are settled now; the rest stays on this bill.
         ...(partly() ? { only: { ids: segmentsOf(tab.id).filter(g => !skip.has(g.id)).map(g => g.id), items: ordersOf(tab.id).filter(o => paying(o) > 0).map(o => ({ orderId: o.id, quantity: paying(o) })) } } : {}) };
     },
@@ -6466,7 +6538,10 @@ function settleSheet(tabId, mode = 'pay') {
 // It comes back after each bill, so the next player can be settled without going to Open tabs.
 let splitQueue = null;
 // A turf bill (the booking's own or a player's) goes back to its booking.
+// Where a bill made apart from somewhere else goes back to (an academy's items taken off its slot: back to the booking).
+const tabReturns = new Map();
 function returnToSplit(tabId) {
+  if (tabReturns.has(tabId)) { tabReturns.get(tabId)(); return; }
   const booking = turfBookingForTab(tabId);
   if (splitQueue && splitQueue.tabIds.includes(tabId)) chooseTabSheet(splitQueue.tabIds, splitQueue.groupName);
   // A turf booking again, unless this bill settled it: then there is nothing more to do there.
@@ -6985,9 +7060,15 @@ async function receiptSheet(billId, back) {
   });
 }
 
+// The items a move to credit names on the statement, by themselves (owner, 21 October: nothing to fill in): every item on the
+// bill, when they fit in the amount moved; otherwise none is named.
+function itemsOnCredit(orders, creditPaise) {
+  const goods = goodsOf(orders), total = goods.reduce((sum, o) => sum + o.totalPaise, 0);
+  return goods.length && total <= creditPaise ? goods.map(o => ({ orderId: o.id, quantity: Number(o.quantity) })) : undefined;
+}
 function creditTransferSheet(billId, number, due, goods = []) {
-  const store = newAccountStore(), comment = commentField(), unpaid = new Map();
-  let picker, chooser = null;
+  const store = newAccountStore(), comment = commentField();
+  let picker;
   openSheet({
     title: 'Move ' + money(due) + ' to credit',
     sub: 'Bill ' + number,
@@ -6996,14 +7077,11 @@ function creditTransferSheet(billId, number, due, goods = []) {
     build(ui) {
       picker = accountPicker(store);
       ui.body.append(picker.node);
-      chooser = goods.length ? itemChooser(goods, unpaid, () => {}) : null;
-      if (chooser) ui.body.append(h('div', 'group-title', icon('sales'), 'Items still unpaid (optional)'), chooser.node);
       ui.body.append(comment.node);
       ui.primary('Move to credit');
     },
     command() {
-      if (chooser && chooser.total() > due) throw new Error('The unpaid items come to more than ' + money(due) + '.');
-      return { type: 'TRANSFER_CREDIT_INLINE', billId, ...picker.value(), note: comment.value(), unpaidItems: chooser ? chooser.items() : undefined };
+      return { type: 'TRANSFER_CREDIT_INLINE', billId, ...picker.value(), note: comment.value(), unpaidItems: itemsOnCredit(goods, due) };
     },
     then: () => receiptSheet(billId)
   });
@@ -8927,7 +9005,10 @@ function turfPayChoice(amountPaise, key, pick) {
 // After an action on a booking: the booking again while something is left to do on it. Once the whole booking is settled
 // there is nothing more to look at: the sheet closes to where the receptionist was, with a short note.
 function turfAfter(id, text, action) {
-  if (!['settled', 'pending'].includes(turfStatusOf(id).state)) { turfDetailSheet(id); return null; }
+  // A split booking settled at the counter with an academy's share still to go to its account stays open, so the rows are
+  // seen (owner, 21 October); a booking settled in full closes with a note.
+  const status = turfStatusOf(id), booking = turfBookingOf(id);
+  if (!['settled', 'pending'].includes(status.state) || (booking && booking.split === 'yes' && status.parts.some(x => x.accountPaise > 0))) { turfDetailSheet(id); return null; }
   closeSheet();
   return text ? { text, action } : null;
 }
@@ -8942,7 +9023,8 @@ function turfDetailSheet(id) {
   const main = b.tabId ? tabOf(b.tabId) : null, mainOpen = !b.tabId || (main && main.status === 'open');
   const mainPart = status.parts.find(p => !p.playerId);
   // An academy's slot still to go to its account reads On account, never Unpaid (owner, 21 October).
-  const [stateText, stateTone] = b.split !== 'yes' && turfAccountOf(b.id) && status.state === 'open' ? ['On account', 'gold'] : TURF_STATE[status.state] || TURF_STATE.open;
+  const onAccountLeft = (b.split !== 'yes' && turfAccountOf(b.id) && status.state === 'open') || (status.state === 'settled' && status.parts.some(x => x.accountPaise > 0));
+  const [stateText, stateTone] = onAccountLeft ? ['On account', 'gold'] : TURF_STATE[status.state] || TURF_STATE.open;
   const sendConfirmation = () => turfSendConfirmation(b, () => turfDetailSheet(b.id));
   const back = () => turfAfter(b.id);
   openSheet({
@@ -8983,6 +9065,13 @@ function turfDetailSheet(id) {
       const quick = h('div', 'station-links');
       if (!split && !turfAccountOf(b.id) && mainOpen && !(mainPart && mainPart.state === 'playing') && status.state !== 'settled') quick.append(btn([icon('wallet'), 'Paid in advance'], () => turfAdvanceSheet(b), 'quiet', { data: { action: 'turf-advance' } }));
       if (!ended && !status.locked) quick.append(btn([icon('transfer'), 'Move slot'], () => turfBookingSheet(b), 'quiet', { data: { action: 'turf-move-slot' } }));
+      // One payer: the discount on the turf beside them (owner, 22 October), typed straight in; the turf below and the amount
+      // to collect follow once it is entered.
+      if (!split && !turfAccountOf(b.id) && !(status.leadId && status.leadId !== b.id) && mainOpen && !status.locked && status.state !== 'settled') {
+        const box = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: Number(b.discountPaise || 0) ? String(Number(b.discountPaise) / 100) : '', placeholder: '0', 'aria-label': 'Discount on the turf', data: { field: 'turf-discount' },
+          onchange: () => runCommand({ type: 'TURF_DISCOUNT', id: b.id, revision: b.revision, discountPaise: toPaise(box.value || 0) }, () => turfAfter(b.id)) });
+        quick.append(h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), box));
+      }
       if (status.state === 'pending' && b.phone) quick.append(btn([icon('whatsapp'), 'Remind on WhatsApp'], () => whatsapp(b.phone, pendingReminderText(b.customer, status.owedPaise, turfPendingWhat(b))), 'quiet', { data: { action: 'turf-remind' } }));
       if (quick.childElementCount) ui.body.append(quick);
       if (split) turfSplitBody(ui, b, status);
@@ -9021,45 +9110,75 @@ function turfDetailSheet(id) {
         }
         ui.body.append(h('div', 'group-title', icon('sales'), split ? 'Shared items' : 'Snacks & beverages'), card);
       }
+      // What goes to an academy's account (owner, 21–22 October): its own slot, or an academy playing as a team in a split
+      // booking. The items counted to be paid at the counter now come off it as they are counted (3 of 4 to Cash, the
+      // ₹1,080 must change).
+      const academyDue = split ? turfAcademyDue(b, status) : [];
+      const picking = academyDue.find(p => turfPaying === 'items:' + p.id) || null;
+      const accountGoods = split ? academyDue.flatMap(p => goodsOf(ordersOf(p.tabId))) : turfAccountOf(b.id) && b.tabId ? goodsOf(ordersOf(b.tabId)) : [];
+      const counting = split ? (picking ? goodsOf(ordersOf(picking.tabId)) : []) : accountGoods;
+      const atCounter = counting.reduce((sum, o) => sum + Math.min(Number(o.quantity), turfItemPicks.get(o.id) || 0) * o.unitPricePaise, 0);
+      const toAccount = status.parts.reduce((sum, x) => sum + (x.accountPaise || 0), 0);
+      // Turf ₹1,000 + Items ₹40 under On account, when all that is outstanding goes to the account.
+      const itemsLeft = !split || !status.owedPaise ? accountGoods.reduce((sum, o) => sum + o.totalPaise, 0) - atCounter : 0;
+      const accountParts = turfPart => (itemsLeft > 0 ? h('span', { class: 'small muted', data: { accountParts: '1' }, text: 'Turf ' + money(turfPart) + ' + Items ' + money(itemsLeft) }) : null);
+      // An academy playing as a team: Pay Items opens its items here, at the foot, to be counted and collected.
+      const counterBox = () => (picking ? ui.foot.prepend(turfCounterItems(b, picking, counting, ui)) : null);
       // Billing is open on every booking, whatever its date (owner: "regardless of date and time").
       // Settled: the footer says so and offers nothing more.
       if (status.state === 'settled') {
-        ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', h('span', { class: 'badge good', data: { turfState: status.state }, text: stateText }))));
+        // Settled at the counter, an academy's share still to go to its account: that amount, On account (owner, 21 October).
+        const stillToAccount = toAccount - atCounter;
+        ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', stillToAccount ? 'Outstanding ' : '', h('span', { class: 'badge ' + (stillToAccount ? 'gold' : 'good'), data: { turfState: status.state }, text: stateText }), accountParts(stillToAccount - itemsLeft)),
+          stillToAccount ? h('div', { class: 'foot-total', data: { turfOwed: '1' }, text: money(stillToAccount) }) : null));
         // Juice and snacks after the booking is paid (owner, 20 October): Add Items stays, onto a new bill for the customer.
         ui.foot.append(h('div', 'foot-row',
           btn([icon('sales'), 'Add Items'], () => turfLaterItemsSheet(b), 'block', { data: { action: 'turf-items-later' } }),
           !split && mainPart && mainPart.billId ? btn([icon('bills'), 'View Bill'], () => receiptSheet(mainPart.billId, back), 'block', { data: { action: 'turf-bill' } }) : null));
+        if (academyDue.length) {
+          const links = h('div', 'actions');
+          turfAcademyTools(b, academyDue, (key, name, label, hint, run) => links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, 'aria-pressed': key === 'turf-academy-items' ? String(!!picking) : undefined, data: { action: key }, onclick: run }, icon(name), h('span', { text: label }))), academyDue.length > 1);
+          ui.foot.append(links);
+          counterBox();
+        }
         return;
       }
       // The footer: how the booking stands, and what is still owed when that is not simply the turf charge shown above.
-      const shown = split ? turfFee(b) - Number(b.discountPaise || 0) : turfFee(b) + turfLinkedOf(b).reduce((sum, x) => sum + turfFee(x), 0), owedDiffers = status.owedPaise !== shown;
-      ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', owedDiffers ? 'Outstanding ' : '', h('span', { class: 'badge ' + stateTone, data: { turfState: status.state }, text: stateText })),
-        owedDiffers ? h('div', { class: 'foot-total' + (status.owedPaise ? '' : ' clear'), data: { turfOwed: '1' }, text: money(status.owedPaise) }) : null));
+      // Everything still to settle (owner, 21 October): what is owed at the counter and what goes to an academy's account
+      // (its turf share and items), less what is counted to be paid at the counter now.
+      const owedNow = status.owedPaise + toAccount - atCounter;
+      const shown = split ? turfFee(b) - Number(b.discountPaise || 0) : turfFee(b) + turfLinkedOf(b).reduce((sum, x) => sum + turfFee(x), 0), owedDiffers = split || turfAccountOf(b.id) ? owedNow > 0 : owedNow !== shown;
+      ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', owedDiffers ? 'Outstanding ' : '', h('span', { class: 'badge ' + stateTone, data: { turfState: status.state }, text: stateText }), accountParts(owedNow - itemsLeft)),
+        owedDiffers ? h('div', { class: 'foot-total' + (owedNow ? '' : ' clear'), data: { turfOwed: '1' }, text: money(owedNow) }) : null));
       const collect = split ? turfCollectable(status.parts) : mainOpen && !(mainPart && mainPart.state === 'playing') ? status.owedPaise : turfCollectable(status.parts);
       // An academy's slot on its account (owner, 21 October): it goes to the account when it ends, so nothing is collected
-      // here; only Add Items.
+      // here; Add Items, and Credit to move the turf and the items to its account now, in one tap.
       const onAccount = !split && !!turfAccountOf(b.id);
       if (turfPaying === 'all' && collect > 0) {
         ui.foot.append(turfPayChoice(collect !== status.owedPaise ? collect : 0, 'turf-paid', method => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(method) + ' · ' + b.customer + '’s booking settled.'); })));
       } else {
         const links = h('div', 'actions');
-        const link = (key, name, label, hint, run) => (onAccount && !key.startsWith('turf-items') ? null : links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, data: { action: key }, onclick: run }, icon(name), h('span', { text: label }))));
+        const link = (key, name, label, hint, run) => (onAccount && !key.startsWith('turf-items') && key !== 'turf-account-credit' ? null : links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, data: { action: key }, onclick: run }, icon(name), h('span', { text: label }))));
         if (mainOpen) link('turf-items', 'sales', 'Add Items', split ? 'Snacks and beverages for a team or everyone' : 'Snacks and beverages on this booking', () => turfItemsSheet(b, null));
         // Every bill of the booking closed (paid in part or pending): items bought after go on a new bill for the customer.
         else if (!split || !turfPlayersOf(b).some(p => (tabOf(p.tabId) || {}).status === 'open')) link('turf-items-later', 'sales', 'Add Items', 'Snacks and beverages bought after the bill was closed', () => turfLaterItemsSheet(b));
+        // Credit on an academy's slot (owner, 21 October): Turf ₹1,000 + Items ₹100 straight to its account, nothing to choose.
+        const wholeItems = split ? 0 : accountGoods.reduce((sum, o) => sum + o.totalPaise, 0), wholeTurf = status.owedPaise + toAccount - wholeItems;
+        if (onAccount && mainOpen && status.state === 'open' && wholeTurf + wholeItems > 0) link('turf-account-credit', 'credits', 'Credit', 'Move Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' to ' + b.customer + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id }, () => { turfItemPicks.clear(); return turfAfter(b.id, 'Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' moved to ' + b.customer + '’s credit.'); }));
         // Slots booked together are paid by one payer, so they are not split.
         if (!split && mainOpen && !status.locked) link('turf-split', 'split', 'Split', 'Each player pays a share', () => runCommand({ type: 'TURF_SPLIT', id: b.id, revision: b.revision, on: true, discountPaise: 0 }, () => { turfDetailSheet(b.id); const box = $('sheetBody').querySelector('[data-field=turf-discount]'); if (box) { box.focus(); box.select(); } }));
         // A long booking settled in parts (owner, 21 October): choose the hours to settle now; the rest get their own bill.
         if (turfSeparable(b)) link('turf-separate', 'clock', 'Hours', 'Settle some hours now and the rest separately', () => turfSeparateSheet(b));
         if (split && collect > 0) link('turf-credit', 'credits', 'Credit', 'Move everything still owed to one credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: collect, billId: '', all: true }));
+        // An academy playing as a team: its own Credit and Pay Items, named when another Credit is beside them.
+        turfAcademyTools(b, academyDue, link, academyDue.length > 1 || collect > 0);
         // One payer, part paid at checkout: the rest to a credit account or the next booking.
         if (!split && !mainOpen && mainPart && mainPart.billId && mainPart.owedPaise > 0) link('turf-credit', 'credits', 'Credit', 'Move the rest to a credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: mainPart.owedPaise, billId: mainPart.billId }));
         if (!split && mainOpen && collect > 0) link('turf-credit', 'credits', 'Credit', 'Move what is owed to a credit account or to the next booking', () => {
           if (b.tabId) turfCreditSheet(b, null, { owedPaise: status.owedPaise, billId: '' });
           else runCommand({ type: 'TURF_CHECKOUT', id: b.id }, () => turfCreditSheet(b, null, { owedPaise: turfStatusOf(b.id).owedPaise, billId: '' }));
         });
-        // A one-payer booking collects at the foot directly; Discount opens the full bill for a discount or a part payment.
-        if (!split && mainOpen && collect > 0) link('turf-checkout', 'percent', 'Discount', 'A discount, a part payment or Cash and UPI together', () => runCommand({ type: 'TURF_CHECKOUT', id: b.id }, result => settleSheet(result.tabId)));
+        // A one-payer booking collects at the foot directly; its discount is typed at the top (owner, 22 October).
         if (collect > 0 && (split || !mainOpen)) link('turf-paid', 'checkCircle', 'Paid', split ? 'Everyone still owing pays now, in full' : 'The whole booking is paid now, in full', () => { turfPaying = 'all'; ui.redraw(); });
         // Pending: they clear it in a day or two (owner, 20 October). Every open bill of the booking waits under Credit → Pending.
         const openOwed = split ? status.parts.filter(x => x.playerId && x.state === 'open' && !turfAccountOf(x.playerId)).reduce((sum, x) => sum + x.owedPaise, 0) : mainOpen && !(mainPart && mainPart.state === 'playing') ? status.owedPaise : 0;
@@ -9069,21 +9188,9 @@ function turfDetailSheet(id) {
       // One payer: collected here in one tap, Cash, UPI or CA (owner, 21 October: no Checkout step before it).
       // Split: Cash and UPI (or CA) together, the two boxes filling each other, as everywhere else (owner, 21 October).
       // An academy's slot (owner, 21 October): its items can be paid at the counter now, all or how many; the rest goes to
-      // its account with the slot. Cash, UPI or CA chooses; Collect takes them.
-      const counterItems = onAccount && b.tabId ? goodsOf(ordersOf(b.tabId)) : [];
-      if (counterItems.length) {
-        const key = 'items:' + b.id, how = turfPick.key === key ? turfPick.method : '';
-        const rows = pickRows(counterItems), worth = rows.reduce((total, row) => total + row.worth(turfItemPicks.get(row.key) || 0), 0), all = rows.reduce((total, row) => total + row.worth(row.most), 0);
-        const chosen = pickedLines(rows, turfItemPicks);
-        ui.foot.prepend(h('div', { class: 'turf-collect', data: { collect: 'items' } },
-          h('span', { class: 'turf-collect-label', text: 'Items · paid at the counter now, the rest to ' + b.customer + '’s account' }),
-          h('div', { class: 'lines end-pick', data: { field: 'counter-items' } }, pickLines(rows, turfItemPicks, () => ui.redraw(), o => removeOne(o, () => { turfItemPicks.set(o.id, Math.min(turfItemPicks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))),
-          h('div', 'turf-pay', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-            btn([icon(glyphName), label], () => { turfPick = { key, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(how === method), data: { action: 'counter-items-' + method.replace(':', '-') } }))),
-          btn([icon('wallet'), !worth ? 'Choose the items paid now' : !how ? 'Collect ' + money(worth) + ' · choose Cash, UPI or CA' : 'Collect ' + money(worth) + ' · ' + methodText(how) + (all > worth ? ' · the rest to ' + b.customer + '’s account' : '')],
-            () => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, items: chosen.items, method: how }, () => { turfPick = { key: '', method: '' }; turfItemPicks.clear(); return turfAfter(b.id, 'Items paid ' + money(worth) + ' · ' + methodText(how) + '.'); }),
-            'primary block', { disabled: !worth || !how, data: { action: 'counter-items-go' } })));
-      }
+      // its account with the slot. An academy playing as a team: the same, once Pay Items is tapped (owner, 22 October).
+      if (onAccount && counting.length) ui.foot.prepend(turfCounterItems(b, null, counting, ui));
+      counterBox();
       if (!split && !onAccount && mainOpen && collect > 0 && turfPaying === 'split') {
         if (turfSplitStore.id !== b.id) turfSplitStore = { id: b.id, split: true, method: 'cash' };
         const store = turfSplitStore;
@@ -9145,7 +9252,8 @@ function turfHasCharges(b) {
 }
 function turfOnePayerBody(ui, b, status, main, mainOpen, mainPart) {
   const summary = h('div', 'summary');
-  summary.append(h('div', 'kv', h('span', { text: 'Turf · ' + courtLabel(b.court) + ' · ' + turfHours(b) }), h('b', { data: { turfFee: '1' }, text: money(turfFee(b)) })));
+  // The turf at what it comes to after the discount typed above (owner, 22 October).
+  summary.append(h('div', 'kv', h('span', { text: 'Turf · ' + courtLabel(b.court) + ' · ' + turfHours(b) }), h('b', { data: { turfFee: '1' }, text: money(turfFee(b) - Number(b.discountPaise || 0)) })));
   if (Number(b.hours) > 1) summary.append(h('div', 'kv sub', h('span', { text: money(Number(b.ratePaise)) + ' an hour' }), h('b', { text: '' })));
   const ahead = mainOpen && b.tabId ? heldFor([b.tabId]) : 0;
   if (ahead) summary.append(h('div', 'kv good', h('span', { text: 'Paid in advance' }), h('b', { data: { turfAdvance: '1' }, text: '−' + money(ahead) })));
@@ -9204,7 +9312,48 @@ function turfSettledText(p, part) {
   if (nextBooking) return 'Moved · ' + turfDayName(nextBooking.dateKey);
   return 'Moved' + (units.length ? ' · ' + units.join(', ') : to ? ' · ' + to.customer : '');
 }
+// Academies playing as a team in a split booking whose turf share and items are still to go to their account.
+const turfAcademyDue = (b, status) => turfPlayersOf(b).filter(p => {
+  const t = tabOf(p.tabId), part = status.parts.find(x => x.playerId === p.id);
+  return !!turfAccountOf(p.id) && !!t && t.status === 'open' && !stillPlaying(t.id) && !!part && part.accountPaise > 0;
+});
+// At the foot of a split booking (owner, 22 October), so it is not forgotten: Credit moves an academy's turf share and items
+// to its account now, in one tap, and Pay Items opens its items to be paid at the counter, all or how many.
+function turfAcademyTools(b, due, add, named) {
+  due.forEach(p => {
+    const lines = ordersOf(p.tabId), sum = list => list.reduce((total, o) => total + o.totalPaise, 0);
+    const own = sum(goodsOf(lines)), what = 'Turf ' + money(sum(lines.filter(o => o.category === 'Turf'))) + (own ? ' + Items ' + money(own) : '');
+    const suffix = named ? ' · ' + p.name : '';
+    if (own) add('turf-academy-items', 'wallet', 'Pay Items' + suffix, p.name + '’s items paid at the counter now, the rest to its account', () => {
+      turfPaying = turfPaying === 'items:' + p.id ? '' : 'items:' + p.id;
+      turfPick = { key: '', method: '' };
+      turfItemPicks.clear();
+      current.ui.redraw();
+    });
+    add('turf-academy-credit', 'credits', 'Credit' + suffix, 'Move ' + what + ' to ' + p.name + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => {
+      turfPaying = '';
+      turfItemPicks.clear();
+      return turfAfter(b.id, what + ' moved to ' + p.name + '’s credit.');
+    }));
+  });
+}
+// An academy's items paid at the counter now, all or how many (owner, 21 October); the rest goes to its account. Cash, UPI or
+// CA chooses; Collect takes them. p is an academy playing as a team in a split booking, or null for an academy's own slot.
+function turfCounterItems(b, p, goods, ui) {
+  const name = p ? p.name : b.customer, key = 'items:' + (p ? p.id : b.id), how = turfPick.key === key ? turfPick.method : '';
+  const rows = pickRows(goods), worth = rows.reduce((total, row) => total + row.worth(turfItemPicks.get(row.key) || 0), 0), all = rows.reduce((total, row) => total + row.worth(row.most), 0);
+  const chosen = pickedLines(rows, turfItemPicks);
+  return h('div', { class: 'turf-collect', data: { collect: 'items' } },
+    h('span', { class: 'turf-collect-label', text: 'Items · paid at the counter now, or left for ' + name + '’s account' }),
+    h('div', { class: 'lines end-pick', data: { field: 'counter-items' } }, pickLines(rows, turfItemPicks, () => ui.redraw(), o => removeOne(o, () => { turfItemPicks.set(o.id, Math.min(turfItemPicks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))),
+    h('div', 'turf-pay', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
+      btn([icon(glyphName), label], () => { turfPick = { key, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(how === method), data: { action: 'counter-items-' + method.replace(':', '-') } }))),
+    btn([icon('wallet'), !worth ? 'Choose the items paid now' : !how ? 'Collect ' + money(worth) + ' · choose Cash, UPI or CA' : 'Collect ' + money(worth) + ' · ' + methodText(how) + (all > worth ? ' · the rest to ' + name + '’s account' : '')],
+      () => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p ? p.id : undefined, items: chosen.items, method: how }, () => { turfPaying = ''; turfPick = { key: '', method: '' }; turfItemPicks.clear(); return turfAfter(b.id, 'Items paid ' + money(worth) + ' · ' + methodText(how) + '.'); }),
+      'primary block', { disabled: !worth || !how, data: { action: 'counter-items-go' } }));
+}
 // A player's card stays on the list whatever happens; a settled card turns green, so it is plain who is still to pay.
+// Their tools are on the card itself (owner, 21 October: Add Items, Pay, Credit, Pending, Move next to the player).
 function turfPlayerRow(b, p, status) {
   const back = () => turfAfter(b.id), t = tabOf(p.tabId), part = status.parts.find(x => x.playerId === p.id) || { state: 'open', owedPaise: 0 };
   const open = t && t.status === 'open' && !stillPlaying(t.id), settled = TURF_SETTLED.includes(part.state);
@@ -9223,6 +9372,10 @@ function turfPlayerRow(b, p, status) {
   if (turfPaying === p.id && owing) tools = [turfPayChoice(0, 'player-pay', pay)];
   else tools = [
     ...(open ? [tool('sales', 'Add items for ' + p.name, 'player-items', () => turfItemsSheet(b, p))] : []),
+    // An academy's items paid at the counter, the rest to its account (owner, 21 October); Credit moves its turf share and
+    // items to its account now, in one tap.
+    ...(open && turfAccountOf(p.id) && ordersOf(p.tabId).some(o => o.category !== 'Turf') ? [tool('wallet', p.name + '’s items at the counter', 'player-counter', () => turfPlayerActions(b, p))] : []),
+    ...(open && turfAccountOf(p.id) && lines.length ? [tool('credits', 'Move Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' to ' + p.name + '’s credit now', 'player-account-credit', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => turfAfter(b.id, 'Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' moved to ' + p.name + '’s credit.')))] : []),
     ...(owing ? [tool('cash', 'Collect payment from ' + p.name, 'player-pay', () => { turfPaying = p.id; current.ui.redraw(); }),
       tool('credits', 'Move ' + p.name + '’s amount to credit', 'player-credit', () => turfCreditSheet(b, p, part))] : []),
     // Pending: this player clears it in a day or two.
@@ -9234,9 +9387,70 @@ function turfPlayerRow(b, p, status) {
   return h('div', { class: 'turf-player' + (settled ? ' cleared' : ''), data: { player: p.id, state: part.state } },
     settled ? h('span', 'turf-tick', icon('checkCircle')) : avatar(p.name),
     h('div', 'turf-player-main', h('b', { text: p.name }), h('span', { class: 'small muted', text: detail || 'Nothing yet' })),
-    h('div', 'turf-player-sum', part.owedPaise ? h('b', { class: 'num', text: money(part.owedPaise) }) : null,
+    h('div', 'turf-player-sum', part.owedPaise || part.accountPaise ? h('b', { class: 'num', text: money(part.owedPaise || part.accountPaise) }) : null,
       settled ? h('span', { class: 'badge good', text: turfSettledText(p, part) }) : text && (part.state !== 'open' || !part.owedPaise) ? h('span', { class: 'badge ' + tone, text }) : null),
     h('div', 'turf-player-tools', tools));
+}
+// An academy playing as a team, from the wallet on its card: its items paid at the counter, or to credit or pending, the
+// rest going to its account with the turf share when the slot ends.
+function turfPlayerActions(b, p) {
+  const back = () => turfAfter(b.id);
+  openSheet({
+    title: p.name,
+    sub: 'Team ' + p.team + ' · ' + turfRange(b),
+    icon: 'user',
+    tone: 'jade',
+    focus: false,
+    onClose: () => turfDetailSheet(b.id),
+    build(ui) {
+      const status = turfStatusOf(b.id), part = status.parts.find(x => x.playerId === p.id) || { state: 'open', owedPaise: 0 }, t = tabOf(p.tabId);
+      const open = !!t && t.status === 'open' && !stillPlaying(t.id), academy = !!turfAccountOf(p.id), lines = t && t.status === 'open' ? ordersOf(t.id) : [];
+      const own = lines.some(o => o.category !== 'Turf' && o.category !== 'Shared items');
+      const owing = part.owedPaise > 0 && (open || part.state === 'unpaid' || part.state === 'part') && !academy;
+      // Their lines: the share of the turf and their items, each item − / + / bin while the bill is open.
+      drawLines(ui.body, { segments: [], orders: academy ? lines.filter(o => o.category === 'Turf') : lines, customer: p.name, editable: false, after: open ? () => { ui.redraw(); return null; } : undefined });
+      const [text, tone] = TURF_PART[part.state] || ['', ''];
+      if (TURF_SETTLED.includes(part.state)) ui.body.append(h('p', { class: 'badge good', style: 'margin-top:12px', text: turfSettledText(p, part) }));
+      else if (text && part.state !== 'open') ui.body.append(h('p', { class: 'badge ' + tone, style: 'margin-top:12px', text }));
+      if (academy) {
+        const goods = goodsOf(lines);
+        if (goods.length) {
+          const key = 'pitems:' + p.id, how = turfPick.key === key ? turfPick.method : '', rows = pickRows(goods);
+          const worth = rows.reduce((total, row) => total + row.worth(turfItemPicks.get(row.key) || 0), 0), chosen = pickedLines(rows, turfItemPicks);
+          ui.body.append(h('div', 'group-title', icon('sales'), 'Items · paid at the counter now, or left for ' + p.name + '’s account'),
+            h('div', { class: 'lines end-pick', data: { field: 'counter-items' } }, pickLines(rows, turfItemPicks, () => ui.redraw(), o => removeOne(o, () => { turfItemPicks.set(o.id, Math.min(turfItemPicks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))));
+          ui.foot.append(h('div', 'turf-pay three', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
+            btn([icon(glyphName), label], () => { turfPick = { key, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(how === method), data: { action: 'counter-items-' + method.replace(':', '-') } }))),
+          btn([icon('wallet'), !worth ? 'Choose the items paid now' : !how ? 'Collect ' + money(worth) + ' · choose Cash, UPI or CA' : 'Collect ' + money(worth) + ' · ' + methodText(how)],
+            () => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p.id, items: chosen.items, method: how }, () => { turfPick = { key: '', method: '' }; turfItemPicks.clear(); ui.redraw(); return null; }),
+            'primary block', { disabled: !worth || !how, data: { action: 'counter-items-go' } }));
+        }
+        ui.body.append(h('p', { class: 'muted', style: 'margin-top:12px', text: 'The turf share' + (goods.length ? ' and the items not paid here go' : ' goes') + ' to ' + p.name + '’s account when the slot ends.' }));
+      }
+      // Paying: Cash, UPI or CA chooses, Collect takes it, and the booking opens again.
+      const pay = method => runCommand(part.billId
+        ? { type: 'PAY', billId: part.billId, amountPaise: part.owedPaise, method }
+        : { type: 'SETTLE_REVIEW', tabId: p.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: part.owedPaise, method }, () => { turfPaying = ''; return turfAfter(b.id, p.name + ' paid ' + money(part.owedPaise) + ' · ' + methodText(method) + '.'); });
+      // Cash, UPI or CA chooses; Collect takes it (owner, 21 October: a wrong tap is put right first).
+      const payKey = 'pay:' + p.id, payHow = turfPick.key === payKey ? turfPick.method : '';
+      if (owing) ui.foot.append(h('div', { class: 'turf-collect', data: { collect: 'player' } },
+        h('span', { class: 'turf-collect-label', text: 'Collect ' + money(part.owedPaise) }),
+        h('div', 'turf-pay three', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
+          btn([icon(glyphName), label], () => { turfPick = { key: payKey, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(payHow === method), data: { action: 'player-pay-' + (method === 'upi:ca' ? 'ca' : method) } }))),
+        btn([icon('checkCircle'), payHow ? 'Collect ' + money(part.owedPaise) + ' · ' + methodText(payHow) : 'Collect · choose Cash, UPI or CA'], () => { turfPick = { key: '', method: '' }; pay(payHow); }, 'primary block', { disabled: !payHow, data: { action: 'player-pay-go' } })));
+      const actions = h('div', 'actions');
+      const action = (key, glyph, label, run) => actions.append(h('button', { type: 'button', class: 'action', data: { action: key }, onclick: run }, icon(glyph), h('span', { text: label })));
+      if (open) action('player-items', 'sales', 'Add Items', () => turfItemsSheet(b, p));
+      if (owing) action('player-credit', 'credits', 'Credit', () => turfCreditSheet(b, p, part));
+      if (owing && open && part.state === 'open') action('player-pending', 'clock', 'Pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back));
+      if (open && !academy) action('player-move', 'transfer', 'Move', () => turfMoveSheet(b, p));
+      if (open && !academy) action('player-discount', 'percent', 'Discount', () => settleSheet(p.tabId, 'discount'));
+      if (part.billId && !owing) action('player-bill', 'bills', 'Bill', () => receiptSheet(part.billId, () => turfPlayerActions(b, p)));
+      action('player-edit', 'pencil', 'Name or team', () => turfPlayerSheet(b, p, p.team));
+      if (!status.locked && open && !own) action('player-remove', 'trash', 'Remove', () => runCommand({ type: 'TURF_PLAYER', playerId: p.id, revision: p.revision, name: p.name, team: p.team, remove: true }, back));
+      ui.foot.append(actions);
+    }
+  });
 }
 // Move to Credit for a player (or for the whole booking when one pays): a credit account, or the customer's next booking,
 // already made or made here. Then straight back to the booking.
@@ -10165,6 +10379,9 @@ function refresh(force) {
 $('refresh').append(icon('refresh'));
 $('logout').append(icon('logout'));
 $('sheetClose').append(icon('close'));
+// Back (owner, 21 October): a sheet opened from another goes back to it, one step, plainly named.
+$('sheetBack').append(icon('back'), h('span', { text: 'Back' }));
+$('sheetBack').onclick = () => { if (!flow.saving()) dismissSheet(); };
 $('refresh').onclick = () => refresh(true);
 $('logout').onclick = signOut;
 $('sheetClose').onclick = () => { if (!flow.saving()) dismissSheet(); };
