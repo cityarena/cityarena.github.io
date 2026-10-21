@@ -575,6 +575,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
    owner's Mac showed on 20 October); a label too long for its button ends in an ellipsis instead. */
 .station-actions { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px; min-width: 0; }
 .station-actions .wide { grid-column: 1 / -1; }
+/* A console in use: Add Items, Choose to end and a small End all, in one row. */
+.station-actions.three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+.station-actions.three .wide { grid-column: 1 / 3; }
+.station-actions .end-all { padding: 0 10px; }
 .station-actions .btn { min-width: 0; min-height: 40px; padding: 0 10px; font-size: 14px; border-radius: 9px; overflow: hidden; }
 .station-actions .btn > span, .group-strip .btn > span, .game-row .btn > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .station > *, .station-head, .station-title, .station-tools { min-width: 0; }
@@ -588,6 +592,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .station.photo.live .station-head .glyph { display: none; }
   .station.photo.live .station-head .state { padding: 0 8px; }
   .station-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .station-actions.three { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
   .station-actions .btn { gap: 4px; padding: 0 4px; font-size: 13px; }
   .station-actions .btn svg { display: none; }
   /* Who on its own line, how long beside "since" under it, so a name is never cut to a letter. */
@@ -1038,7 +1043,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* Share availability: WhatsApp's own green beside the words. */
 .page-bar .btn[data-action=turf-availability] svg { color: #25d366; width: 18px; height: 18px; }
 /* An hour is tall enough for a one-hour booking's two lines: the name and its time. */
-.turf-board { display: grid; grid-template-columns: 76px repeat(3, minmax(0, 1fr)); grid-template-rows: 44px; grid-auto-rows: 62px; gap: 6px 16px; padding: 14px 16px 16px; }
+.turf-board { display: grid; grid-template-columns: 132px repeat(3, minmax(0, 1fr)); grid-template-rows: 44px; grid-auto-rows: 62px; gap: 6px 16px; padding: 14px 16px 16px; }
 .turf-court-head { grid-row: 1; position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 6px; border-bottom: 1px solid var(--line-strong); background: var(--surface); font-family: var(--display); font-size: 15.5px; font-weight: 700; }
 .turf-corner { grid-row: 1; position: sticky; top: 0; z-index: 2; background: var(--surface); }
 .turf-court-head svg { width: 22px; height: 22px; color: var(--ink-2); }
@@ -1067,9 +1072,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-pick-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 56px; padding: 8px 10px 8px 16px; border: 1px solid var(--primary-line); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-pop); font-weight: 600; }
 .turf-pick-bar > span { margin-right: auto; }
 /* The hour as a span: "6–7" with AM or PM under it. */
-.turf-hour-text { display: grid; justify-items: end; line-height: 1.1; }
+.turf-hour-text { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 4px; line-height: 1.2; text-align: right; }
 .turf-hour-text b { font-weight: 600; color: inherit; }
-.turf-hour-text small { font-size: 13px; color: var(--ink-3); }
 .chip.warn { border-color: var(--warn-line); color: var(--warn); }
 .academy-note { display: flex; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--gold); font-size: 14px; }
 .academy-note svg { width: 16px; height: 16px; flex: none; }
@@ -1175,6 +1179,13 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-collect { display: grid; gap: 8px; }
 .turf-collect-label { font-family: var(--display); font-size: 20px; font-weight: 700; }
 .turf-collect .turf-pay { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+/* Cash, UPI or CA chosen (not yet saved): marked until End Session or Collect is pressed. */
+.turf-pay .btn[aria-pressed=true] { border-color: var(--primary); background: var(--primary); color: #ffffff; }
+.turf-pay .btn[aria-pressed=true] svg { color: #ffffff; }
+.turf-collect > .btn.primary { margin-top: 10px; }
+.turf-pay-wrap { display: grid; gap: 8px; }
+/* Cash + UPI that do not make the whole: what is left (kept pending) or how much over. */
+.turf-split-gap { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--gold-line); border-radius: var(--r-sm); background: var(--gold-soft); color: var(--ink); font-weight: 600; }
 .turf-collect .btn { min-height: 48px; border-color: var(--primary); background: var(--primary-soft); color: var(--primary-deep); font-size: 16px; }
 .turf-collect .btn svg { color: var(--primary); }
 .turf-collect .btn:hover { background: rgba(61, 104, 120, 0.18); }
@@ -1276,6 +1287,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 
 /* ---------- Phone ---------- */
 @media (max-width: 900px) {
+  /* A console in use on a phone: the three buttons by name only, so none is cut. */
+  .station-actions.three .btn svg { display: none; }
+  .station-actions.three .btn { padding: 0 6px; gap: 0; }
   .move-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .move-cat-name { min-height: 0; }
   /* The cancel choices one under another, full width, on a phone. */
@@ -1346,7 +1360,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .list .hide-s { display: none; }
   .list .btn { min-height: 40px; }
   .row-tools .icon-btn { width: 40px; height: 40px; }
-  .turf-board { grid-template-columns: 44px repeat(3, minmax(0, 1fr)); gap: 5px; padding: 10px; }
+  .turf-board { grid-template-columns: 62px repeat(3, minmax(0, 1fr)); gap: 5px; padding: 10px; }
   .turf-hour { padding-right: 2px; }
   .turf-hour.now::before { display: none; }
   .turf-court-head { padding: 0 6px; font-size: 14px; }
@@ -1412,7 +1426,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .foot-total { font-size: 30px; }
   .sheet-foot .seg.method button { min-width: 0; padding: 0 12px; }
   .action { min-height: 56px; }
-  .turf-board { grid-template-columns: 44px repeat(3, minmax(0, 1fr)); grid-template-rows: 40px; grid-auto-rows: 58px; gap: 5px; padding: 10px; }
+  .turf-board { grid-template-columns: 62px repeat(3, minmax(0, 1fr)); grid-template-rows: 40px; grid-auto-rows: 58px; gap: 5px; padding: 10px; }
   .turf-court-head { gap: 6px; font-size: 14px; }
   .turf-court-head svg { width: 18px; height: 18px; }
   .turf-block { padding: 3px 8px; }
@@ -1739,7 +1753,7 @@ var ArenaCore = (function () {
 /* Production session workflows. All mutations run inside command_'s lock and atomic batch. */
 var ArenaApp=(function(){
   function check(condition,message){return ArenaCore.check(condition,message);}
-  var types=['OPEN_TAB','ADD_CONTROLLER','ADD_CONTROLLERS','END_SEGMENT','END_CONTROLLERS','SWITCH_SEGMENT','FINALIZE_TAB','ADD_ADVANCE','SET_REMINDER','CLEAR_REMINDER'];
+  var types=['OPEN_TAB','ADD_CONTROLLER','ADD_CONTROLLERS','END_SEGMENT','END_CONTROLLERS','SWITCH_SEGMENT','FINALIZE_TAB','ADD_ADVANCE','SET_REMINDER','CLEAR_REMINDER','MOVE_UNIT'];
   function row(rows,id){var r=rows.find(function(x){return x.id===id;});check(!!r,'Record not found.');return r;}
   function text(v,max){check(typeof v==='string'&&v.trim().length>0&&v.length<=max,'Invalid name.');return v.trim();}
   function time(v,now){var t=v==null?now:v;check(Number.isSafeInteger(t)&&t>0&&t<=now,'Invalid timestamp. Use a past or current time.');return t;}
@@ -1756,8 +1770,8 @@ var ArenaApp=(function(){
       check(!occupants.some(function(g){return g.controller===controller;}),'This controller is occupied.');
       check(occupants.length<4,'This console already has four active controllers.');
     }else{check(occupants.length===0,'This unit is occupied.');controller=0;}
-    // Backdated assignments must not overlap a completed or active occupant of the same slot.
-    check(!s.Segments.some(function(g){return g.unitId===unitId&&g.status!=='void'&&(unit.category!=='PS5'||g.controller===controller)&&(g.endMs||now)>start;}),'This time overlaps another session on the unit or controller.');
+    // A start time earlier than the last session on this slot ended is allowed (owner, 21 October: "let me add regardless");
+    // only a controller or unit in use now is refused, above.
     var g={id:id,tabId:tabId,groupId:groupId,unitId:unitId,controller:controller,player:text(player,80),startMs:start,endMs:'',status:'active',ratesJson:JSON.stringify(ArenaCore.pricesFor(s,unit.category)),totalPaise:0,billableMinutes:0};s.Segments.push(g);return g;
   }
   // Money paid before the bill exists (a parent pays for an hour up front). It is received now, with its own receipt number,
@@ -1830,6 +1844,19 @@ var ArenaApp=(function(){
       var running=active(s,c.unitId);check(running.length>0,'Nothing is running on this station.');
       remind(s,c.unitId,running[0].tabId,c.dueMs,now,id);
       result={unitId:c.unitId,dueMs:c.dueMs,message:'Reminder set.'};
+    }else if(c.type==='MOVE_UNIT'){
+      // Swap system (owner, 21 October): everything on a system in use moves to a free one of the same kind. The timers run on
+      // from when they started (never stopped and billed twice); items, the bill, money paid ahead, pauses and the reminder go
+      // with them; a table's closed games on the same bill too, so its card still shows them.
+      var from=row(s.Equipment,c.unitId),to=row(s.Equipment,c.toUnitId),moving=active(s,from.id);
+      check(moving.length>0,'Nothing is running on '+from.name+'.');
+      check(to.id!==from.id&&to.category===from.category,'Choose another '+from.category+' to move to.');
+      check(!active(s,to.id).length&&!s.Sessions.some(function(x){return x.unitId===to.id&&x.status==='active';}),to.name+' is in use. Choose a free one.');
+      var bills=moving.map(function(g){return g.tabId;});
+      moving.forEach(function(g){g.unitId=to.id;});
+      if(['Pool','Snooker'].indexOf(from.category)>=0)s.Segments.forEach(function(g){if(g.unitId===from.id&&g.status==='ended'&&bills.indexOf(g.tabId)>=0)g.unitId=to.id;});
+      (s.Reminders||[]).forEach(function(r){if(r.unitId===from.id&&r.status==='set')r.unitId=to.id;});
+      result={unitId:to.id,fromUnitId:from.id,tabIds:bills.filter(function(t,i){return bills.indexOf(t)===i;}),message:'Moved from '+from.name+' to '+to.name+'.'};
     }else if(c.type==='CLEAR_REMINDER'){
       (s.Reminders||[]).forEach(function(r){if(r.unitId===c.unitId&&r.status==='set')r.status='done';});
       result={unitId:c.unitId,message:'Reminder cleared.'};
@@ -2139,6 +2166,9 @@ var ArenaLifecycle=(function(){
    var gameItems=gameOrders(s,at2.id,[game]),forGame=(s.Advances||[]).filter(function(a){return a.tabId===at2.id&&a.status==='held'&&String(a.id).slice(-('-games-'+game.id).length)==='-games-'+game.id;});
    var owing=[game].concat(gameItems,extraTimers).reduce(function(n,g){return n+g.totalPaise;},0)-forGame.reduce(function(n,a){return n+a.amountPaise;},0),got2=c.amountPaise;
    check(owing>0,'This game is already paid.');
+   // Taken apart (owner, 21 October): the game and what is paid with it become a bill of their own, open, to be put on credit,
+   // kept pending or moved like any other bill; the table plays on.
+   if(c.apart===true){var apart=newTab(s,id+'-games',at2.customer,at2.phone,now,'individual');[game].concat(gameItems,extraTimers).forEach(function(x){x.tabId=apart.id;});forGame.forEach(function(a){a.tabId=apart.id;});return {tabId:apart.id,tableTabId:at2.id,message:'This game is on a bill of its own.'};}
    check(Number.isSafeInteger(got2)&&got2>=0&&got2<=owing,'Enter up to '+(owing/100)+' for this game.');
    var parts2=got2>0?ArenaCore.payParts(s,c):[];check(parts2.reduce(function(n,p){return n+p.amountPaise;},0)===got2,'The parts must add up to the amount received.');
    if(got2<owing&&c.rest==='keep'){
@@ -3949,21 +3979,26 @@ var ArenaTurf = (function () {
       if (booking.split !== 'yes' && billOpen(state, booking)) { ensureMain(state, booking, now, id); sync(state, booking, now, id); }
       var collected = 0, count = 0, owing = settlement(state, booking).parts.filter(function (bit) { return bit.owedPaise && ['open', 'unpaid', 'part'].indexOf(bit.state) >= 0; });
       var parts2 = Array.isArray(cmd.payments) && cmd.payments.length ? ArenaCore.payParts(state, cmd) : null;
+      // Less than the whole (owner, 21 October: Cash 30 + UPI 300 of 500): what is paid is taken and the rest kept pending
+      // under the booking's name and mobile, when asked (cmd.restPending); otherwise the parts must make the whole.
+      var partPaise = parts2 ? parts2.reduce(function (n, p) { return n + p.amountPaise; }, 0) : 0, short = false;
       if (parts2) {
         check(owing.length === 1, 'Pay in parts one bill at a time.');
-        check(parts2.reduce(function (n, p) { return n + p.amountPaise; }, 0) === owing[0].owedPaise, 'Cash and UPI must come to ' + (owing[0].owedPaise / 100) + '.');
+        check(partPaise <= owing[0].owedPaise, 'Cash and UPI come to more than ' + (owing[0].owedPaise / 100) + '.');
+        short = partPaise < owing[0].owedPaise;
+        check(!short || (cmd.restPending === true && owing[0].state === 'open'), 'Cash and UPI must come to ' + (owing[0].owedPaise / 100) + ', or keep the rest pending.');
       }
       settlement(state, booking).parts.forEach(function (bit, i) {
         if (!bit.owedPaise) return;
         var how = parts2 ? { method: parts2[0].method, payments: parts2 } : { method: cmd.method };
-        if (bit.state === 'open') ArenaLifecycle.execute(state, Object.assign({ type: 'SETTLE_REVIEW', tabId: bit.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: bit.owedPaise }, how), actor, now, id + '-pay-' + i);
+        if (bit.state === 'open') ArenaLifecycle.execute(state, Object.assign({ type: 'SETTLE_REVIEW', tabId: bit.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: short ? partPaise : bit.owedPaise, pending: short ? { name: booking.customer, phone: booking.phone || '' } : undefined }, how), actor, now, id + '-pay-' + i);
         else if (bit.state === 'unpaid' || bit.state === 'part') ArenaCredits.execute(state, Object.assign({ type: 'PAY', billId: bit.billId, amountPaise: bit.owedPaise }, how), actor, now, id + '-pay-' + i);
         else return;
-        collected += bit.owedPaise;
+        collected += short ? partPaise : bit.owedPaise;
         count++;
       });
       check(count > 0, 'Nothing is left to collect.');
-      return { bookingId: booking.id, amountPaise: collected, bills: count, method: cmd.method, message: 'Collected ' + (collected / 100) + ' from ' + count + (count === 1 ? ' bill.' : ' bills.') };
+      return { bookingId: booking.id, amountPaise: collected, bills: count, method: cmd.method, pendingPaise: short ? owing[0].owedPaise - partPaise : 0, message: 'Collected ' + (collected / 100) + (short ? '; ' + ((owing[0].owedPaise - partPaise) / 100) + ' pending.' : ' from ' + count + (count === 1 ? ' bill.' : ' bills.')) };
     }
     if (cmd.type === 'TURF_CREDIT_ALL') {
       // Everything still owed on the booking goes to one credit account, chosen or made here, in one save.
@@ -5101,7 +5136,7 @@ const groupNames = segments => [...new Set(segments.map(g => (tabOf(g.tabId) || 
 // "End 2 Controllers": the button always says how many it will stop.
 // What a console's End button stops: the whole session when every running controller is chosen (the owner's picture),
 // otherwise how many of them.
-const endLabel = (count, total) => (!count ? 'Choose to end' : count === total ? 'End Session' : 'End ' + count + ' of ' + total);
+const endLabel = (count, total) => (!count ? 'Pick to end' : count === total ? 'End Session' : 'End ' + count + ' of ' + total);
 function categoryCounts(category) {
   const units = state.Equipment.filter(u => u.category === category);
   return { total: units.length, free: units.filter(u => !inUse(u)).length };
@@ -5195,7 +5230,7 @@ function stationExtras(unit) {
   ];
 }
 function extraItems(unit) {
-  return [['Paid in advance', () => advanceSheet(billOn(unit)), false, 'wallet'], [reminderOf(unit.id) ? 'Change reminder' : 'Set reminder', () => reminderSheet(unit), false, 'bell']];
+  return [['Swap system', () => swapSheet(unit), false, 'transfer'], ['Paid in advance', () => advanceSheet(billOn(unit)), false, 'wallet'], [reminderOf(unit.id) ? 'Change reminder' : 'Set reminder', () => reminderSheet(unit), false, 'bell']];
 }
 
 // ---------- Gaming floor ----------
@@ -5451,12 +5486,14 @@ function stationCardBody(unit) {
     paint();
     // Small: Add Items beside End, as in the owner's picture. Opened: End across the card, then Add Controllers and Add Items.
     const items = btn([icon('plus'), 'Add Items'], () => addItemsFor(unit), small || players.length < 4 ? '' : 'wide', { data: { action: 'items' } });
-    const actions = h('div', 'station-actions');
+    // End all (owner, 21 October): the whole session at once, no controller chosen; small, beside the other two.
+    const endAll = btn([icon('stop'), 'End all'], () => endSheet(players), 'stop end-all', { title: 'End every controller', data: { action: 'end-all' } });
+    const actions = h('div', 'station-actions three');
     if (small) {
       end.classList.remove('wide');
-      actions.append(items, end);
+      actions.append(items, end, endAll);
     } else {
-      actions.append(end);
+      actions.append(end, endAll);
       if (players.length < 4) actions.append(btn([icon('plusCircle'), 'Add Controllers'], () => addControllersSheet(unit), '', { data: { action: 'add-controllers' } }));
       actions.append(items);
     }
@@ -6008,6 +6045,14 @@ function tableCollectSheet(unit, tab, game) {
       draft.how = how;
       ui.primary('');
       paint();
+      // As on a bill (owner, 21 October): the game, with what is counted above, to credit, pending or another system. It
+      // becomes a bill of its own and opens there; the table plays on.
+      const apart = then => runCommand({ type: 'TABLE_COLLECT', tabId: tab.id, segmentId: game.id, extra: pickedLines(extras, picks) || { ids: [], items: [] }, apart: true, amountPaise: 0, method: 'cash' }, result => { render(); then(result.tabId); return null; });
+      const action = (key, glyph, label, run) => h('button', { type: 'button', class: 'action', data: { action: key }, onclick: run }, icon(glyph), h('span', { text: label }));
+      ui.foot.append(h('div', 'actions',
+        action('credit', 'credits', 'Move to Credit', () => apart(id => settleSheet(id, 'credit'))),
+        action('pending', 'clock', 'Pending', () => apart(id => settleSheet(id, 'pending'))),
+        action('move', 'transfer', 'Move', () => apart(id => moveSheet(tabOf(id))))));
     },
     command() {
       const owed = due(), split = draft.how.paid(), paid = split != null ? split : draft.edited ? toPaise(draft.received || 0) : owed;
@@ -6165,7 +6210,11 @@ function broughtIn(tab, earlier) {
 function settleSheet(tabId, mode = 'pay') {
   const tab = tabOf(tabId);
   if (!tab || tab.status !== 'open') { closeSheet(); return; }
+  // Opened straight to Pending (a pool or snooker game's Pending): nothing received, kept under a name.
+  const pendingFirst = mode === 'pending';
+  if (pendingFirst) mode = 'pay';
   const draft = { discountOn: false, discount: '', received: '', edited: false, pay: {}, account: newAccountStore(), toAccount: mode === 'credit', unpaid: new Map(), rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '' };
+  if (pendingFirst) { draft.edited = true; draft.received = '0'; draft.rest = 'pending'; }
   let picker = null, unpaidChooser = null;
   const comment = commentField();
   // Lines not paid now (unticked): they stay on this bill, to be moved, put on credit or kept pending after.
@@ -6571,6 +6620,32 @@ function manualChargeSheet(tab) {
 }
 
 // ---------- Moving ----------
+// Swap system (owner, 21 October): a customer waiting for a particular console plays on another meanwhile; when theirs is
+// free, everything moves there (controllers with their time running on, items, the bill, money paid ahead, the reminder).
+function swapSheet(unit) {
+  const free = state.Equipment.filter(u => u.category === unit.category && u.id !== unit.id && !inUse(u));
+  let to = '', acked = false;
+  openSheet({
+    title: 'Swap ' + unit.name,
+    sub: groupNames(activeOn(unit.id)),
+    icon: 'transfer',
+    focus: false,
+    build(ui) {
+      if (!free.length) { ui.body.append(h('p', { class: 'muted', text: 'No other ' + catName(unit.category) + ' is free.' })); return; }
+      ui.body.append(h('div', 'group-title', icon(unit.category), 'Move everything to'), h('div', 'chips', free.map(u => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(to === u.id), data: { unit: u.id },
+        onclick: () => { to = u.id; acked = false; current.ack.reservation = false; ui.redraw(); } }, u.name))));
+      // A free one someone has booked soon: said here, before the move.
+      const target = to ? unitOf(to) : null, clashes = target ? bookingClash(target) : [];
+      if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(target, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
+      ui.primary(target ? 'Move everything to ' + target.name : 'Choose where', !target || (clashes.length > 0 && !acked));
+    },
+    command() {
+      if (!to) throw new Error('Choose where to move.');
+      return { type: 'MOVE_UNIT', unitId: unit.id, toUnitId: to };
+    },
+    then() { closeSheet(); render(); return { text: 'Moved from ' + unit.name + ' to ' + unitOf(to).name + '. The time runs on.' }; }
+  });
+}
 // One Move (owner, 21 October), three places: a system playing now (this bill goes onto theirs, nobody starts playing),
 // today's turf (paid with the booking), or a free system (they carry on playing there; pick two or more and a timer
 // starts on each, all on this bill).
@@ -8777,6 +8852,8 @@ const TURF_SETTLED = ['paid', 'credit', 'moved'];
 const TURF_GROUP = { all: 'Everyone', A: 'Team A', B: 'Team B' };
 // Who is choosing between cash and UPI on the open booking sheet: a player's id, 'all' for everyone, or nobody.
 let turfPaying = '';
+// Cash, UPI or CA chosen and not yet confirmed (owner, 21 October: a wrong tap must not close the booking); key says where.
+let turfPick = { key: '', method: '' };
 // The Cash and UPI boxes of a booking being paid in two parts, kept while the sheet redraws.
 let turfSplitStore = {};
 // Where the booking sheet was scrolled to: an action on a player far down the list comes back to the same place.
@@ -8794,15 +8871,18 @@ const turfMeta = o => { try { return JSON.parse(o.ratesJson || '{}') || {}; } ca
 const turfPooledOf = b => state.Orders.filter(o => o.status === 'shared' && turfMeta(o).bookingId === b.id);
 const turfCollectable = parts => parts.filter(x => ['open', 'unpaid', 'part'].includes(x.state)).reduce((sum, x) => sum + x.owedPaise, 0);
 // Cash or UPI, in place: no page to go to, no receipt to close. Many people pay at once.
-// The amount is written on the buttons only when it is not the one already shown beside them.
+// The amount is written on the buttons only when it is not the one already shown beside them. A tap only chooses how they
+// pay; nothing is saved until the button under them is pressed (owner, 21 October).
 function turfPayChoice(amountPaise, key, pick) {
-  const what = amountPaise ? ' · ' + money(amountPaise) : '';
-  return h('div', { class: 'turf-pay', data: { pay: key } },
-    btn([icon('cash'), 'Cash' + what], () => pick('cash'), 'pay-cash', { data: { action: key + '-cash' } }),
-    btn([icon('upi'), 'UPI' + what], () => pick('upi'), 'pay-upi', { data: { action: key + '-upi' } }),
+  const what = amountPaise ? ' · ' + money(amountPaise) : '', chosen = turfPick.key === key ? turfPick.method : '';
+  const choose = method => { turfPick = { key, method }; current.ui.redraw(); };
+  return h('div', 'turf-pay-wrap', h('div', { class: 'turf-pay', data: { pay: key } },
+    btn([icon('cash'), 'Cash' + what], () => choose('cash'), 'pay-cash', { 'aria-pressed': String(chosen === 'cash'), data: { action: key + '-cash' } }),
+    btn([icon('upi'), 'UPI' + what], () => choose('upi'), 'pay-upi', { 'aria-pressed': String(chosen === 'upi'), data: { action: key + '-upi' } }),
     // UPI to the CA scanner, counted apart (owner, 20 October).
-    btn([icon('upi'), 'CA' + what], () => pick('upi:ca'), 'pay-upi', { title: 'UPI to the CA scanner', data: { action: key + '-ca' } }),
-    iconButton('close', 'Not now', () => { turfPaying = ''; current.ui.redraw(); }));
+    btn([icon('upi'), 'CA' + what], () => choose('upi:ca'), 'pay-upi', { 'aria-pressed': String(chosen === 'upi:ca'), title: 'UPI to the CA scanner', data: { action: key + '-ca' } }),
+    iconButton('close', 'Not now', () => { turfPaying = ''; turfPick = { key: '', method: '' }; current.ui.redraw(); })),
+    chosen ? btn([icon('checkCircle'), 'Collect' + what + ' · ' + methodText(chosen)], () => { turfPick = { key: '', method: '' }; pick(chosen); }, 'primary block', { data: { action: key + '-go' } }) : null);
 }
 
 // One booking: when, which court and sport, whether the confirmation went, and its bill.
@@ -8950,23 +9030,50 @@ function turfDetailSheet(id) {
       if (!split && mainOpen && collect > 0 && turfPaying === 'split') {
         if (turfSplitStore.id !== b.id) turfSplitStore = { id: b.id, split: true, method: 'cash' };
         const store = turfSplitStore;
-        const how = payChoice(store, () => { if (!store.split) { turfPaying = ''; ui.redraw(); } }, { due: () => collect });
+        // What the two boxes come to, as they are typed (owner, 21 October: Cash 30 + UPI 300 of 500): the whole; less, and
+        // where the rest goes — kept pending under the booking's name, to a credit account, or to their next booking (the
+        // usual Move to Credit sheet opens for it once what is paid is taken); or more, said so and not taken.
+        if (!store.rest) store.rest = 'pending';
+        const restText = { pending: 'Pending', credit: 'to Credit', next: 'to next slot' };
+        const parts = () => [{ amountPaise: toPaise(store.cash || 0), method: 'cash' }, { amountPaise: toPaise(store.upi || 0), method: store.ca ? 'upi:ca' : 'upi' }].filter(x => x.amountPaise > 0);
+        const gapText = h('span', { class: 'turf-split-left' });
+        const restWhere = segmented([['pending', 'Pending', 'clock'], ['credit', 'Credit', 'credits'], ['next', 'Next slot', 'reservations']], store.rest, v => { store.rest = v; paint(); });
+        restWhere.node.dataset.field = 'split-rest';
+        const gap = h('div', { class: 'turf-split-gap', data: { field: 'split-gap' } }, gapText, restWhere.node);
+        const go = btn('', () => submit(), 'primary block', { data: { action: 'turf-collect-split-go' } });
+        const paint = () => {
+          const got = how.paid() || 0, left = collect - got;
+          gapText.textContent = !got ? '' : left > 0 ? money(left) + ' left · the rest goes' : left < 0 ? money(-left) + ' more than the bill' : '';
+          restWhere.node.hidden = !(got && left > 0);
+          gap.hidden = !gapText.textContent;
+          go.replaceChildren(icon('stop'), h('span', { text: !got ? 'End Session · enter Cash and UPI' : left < 0 ? 'More than ' + money(collect) : left > 0 ? 'End Session · Collect ' + money(got) + ' · ' + money(left) + ' ' + restText[store.rest] : 'End Session · Collect ' + money(collect) + ' · Cash + UPI' }));
+          go.disabled = !got || left < 0;
+        };
+        const how = payChoice(store, () => { if (!store.split) { turfPaying = ''; ui.redraw(); } else paint(); }, { due: () => collect });
+        const submit = () => {
+          const got = how.paid() || 0, left = collect - got, list = parts();
+          if (!list.length || left < 0) return;
+          const where = left > 0 ? store.rest : '';
+          runCommand({ type: 'TURF_PAY_ALL', id: b.id, method: list[0].method, payments: list, restPending: left > 0 || undefined }, () => {
+            turfPaying = '';
+            // The rest to credit or to the next booking: what was paid is taken; the usual sheet opens for the rest.
+            const rest = where === 'credit' || where === 'next' ? turfStatusOf(b.id).parts.find(x => x.billId && x.owedPaise > 0) : null;
+            if (rest) { turfCreditSheet(b, null, { owedPaise: rest.owedPaise, billId: rest.billId, mode: where === 'next' ? 'next' : 'account' }); return { text: 'Paid ' + money(got) + ' · ' + how.text() + '. Now the other ' + money(left) + '.' }; }
+            return turfAfter(b.id, 'Paid ' + money(got) + ' · ' + how.text() + (left > 0 ? ' · ' + money(left) + ' pending under ' + (b.customer || b.phone) + '.' : ' · ' + b.customer + '’s booking settled.'));
+          });
+        };
         ui.foot.prepend(h('div', { class: 'turf-collect', data: { collect: 'split' } },
-          h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) + ' · Cash + UPI' }), how.node,
-          btn([icon('wallet'), 'Collect ' + money(collect)], () => {
-            let paid;
-            try {
-              if (how.paid() !== collect) throw new Error('Cash and UPI must come to ' + money(collect) + '. For less, use Discount.');
-              paid = how.value();
-            } catch (e) { sheetStatus('error', e.message); return; }
-            runCommand({ type: 'TURF_PAY_ALL', id: b.id, ...paid }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + how.text() + ' · ' + b.customer + '’s booking settled.'); });
-          }, 'primary block', { data: { action: 'turf-collect-split-go' } })));
+          h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) + ' · Cash + UPI' }), how.node, gap, go));
+        paint();
       }
+      // Cash, UPI or CA only chooses; the booking closes with End Session, so a wrong tap is put right first (owner, 21 October).
+      const oneKey = 'one:' + b.id, oneHow = turfPick.key === oneKey ? turfPick.method : '';
       if (!split && mainOpen && collect > 0 && turfPaying !== 'all' && turfPaying !== 'split') ui.foot.prepend(h('div', { class: 'turf-collect', data: { collect: '1' } },
         h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) }),
         h('div', 'turf-pay', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-          btn([icon(glyphName), label], () => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(method) + ' · ' + b.customer + '’s booking settled.'); }), 'collect', { data: { action: 'turf-collect-' + method.replace(':', '-') } })),
-          btn([icon('split'), 'Cash + UPI'], () => { turfPaying = 'split'; turfSplitStore = {}; ui.redraw(); const box = $('sheetFoot').querySelector('[data-field=pay-cash]'); if (box) box.focus(); }, 'collect', { data: { action: 'turf-collect-split' } }))));
+          btn([icon(glyphName), label], () => { turfPick = { key: oneKey, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(oneHow === method), data: { action: 'turf-collect-' + method.replace(':', '-') } })),
+          btn([icon('split'), 'Cash + UPI'], () => { turfPaying = 'split'; turfPick = { key: '', method: '' }; turfSplitStore = {}; ui.redraw(); const box = $('sheetFoot').querySelector('[data-field=pay-cash]'); if (box) box.focus(); }, 'collect', { data: { action: 'turf-collect-split' } })),
+        btn([icon('stop'), oneHow ? 'End Session · Collect ' + money(collect) + ' · ' + methodText(oneHow) : 'End Session · choose Cash, UPI or CA'], () => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method: oneHow }, () => { turfPaying = ''; turfPick = { key: '', method: '' }; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(oneHow) + ' · ' + b.customer + '’s booking settled.'); }), 'primary block', { disabled: !oneHow, data: { action: 'turf-collect-go' } })));
       if (!split && !mainOpen && mainPart && mainPart.billId) ui.foot.prepend(h('button', { type: 'button', class: 'btn primary block', data: { action: 'turf-bill' }, onclick: () => receiptSheet(mainPart.billId, back) }, icon('bills'), mainPart.owedPaise ? 'Collect ' + money(mainPart.owedPaise) : 'View Bill'));
     }
   });
@@ -9079,7 +9186,7 @@ function turfCreditSheet(b, p, part) {
   const who = p ? p.name : b.customer, store = Object.assign(newAccountStore(), { name: who });
   // Their later bookings, found by the booking's mobile number.
   const later = (state.TurfBookings || []).filter(x => x.status === 'booked' && x.id !== b.id && x.phone === b.phone && x.dateKey >= b.dateKey && !turfEnded(x)).sort((x, y) => hourStart(x.dateKey, Number(x.startHour)) - hourStart(y.dateKey, Number(y.startHour)));
-  let picker = null, mode = 'account', chosen = later.length ? later[0].id : 'new', date = null;
+  let picker = null, mode = part.mode === 'next' && !p ? 'next' : 'account', chosen = later.length ? later[0].id : 'new', date = null;
   const comment = commentField();
   // A new booking: the same court and time by default; another court or hour when they want it, free hours only.
   let court = b.court, start = Number(b.startHour), hours = Number(b.hours);
@@ -9551,10 +9658,13 @@ function turfPickedSlots() {
   }
   return slots.sort((a, b) => a.start - b.start || a.court.localeCompare(b.court));
 }
-// The hour on the board as a span, "6–7", with AM or PM under it.
-const turfHourText = hour => (hour % 12 || 12) + '–' + ((hour + 1) % 12 || 12);
-// A start hour on a chip, as the hour it covers: "6–7 AM" (owner, 20 October).
-const turfChipText = hour => turfHourText(hour) + ' ' + (hour < 12 ? 'AM' : 'PM');
+// An hour as it is written everywhere on the turf (owner, 21 October): "6:00 – 7:00 AM"; across noon or midnight both halves
+// say which, "11:00 AM – 12:00 PM". turfHourParts gives the two halves for the board, which can set them on two lines.
+const turfHourParts = hour => {
+  const half = n => ((n % 24) < 12 ? 'AM' : 'PM'), at = n => ((n % 12) || 12) + ':00', same = half(hour) === half(hour + 1);
+  return [at(hour) + (same ? '' : ' ' + half(hour)) + ' –', at(hour + 1) + ' ' + half(hour + 1)];
+};
+const turfChipText = hour => turfHourParts(hour).join(' ');
 function turfBoard(key, all) {
   if (turfPicked.day !== key) turfPicked = { day: key, cells: new Set() };
   const now = nowMs(), list = all, hours = turfBoardHours();
@@ -9562,7 +9672,7 @@ function turfBoard(key, all) {
   board.append(h('div', 'turf-corner'), ...TURF_COURTS.map((court, i) => h('div', { class: 'turf-court-head', style: 'grid-column:' + (i + 2), data: { court } }, icon('turf'), h('b', { text: courtLabel(court) }))));
   hours.forEach((hour, index) => {
     const row = index + 2, over = hourStart(key, hour + 1) <= now, current = !over && hourStart(key, hour) <= now;
-    board.append(h('div', { class: 'turf-hour' + (current ? ' now' : '') + (over ? ' over' : ''), style: 'grid-row:' + row, 'aria-label': hourLabel(hour) + ' to ' + hourLabel(hour + 1) }, h('span', 'turf-hour-text', h('b', { text: turfHourText(hour) }), h('small', { text: hour < 12 ? 'AM' : 'PM' }))));
+    board.append(h('div', { class: 'turf-hour' + (current ? ' now' : '') + (over ? ' over' : ''), style: 'grid-row:' + row, 'aria-label': hourLabel(hour) + ' to ' + hourLabel(hour + 1) }, h('span', 'turf-hour-text', ...turfHourParts(hour).map(text => h('b', { text })))));
     TURF_COURTS.forEach((court, i) => {
       const where = 'grid-row:' + row + ';grid-column:' + (i + 2), taken = bookingAt(list, court, hour);
       // A booking is drawn once, from its first hour on the board; every hour of it is on the board.
