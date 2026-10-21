@@ -10033,9 +10033,9 @@ function openOnLast(last) {
 }
 // The server's data on screen: from a refresh, or straight from the sign-in.
 // ---------- New bookings made on another screen (owner, 20 October) ----------
-// A reservation or turf booking made on one device is announced on every other one at the top of the screen, and stays
-// until that screen closes it. Each device remembers what it has closed or made itself; what existed when it was first
-// opened is not announced.
+// A reservation made on one device is announced on every other one at the top of the screen, and stays until that screen
+// closes it. Reservations only (owner, 21 October): turf bookings, and the weeks a weekly booking books by itself, are not
+// announced. Each device remembers what it has closed or made itself; what existed when it was first opened is not announced.
 const SEEN_KEY = 'arenaSeen';
 let seen = (() => { try { const kept = JSON.parse((storage && storage.getItem(SEEN_KEY)) || 'null'); if (kept && kept.since) return { since: kept.since, ids: new Set(kept.ids || []) }; } catch (e) { /* a fresh start */ } return null; })();
 function keepSeen() {
@@ -10052,13 +10052,6 @@ function watchArrivals() {
   if (!seen) { seen = { since: nowMs(), ids: new Set() }; keepSeen(); }
   const fresh = list => list.filter(x => Number(x.createdMs) > seen.since && !seen.ids.has(x.id) && !['cancelled', 'no_show'].includes(x.status));
   const items = fresh(state.Reservations || []).map(r => ({ ids: [r.id], icon: 'reservations', text: r.customer + ' booked ' + ((unitOf(r.unitId) || {}).name || catName(r.category)) + ' · ' + when(r.arrivalMs) }));
-  // Slots and weeks booked in one go are one notice.
-  const turf = new Map();
-  for (const b of fresh(state.TurfBookings || [])) { const key = b.createdMs + '|' + b.phone; if (!turf.has(key)) turf.set(key, []); turf.get(key).push(b); }
-  for (const group of turf.values()) {
-    const first = group.slice().sort((a, b) => (a.dateKey + String(a.startHour).padStart(2, '0')).localeCompare(b.dateKey + String(b.startHour).padStart(2, '0')))[0];
-    items.push({ ids: group.map(b => b.id), icon: 'turf', booking: first.id, text: first.customer + ' booked the turf · ' + turfDayWord(first.dateKey) + ', ' + turfRange(first) + ' · ' + courtLabel(first.court) + (group.length > 1 ? ' + ' + (group.length - 1) + ' more' : '') });
-  }
   box.replaceChildren(...items.map(item => h('div', { class: 'arrival', data: { arrival: item.ids[0] } }, glyph(item.icon, 'gold'),
     h('span', 'arrival-text', h('b', { text: 'New booking' }), h('span', { text: item.text })),
     iconButton('close', 'Close this notice', () => { item.ids.forEach(id => seen.ids.add(id)); keepSeen(); watchArrivals(); }, { data: { action: 'arrival-close' } }))));
