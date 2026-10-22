@@ -950,6 +950,18 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* Ending some controllers: what they pay for, ticked or counted. */
 .end-pick .qty-n { min-width: 52px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .group-title:first-child { margin-top: 0; }
+/* Reservations side by side: a column for each kind (PC, PS5, RC Gaming, Pool, Snooker), its bookings as small cards. */
+.res-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: start; }
+.res-col { display: grid; gap: 8px; min-width: 0; }
+.res-col > .res-kind { margin: 0 2px 2px; font-size: 16px; }
+.res-kind > svg { width: 19px; height: 19px; color: var(--accent); }
+.res-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--raised); box-shadow: var(--hi); min-width: 0; }
+.res-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.res-tools { display: flex; align-items: center; gap: 6px; }
+.res-tools > .btn { flex: 1; }
+.res-none { margin: 0; padding: 12px; border: 1px dashed var(--line-strong); border-radius: 14px; color: var(--ink-3); font-size: 14px; text-align: center; }
+@media (max-width: 1100px) { .res-board { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .res-board { grid-template-columns: minmax(0, 1fr); } }
 .group-title > svg { width: 17px; height: 17px; color: var(--ink-2); }
 .group-title .glyph { width: 30px; height: 30px; border-radius: 9px; }
 .group-title .glyph svg { width: 16px; height: 16px; }
@@ -2344,6 +2356,9 @@ var ArenaReservations=(function(){
    var next={id:old?old.id:id,customer:text(named?c.customer:phoneGiven?c.phone:'Walk-in',80),phone:text(c.phone||'',30,true),category:c.category,unitId:c.unitId||'',arrivalMs:c.arrivalMs,notes:text(c.notes||'',500,true),status:old?old.status:'confirmed',tabId:'',revision:old?old.revision+1:1,acknowledgedAt:c.acknowledge===true?now:'',createdMs:old?old.createdMs:now};
    var issues=warnings(s,next.category,next.arrivalMs,'',old?old.id:'',next,now);check(!issues.length||c.acknowledge===true,'Reservation warning: '+issues.join(' ')+' Review and acknowledge to proceed.');
    if(typeof ArenaCustomers!=='undefined'&&named)ArenaCustomers.touch(s,next.customer,next.phone,now,id+'-customer');
+   // A PS5 booking says how many controllers (owner, 22 October); kept in Settings as reservationControllers-<id>, so the Sheet's columns stay as they are.
+   var pads=next.category==='PS5'?(c.controllers==null?1:c.controllers):0;check(!pads||(Number.isInteger(pads)&&pads>=1&&pads<=4),'Choose 1 to 4 controllers.');
+   s.Settings=s.Settings||[];var padRow=s.Settings.find(function(x){return x.id==='reservationControllers-'+next.id;});if(pads){if(padRow)padRow.value=pads;else s.Settings.push({id:'reservationControllers-'+next.id,value:pads});}else if(padRow)s.Settings.splice(s.Settings.indexOf(padRow),1);
    if(old)Object.assign(old,next);else s.Reservations.push(next);return {reservationId:next.id,message:old?'Reservation updated.':'Reservation saved.'};
   }
   var r=find(s,c.id);
@@ -7390,8 +7405,10 @@ function reservationStatus(r) {
   const label = { in_progress: 'Playing', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show' }[r.status] || r.status;
   return h('span', { class: 'badge' + (r.status === 'in_progress' ? ' good' : ''), text: label });
 }
+// How many controllers a PS5 booking asked for (owner, 22 October), or 0.
+const resControllers = r => Number(settingValue('reservationControllers-' + r.id, 0)) || 0;
 function reservationSheet(r) {
-  let who, category, unit, at, notes;
+  let who, category, unit, at, notes, pads;
   openSheet({
     title: r ? 'Edit reservation' : 'New reservation',
     icon: 'reservations',
@@ -7403,12 +7420,14 @@ function reservationSheet(r) {
       category = segmented(CATEGORIES.map(c => [c, catName(c), c]), chosen, () => { unit = null; ui.redraw(); });
       unit = h('select', { 'aria-label': 'Unit' }, h('option', { value: '' }, 'Any ' + chosen), state.Equipment.filter(u => u.category === chosen).map(u => h('option', { value: u.id }, u.name)));
       unit.value = chosenUnit;
-      ui.body.append(who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), field('Arriving', at), field('Notes (optional)', notes));
+      // A PS5 asks how many controllers, beside the unit.
+      pads = chosen === 'PS5' ? segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], pads ? pads.value() : (r && resControllers(r)) || 1) : null;
+      ui.body.append(who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null, field('Arriving', at), field('Notes (optional)', notes));
       ui.primary('Save reservation');
     },
     command() {
       if (!at.value) throw new Error('Enter the arrival time.');
-      return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: category.value(), unitId: unit.value, arrivalMs: stamp(at.value), notes: notes.value.trim() };
+      return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: category.value(), unitId: unit.value, arrivalMs: stamp(at.value), notes: notes.value.trim(), controllers: pads ? Number(pads.value()) : undefined };
     }
   });
 }
@@ -7428,7 +7447,7 @@ function checkInSheet(r) {
       if (candidates.length) ui.body.append(h('div', 'field', h('span', { text: 'Unit' }), h('div', 'chips', candidates.map(u => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen === u.id), data: { unit: u.id }, onclick: () => { chosen = u.id; acked = false; current.ack.reservation = false; ui.redraw(); } }, u.name + (inUse(u) ? ' · in use' : ''))))));
       const unit = chosen && unitOf(chosen), clashes = unit ? bookingClash(unit, r.id) : [];
       if (clashes.length) ui.body.append(clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; }));
-      if (r.category === 'PS5') { count = segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], count ? count.value() : 1); ui.body.append(h('div', 'field', h('span', { text: 'Controllers' }), count.node)); }
+      if (r.category === 'PS5') { count = segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], count ? count.value() : resControllers(r) || 1); ui.body.append(h('div', 'field', h('span', { text: 'Controllers' }), count.node)); }
       if (unit && inUse(unit)) { const box = h('input', { type: 'checkbox', checked: join, onchange: () => { join = box.checked; } }); ui.body.append(h('label', 'check', box, h('span', { text: 'Join the players already on this console' }))); }
       const links = h('div', 'station-links');
       ui.body.append(links);
@@ -7446,43 +7465,40 @@ function checkInSheet(r) {
     then() { closeSheet(); floorCategory = r.category; go('floor'); }
   });
 }
-// Reservations are listed bookings still to come first, soonest first; a column heading sorts by that column instead.
-const RES_SORTS = {
-  when: (a, b) => a.arrivalMs - b.arrivalMs,
-  customer: (a, b) => a.customer.localeCompare(b.customer),
-  for: (a, b) => (a.category + (a.unitId || '')).localeCompare(b.category + (b.unitId || '')),
-  status: (a, b) => a.status.localeCompare(b.status)
-};
-let resSort = { key: '', dir: 1 };
+// Reservations side by side, one column for each kind (owner, 22 October): PC, PS5, RC Gaming, Pool and Snooker, each
+// with its own bookings, those still to come first, soonest first.
 const reservationsPage = {
   title: 'Reservations',
   subtitle: 'Manage bookings for gaming stations',
   bar(bar) { bar.append(btn([icon('plus'), 'New Reservation'], () => reservationSheet(null), 'primary', { data: { action: 'new-reservation' } })); },
   render(page) {
-    const by = RES_SORTS[resSort.key];
-    const list = state.Reservations.slice().sort((a, b) => (by ? by(a, b) * resSort.dir : Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs));
-    const setStatus = (r, status) => runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status });
-    const sort = key => ({ active: resSort.key === key ? (resSort.dir > 0 ? 'ascending' : 'descending') : '', on: () => { resSort = { key, dir: resSort.key === key ? -resSort.dir : 1 }; render(); } });
-    page.append(table(
-      [{ label: 'When', sort: sort('when') }, { label: 'Customer', sort: sort('customer') }, { label: 'For', class: 'hide-s', sort: sort('for') }, { label: 'Status', sort: sort('status') }, { label: '' }],
-      list.map(r => {
-        const pending = RES_PENDING.includes(r.status);
-        return h('tr', { data: { reservation: r.id } },
-          h('td', { class: 'num', text: when(r.arrivalMs) }),
-          h('td', null, person(r.customer, [r.phone, r.notes].filter(Boolean).join(' · '))),
-          h('td', { class: 'hide-s muted' }, h('span', 'cell', icon(r.category), h('span', { text: r.unitId ? (unitOf(r.unitId) || {}).name || r.unitId : 'Any ' + r.category }))),
-          h('td', null, reservationStatus(r)),
-          h('td', { class: 'r' }, pending ? h('span', 'cell-tools',
-            btn([icon('check'), 'Check In'], () => checkInSheet(r), 'go', { data: { action: 'check-in' } }),
-            menu([
-              ...(r.status !== 'waiting' ? [['Arrived, waiting', () => setStatus(r, 'waiting'), false, 'clock']] : []),
-              ['Edit', () => reservationSheet(r), false, 'pencil'],
-              ['No-show', () => setStatus(r, 'no_show'), false, 'ban'],
-              ['Cancel booking', () => setStatus(r, 'cancelled'), true, 'close']
-            ], 'Reservation actions')) : null));
-      }), 'No reservations.', 'reservations', 'res'));
+    const list = state.Reservations.slice().sort((a, b) => Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs);
+    const kinds = CATEGORIES.concat([...new Set(list.map(r => r.category))].filter(c => !CATEGORIES.includes(c)));
+    page.append(h('div', 'res-board', kinds.map(kind => {
+      const mine = list.filter(r => r.category === kind);
+      return h('section', { class: 'res-col', data: { resCol: kind } },
+        h('div', { class: 'group-title res-kind', data: { resKind: kind } }, icon(kind), catName(kind)),
+        mine.length ? mine.map(reservationCard) : h('p', { class: 'res-none', text: 'No bookings' }));
+    })));
   }
 };
+// One booking: when and how it stands, who, which unit, and Check In.
+function reservationCard(r) {
+  const pending = RES_PENDING.includes(r.status);
+  const setStatus = status => runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status });
+  return h('div', { class: 'res-card', data: { reservation: r.id } },
+    h('div', 'res-top', h('b', { class: 'num', text: when(r.arrivalMs) }), reservationStatus(r)),
+    person(r.customer, [r.phone, r.notes].filter(Boolean).join(' · ')),
+    h('span', { class: 'small muted', text: (r.unitId ? (unitOf(r.unitId) || {}).name || r.unitId : 'Any ' + catName(r.category)) + (resControllers(r) ? ' · ' + resControllers(r) + (resControllers(r) === 1 ? ' controller' : ' controllers') : '') }),
+    pending ? h('div', 'res-tools',
+      btn([icon('check'), 'Check In'], () => checkInSheet(r), 'go', { data: { action: 'check-in' } }),
+      menu([
+        ...(r.status !== 'waiting' ? [['Arrived, waiting', () => setStatus('waiting'), false, 'clock']] : []),
+        ['Edit', () => reservationSheet(r), false, 'pencil'],
+        ['No-show', () => setStatus('no_show'), false, 'ban'],
+        ['Cancel booking', () => setStatus('cancelled'), true, 'close']
+      ], 'Reservation actions')) : null);
+}
 
 // ---------- Snacks & beverages over the counter, and the menu ----------
 let salePicker = null, saleProducts = '', saleCustomer = null, salePay = { method: 'cash' }, salePaint = () => {};
