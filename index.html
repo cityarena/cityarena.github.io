@@ -951,6 +951,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .end-pick .qty-n { min-width: 52px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
 .group-title:first-child { margin-top: 0; }
 /* Reservations side by side: a column for each kind (PC, PS5, RC Gaming, Pool, Snooker), its bookings as small cards. */
+/* Share availability: the day and Whole day / Slot available on one row. */
+.share-top { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.share-top > .field { margin: 0; }
+.share-top input[type=date] { min-width: 170px; }
 .res-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .res-col { display: grid; gap: 8px; min-width: 0; }
 .res-col > .res-kind { margin: 0 2px 2px; font-size: 16px; }
@@ -9857,9 +9861,10 @@ function turfSlotText(key, court, start, hours) {
     '📍 City Arena, Mangalore'
   ].join('\n');
 }
-// Share availability: the whole day for a group, or one free slot as a status.
-function turfShareSheet(key, list) {
-  let mode = 'day', court = TURF_COURTS[0], start = null, hours = 1;
+// Share availability: the whole day for a group, or one free slot as a status, for any day from today on (owner,
+// 22 October: any date can be chosen here).
+function turfShareSheet(key, list, kindFirst = 'day') {
+  let mode = kindFirst, court = TURF_COURTS[0], start = null, hours = 1;
   openSheet({
     title: 'Share availability',
     sub: turfDayName(key),
@@ -9867,11 +9872,15 @@ function turfShareSheet(key, list) {
     tone: 'jade',
     focus: false,
     build(ui) {
+      const today = dayKey(nowMs());
+      const date = h('input', { type: 'date', value: key, min: today, 'aria-label': 'Day to share', data: { field: 'share-day' }, onchange: () => { if (date.value && date.value >= today) turfShareSheet(date.value, turfBookingsOn(date.value) || [], mode); } });
       const kind = segmented([['day', 'Whole day'], ['slot', 'Slot available']], mode, value => { mode = value; ui.redraw(); });
-      ui.body.append(h('div', { class: 'field', data: { field: 'share-kind' } }, kind.node));
+      ui.body.append(h('div', 'share-top', field('Day', date), h('div', { class: 'field', data: { field: 'share-kind' } }, kind.node)));
       let text;
-      if (mode === 'day') text = turfAvailabilityText(key, list);
-      else {
+      if (mode === 'day') {
+        text = turfAvailabilityText(key, list);
+        if (hourStart(key, TURF_CLOSE) <= nowMs()) ui.body.append(h('p', { class: 'muted', text: 'Every hour of this day has gone by. Choose another day.' }));
+      } else {
         // The free hours of the chosen court; consecutive free hours can go together.
         const starts = freeStarts(key, court, '');
         if (!starts.includes(start)) start = starts.length ? starts[0] : null;
