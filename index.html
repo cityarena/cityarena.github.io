@@ -8387,7 +8387,16 @@ const setupPage = {
           h('div', 'kv', h('span', { text: 'Last backup' }), h('b', { text: session.lastBackup ? when(Date.parse(session.lastBackup)) : 'None yet' })),
           backupError ? h('p', { class: 'small', style: 'color:var(--danger);margin:8px 0', text: 'Last scheduled backup failed on ' + when(Date.parse(backupError.at)) + ': ' + backupError.message }) : null,
           h('p', { class: 'small muted', style: 'margin:8px 0 12px', text: 'A private copy is made every night. The newest copy from each of the last 7 days is kept.' }),
-          btn([icon('drive'), 'Back up now'], async () => { notify('pending', 'Creating a private backup…'); try { await rpc('rpcBackup', token); await refresh(true); notify('success', 'Backup created.'); } catch (e) { notify('error', e.message); } })),
+          h('div', 'station-links',
+            btn([icon('drive'), 'Back up now'], async () => { notify('pending', 'Creating a private backup…'); try { await rpc('rpcBackup', token); await refresh(true); notify('success', 'Backup created.'); } catch (e) { notify('error', e.message); } }),
+            // The newest copy against the live records, table by table (23 October): says plainly whether it is whole.
+            btn([icon('check'), 'Check backup'], async () => {
+              notify('pending', 'Checking the newest backup…');
+              try {
+                const report = await rpc('rpcCheckBackup', token);
+                notify(report.whole ? 'success' : 'error', report.whole ? 'The backup of ' + when(report.made) + ' is whole: every table is there.' : 'The backup of ' + when(report.made) + ' is missing: ' + report.problems.join(', ') + '.');
+              } catch (e) { notify('error', e.message); }
+            }, '', { data: { action: 'check-backup' } }))),
         storagePanel(head),
         h('section', { class: 'panel', data: { panel: 'erase' } }, head('trash', 'Start fresh', 'bad'),
           h('p', { class: 'small muted', style: 'margin-bottom:12px', text: 'After trying the app out: erase every bill, booking, credit account and customer. Stations, rates, festival dates and the sign-in stay. A backup copy is made first.' }),
