@@ -3,6 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="theme-color" content="#f4efe4">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="City Arena">
 <title>City Arena</title>
 <style>/* City Arena — light, after the owner's pictures of 20 October.
    Warm cream surfaces and off-white cards, charcoal type. Slate teal is the one main action and the chosen option; green
@@ -1260,6 +1267,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .festival-emoji { width: 30px; flex: none; text-align: center; font-size: 20px; line-height: 1; }
 .festival-ask { margin-bottom: 12px; color: var(--ink); font-weight: 600; }
 .message-preview { margin: 0; padding: 16px; white-space: pre-wrap; border: 1px solid var(--line); border-radius: var(--r); background: var(--inset); box-shadow: inset 0 1px 2px rgba(80, 62, 30, 0.135); color: var(--ink); font: 14px/1.6 var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* The availability table in WhatsApp's monospace, as the customer will see it (23 October). */
+.message-mono { display: block; margin: 2px 0; font-family: Consolas, "Courier New", ui-monospace, monospace; font-size: 13.5px; white-space: pre; overflow-x: auto; }
 
 /* ---------- Sign in (the owner's pictures, 20 October) ----------
    The owner's photograph of the lounge fills the page and fades into cream on the right; the logo stands on its bright wall,
@@ -8803,24 +8812,43 @@ function turfMessage(b, cancelled, wishes, slots) {
 function turfAvailabilityText(key, list) {
   const d = new Date(key + 'T00:00:00+05:30'), lines = ['*City Arena - Mangalore*', ''];
   lines.push('Slot availability on *' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
-  lines.push('*Timings' + ' '.repeat(16) + TURF_COURTS.map(c => courtLabel(c).replace(' Side', ' side')).join(' | ') + '*', '');
   const short = hour => (hour % 12 || 12) + (hour < 12 ? 'am' : 'pm');
+  // In straight columns (owner, 23 October, as on Manipal): the table goes in WhatsApp's monospace between ``` fences, each
+  // sign centred under its court's name. An emoji takes about two letters' room in monospace.
+  const names = TURF_COURTS.map(c => courtLabel(c).replace(' Side', ' side')), timeWidth = 13, widths = names.map(name => Math.max(name.length, 2));
+  const cell = (text, width, emoji) => {
+    const room = width - (emoji ? 2 : text.length), left = Math.floor(room / 2);
+    return ' '.repeat(left) + text + ' '.repeat(room - left);
+  };
+  const table = ['Timings'.padEnd(timeWidth) + names.map((name, i) => cell(name, widths[i], false)).join(' | ')];
   for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) {
     if (hourStart(key, hour + 1) <= nowMs()) continue;
-    const mark = court => (bookingAt(list, court, hour) ? '❌' : '✅');
-    lines.push((short(hour) + ' - ' + short(hour + 1)).padEnd(25) + TURF_COURTS.map(mark).join('  |  '));
+    table.push((short(hour) + ' - ' + short(hour + 1)).padEnd(timeWidth) + TURF_COURTS.map((court, i) => cell(bookingAt(list, court, hour) ? '❌' : '✅', widths[i], true)).join(' | '));
   }
+  if (table.length > 1) lines.push('```', ...table, '```');
+  else lines.push('No hours left on this day.');
   lines.push('', '✅ : Slot available', '❌ : Not available', '', 'For bookings,', 'Contact 📱: ' + TURF_CONTACT, '', '#playatcityarena');
   return lines.join('\n');
 }
 
-// A message as the customer will see it in WhatsApp: *bold* shown bold, the asterisks gone.
+// A message as the customer will see it in WhatsApp: *bold* shown bold, the asterisks gone; lines between ``` fences in
+// WhatsApp's monospace, the fences gone.
 function whatsappPreview(text, key) {
   const box = h('div', { class: 'message-preview', data: { field: key } });
+  let mono = null;
   text.split('\n').forEach((line, i) => {
-    if (i) box.append('\n');
-    line.split(/(\*[^*\n]+\*)/).forEach(part => box.append(/^\*[^*\n]+\*$/.test(part) ? h('b', { text: part.slice(1, -1) }) : part));
+    if (line === '```') {
+      if (mono) {
+        box.append(mono);
+        mono = null;
+      } else mono = h('span', 'message-mono');
+      return;
+    }
+    const into = mono || box;
+    if (i && (!mono || mono.childNodes.length)) into.append('\n');
+    line.split(/(\*[^*\n]+\*)/).forEach(part => into.append(/^\*[^*\n]+\*$/.test(part) ? h('b', { text: part.slice(1, -1) }) : part));
   });
+  if (mono) box.append(mono);
   return box;
 }
 // WhatsApp opens on the tap itself; marking it sent is saved after, once. During Diwali, Eid or Christmas a small
