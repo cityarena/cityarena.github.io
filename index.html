@@ -873,7 +873,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .foot-row > .seg { align-self: flex-end; }
 .foot-label { font-size: 14px; font-weight: 500; color: var(--ink-2); letter-spacing: 0.01em; }
 /* An academy's slot: Turf ₹X + Items ₹Y on a line of its own under the state. */
-.foot-label [data-account-parts] { display: block; margin-top: 4px; }
+.foot-label [data-account-parts], .foot-label [data-account-apart] { display: block; margin-top: 4px; }
 .foot-total { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.025em; }
 .foot-total.clear { color: var(--accent); }
 .foot-links { display: flex; flex-wrap: wrap; gap: 4px; margin: -4px -10px; }
@@ -931,8 +931,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .action svg { width: 19px; height: 19px; color: var(--ink); transition: color var(--ease); }
 /* At a sheet's foot the other ways to close it sit on one low row under the main button (owner, 22 October). */
 .sheet-foot .actions { display: flex; flex-wrap: wrap; }
-.sheet-foot .action { flex: 1 1 auto; flex-direction: row; gap: 7px; min-height: 42px; padding: 6px 8px; white-space: nowrap; }
-.sheet-foot .action svg { width: 17px; height: 17px; flex: none; }
+.sheet-foot .action { flex: 1 1 auto; flex-direction: row; gap: 8px; min-height: 50px; padding: 8px 12px; font-size: 15px; white-space: nowrap; }
+.sheet-foot .action svg { width: 19px; height: 19px; flex: none; }
 .action:hover svg { color: var(--primary); }
 
 /* A bill reads as a ledger: a panel per system with its name, one framed row per charge, amounts in one right-hand column. */
@@ -960,6 +960,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .share-top { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .share-top > .field { margin: 0; }
 .share-top input[type=date] { min-width: 170px; }
+/* UPI on the turf asks which scanner: ours or the CA scanner (23 October). */
+.turf-scanner { display: flex; align-items: center; gap: 10px; margin: 8px 0 2px; font-size: 14px; color: var(--ink-2); }
+.turf-scanner .seg { flex: 1; }
 .res-board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: start; }
 .res-col { display: grid; gap: 8px; min-width: 0; }
 .res-col > .res-kind { margin: 0 2px 2px; font-size: 16px; }
@@ -1212,6 +1215,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-player-tools { display: inline-flex; align-items: center; gap: 2px; }
 .turf-player-tools .icon-btn[data-action] { border-color: var(--line-strong); background: var(--surface); box-shadow: var(--hi); }
 .turf-player-tools .icon-btn[data-action]:hover { color: var(--ink); border-color: var(--line-bold); }
+/* Add Items and Pay on a player card in words, the same height as the icons beside them (23 October). */
+.turf-player-tools .tool-named { min-height: 36px; padding: 0 10px; gap: 5px; font-size: 13px; border-color: var(--line-strong); background: var(--surface); box-shadow: var(--hi); }
+.turf-player-tools .tool-named svg { width: 15px; height: 15px; }
+.turf-player-tools { flex-wrap: wrap; justify-content: flex-end; }
 /* Paid, on credit or moved: the card stays, green with a grey outline, so it is plain who is still to pay. */
 .turf-player.cleared { background: linear-gradient(180deg, rgba(31, 125, 74, 0.17) 0%, rgba(31, 125, 74, 0.093) 100%), var(--raised); border-color: var(--line-bold); }
 .turf-player.cleared .turf-player-main .muted { color: var(--ink-2); }
@@ -1242,7 +1249,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-added { margin-top: -4px; }
 .turf-added .chip { cursor: default; }
 .turf-player-main { min-width: 0; display: grid; line-height: 1.35; }
-.turf-player-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The whole name, on two lines if it must, never cut (23 October: "Titans Ac…"). */
+.turf-player-main { min-width: 96px; }
+.turf-player-main b { overflow-wrap: anywhere; }
 .turf-player-sum { display: grid; justify-items: end; gap: 3px; }
 .turf-player-sum b { font-size: 16px; }
 .turf-paid { display: flex; align-items: center; gap: 10px; }
@@ -9020,19 +9029,55 @@ const turfMeta = o => { try { return JSON.parse(o.ratesJson || '{}') || {}; } ca
 const turfPooledOf = b => state.Orders.filter(o => o.status === 'shared' && turfMeta(o).bookingId === b.id);
 // What is collected at the counter: never an academy team's share, which goes to its account (owner, 21 October).
 const turfCollectable = parts => parts.filter(x => ['open', 'unpaid', 'part'].includes(x.state) && !(x.playerId && turfAccountOf(x.playerId))).reduce((sum, x) => sum + x.owedPaise, 0);
-// Cash or UPI, in place: no page to go to, no receipt to close. Many people pay at once.
-// The amount is written on the buttons only when it is not the one already shown beside them. A tap only chooses how they
-// pay; nothing is saved until the button under them is pressed (owner, 21 October).
-function turfPayChoice(amountPaise, key, pick) {
-  const what = amountPaise ? ' · ' + money(amountPaise) : '', chosen = turfPick.key === key ? turfPick.method : '';
-  const choose = method => { turfPick = { key, method }; current.ui.redraw(); };
-  return h('div', 'turf-pay-wrap', h('div', { class: 'turf-pay', data: { pay: key } },
-    btn([icon('cash'), 'Cash' + what], () => choose('cash'), 'pay-cash', { 'aria-pressed': String(chosen === 'cash'), data: { action: key + '-cash' } }),
-    btn([icon('upi'), 'UPI' + what], () => choose('upi'), 'pay-upi', { 'aria-pressed': String(chosen === 'upi'), data: { action: key + '-upi' } }),
-    // UPI to the CA scanner, counted apart (owner, 20 October).
-    btn([icon('upi'), 'CA' + what], () => choose('upi:ca'), 'pay-upi', { 'aria-pressed': String(chosen === 'upi:ca'), title: 'UPI to the CA scanner', data: { action: key + '-ca' } }),
-    iconButton('close', 'Not now', () => { turfPaying = ''; turfPick = { key: '', method: '' }; current.ui.redraw(); })),
-    chosen ? btn([icon('checkCircle'), 'Collect' + what + ' · ' + methodText(chosen)], () => { turfPick = { key: '', method: '' }; pick(chosen); }, 'primary block', { data: { action: key + '-go' } }) : null);
+// How money is taken on the turf, in place (owner, 23 October): Cash, UPI, or Cash + UPI. UPI then asks which scanner,
+// ours or the CA scanner, instead of a CA button of its own; Cash + UPI opens two boxes that fill each other and must make
+// the whole. A tap only chooses; nothing is saved until Collect (owner, 21 October: a wrong tap is put right first).
+// key keeps the choice through a redraw and names the buttons; pick gets ({ method } or { method, payments }, the way in words).
+// options: { label: the Collect words, ready: false while there is nothing to pay for, after: words after the way,
+// splittable: false where one payment must be one way, close: Not now, icon }.
+let turfWay = { key: '' };
+function turfPayChoice(amountPaise, key, pick, options = {}) {
+  if (turfWay.key !== key) turfWay = { key, method: '', ca: false, split: false, cash: '', upi: '', cashTyped: false, upiTyped: false };
+  const way = turfWay, splittable = options.splittable !== false;
+  const choose = patch => { Object.assign(way, patch); current.ui.redraw(); };
+  const buttons = h('div', { class: 'turf-pay', data: { pay: key } },
+    btn([icon('cash'), 'Cash'], () => choose({ method: 'cash', split: false }), 'collect', { 'aria-pressed': String(!way.split && way.method === 'cash'), data: { action: key + '-cash' } }),
+    btn([icon('upi'), 'UPI'], () => choose({ method: 'upi', split: false }), 'collect', { 'aria-pressed': String(!way.split && way.method === 'upi'), data: { action: key + '-upi' } }),
+    splittable ? btn([icon('split'), 'Cash + UPI'], () => {
+      choose({ method: '', split: true, cash: '', upi: '', cashTyped: false, upiTyped: false });
+      const box = $('sheet').querySelector('[data-field="' + key + '-cash"]');
+      if (box) box.focus();
+    }, 'collect', { 'aria-pressed': String(way.split), data: { action: key + '-split' } }) : null,
+    options.close ? iconButton('close', 'Not now', () => { turfWay = { key: '' }; options.close(); }) : null);
+  // UPI: which scanner it went to (CA is counted apart, owner 20 October).
+  const scanner = way.split || way.method === 'upi' ? h('div', { class: 'turf-scanner', data: { field: key + '-scanner' } },
+    segmented([['ours', 'Scanner'], ['ca', 'CA']], way.ca ? 'ca' : 'ours', v => choose({ ca: v === 'ca' })).node) : null;
+  const rest = typed => String(Math.max(0, amountPaise - toPaise(typed || 0)) / 100);
+  let boxes = null;
+  if (way.split) {
+    const cash = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: way.cash, 'aria-label': 'Cash received', data: { field: key + '-cash' } });
+    const upi = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: way.upi, 'aria-label': 'UPI received', data: { field: key + '-upi' } });
+    cash.oninput = () => { way.cash = cash.value; way.cashTyped = true; if (!way.upiTyped) upi.value = way.upi = rest(cash.value); paint(); };
+    upi.oninput = () => { way.upi = upi.value; way.upiTyped = true; if (!way.cashTyped) cash.value = way.cash = rest(upi.value); paint(); };
+    boxes = h('div', 'pay-row split-boxes', field('Cash (₹)', cash), field('UPI (₹)', upi));
+  }
+  const upiWay = way.ca ? 'upi:ca' : 'upi';
+  const got = () => toPaise(way.cash || 0) + toPaise(way.upi || 0);
+  const value = () => {
+    if (!way.split) return { method: way.method === 'upi' ? upiWay : 'cash' };
+    const parts = [{ amountPaise: toPaise(way.cash || 0), method: 'cash' }, { amountPaise: toPaise(way.upi || 0), method: upiWay }].filter(x => x.amountPaise > 0);
+    return parts.length === 1 ? { method: parts[0].method } : { method: 'cash', payments: parts };
+  };
+  const words = () => (way.split ? 'Cash + UPI' + (way.ca ? ' · CA' : '') : methodText(value().method));
+  const go = h('button', { type: 'button', class: 'btn primary block', data: { action: key + '-go' }, onclick: () => { const chosen = value(), said = words(); turfWay = { key: '' }; pick(chosen, said); } });
+  function paint() {
+    const label = options.label || 'Collect ' + money(amountPaise), ready = options.ready !== false && (way.split ? got() === amountPaise : !!way.method);
+    go.disabled = !ready;
+    const text = options.ready === false ? label : way.split && got() !== amountPaise ? 'Cash and UPI must make ' + money(amountPaise) : !way.split && !way.method ? label + ' · choose how they pay' : label + ' · ' + words() + (options.after || '');
+    go.replaceChildren(icon(options.icon || 'checkCircle'), h('span', { text }));
+  }
+  paint();
+  return h('div', 'turf-pay-wrap', buttons, scanner, boxes, go);
 }
 
 // One booking: when, which court and sport, whether the confirmation went, and its bill.
@@ -9167,10 +9212,8 @@ function turfDetailSheet(id) {
         const stillToAccount = toAccount - atCounter;
         ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', stillToAccount ? 'Outstanding ' : '', h('span', { class: 'badge ' + (stillToAccount ? 'gold' : 'good'), data: { turfState: status.state }, text: stateText }), accountParts(stillToAccount - itemsLeft)),
           stillToAccount ? h('div', { class: 'foot-total', data: { turfOwed: '1' }, text: money(stillToAccount) }) : null));
-        // Juice and snacks after the booking is paid (owner, 20 October): Add Items stays, onto a new bill for the customer.
-        ui.foot.append(h('div', 'foot-row',
-          btn([icon('sales'), 'Add Items'], () => turfLaterItemsSheet(b), 'block', { data: { action: 'turf-items-later' } }),
-          !split && mainPart && mainPart.billId ? btn([icon('bills'), 'View Bill'], () => receiptSheet(mainPart.billId, back), 'block', { data: { action: 'turf-bill' } }) : null));
+        // Items bought after the booking is paid go through Quick Sale, not onto the booking (owner, 23 October).
+        if (!split && mainPart && mainPart.billId) ui.foot.append(h('div', 'foot-row', btn([icon('bills'), 'View Bill'], () => receiptSheet(mainPart.billId, back), 'block', { data: { action: 'turf-bill' } })));
         if (academyDue.length) {
           const links = h('div', 'actions');
           turfAcademyTools(b, academyDue, (key, name, label, hint, run) => links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, 'aria-pressed': key === 'turf-academy-items' ? String(!!picking) : undefined, data: { action: key }, onclick: run }, icon(name), h('span', { text: label }))), academyDue.length > 1);
@@ -9184,38 +9227,47 @@ function turfDetailSheet(id) {
       // (its turf share and items), less what is counted to be paid at the counter now.
       const owedNow = status.owedPaise + toAccount - atCounter;
       const shown = split ? turfFee(b) - Number(b.discountPaise || 0) : turfFee(b) + turfLinkedOf(b).reduce((sum, x) => sum + turfFee(x), 0), owedDiffers = split || turfAccountOf(b.id) ? owedNow > 0 : owedNow !== shown;
-      ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', owedDiffers ? 'Outstanding ' : '', h('span', { class: 'badge ' + stateTone, data: { turfState: status.state }, text: stateText }), accountParts(owedNow - itemsLeft)),
-        owedDiffers ? h('div', { class: 'foot-total' + (owedNow ? '' : ' clear'), data: { turfOwed: '1' }, text: money(owedNow) }) : null));
       const collect = split ? turfCollectable(status.parts) : mainOpen && !(mainPart && mainPart.state === 'playing') ? status.owedPaise : turfCollectable(status.parts);
       // An academy's slot on its account (owner, 21 October): it goes to the account when it ends, so nothing is collected
-      // here; Add Items, and Credit to move the turf and the items to its account now, in one tap.
+      // here; Add Items, and To account to move the turf and the items to its account now, in one tap.
       const onAccount = !split && !!turfAccountOf(b.id);
+      // One payer collected at the foot: its Collect says the amount, so the total is not said again beside it (23 October).
+      const saidAtCollect = !split && !onAccount && mainOpen && collect > 0 && turfPaying !== 'all' && collect === owedNow;
+      const totalShown = owedDiffers && !saidAtCollect;
+      // Players still to pay at the counter and an academy's share on its account (owner, 23 October: "still shows 1000,
+      // confusing"): the big figure is what is collected at the counter; the account's part is said apart, below.
+      const toAccountNow = toAccount - atCounter, apart = split && toAccountNow > 0 && status.owedPaise > 0;
+      const bigFigure = apart ? status.owedPaise : owedNow;
+      const accountLine = apart ? h('span', { class: 'small muted', data: { accountApart: '1' }, text: '+ ' + money(toAccountNow) + ' to ' + (academyDue.map(x => x.name).join(', ') || 'the academy') + '’s account' }) : null;
+      ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', totalShown ? 'Outstanding ' : '', h('span', { class: 'badge ' + stateTone, data: { turfState: status.state }, text: stateText }), accountParts(owedNow - itemsLeft), accountLine),
+        totalShown ? h('div', { class: 'foot-total' + (bigFigure ? '' : ' clear'), data: { turfOwed: '1' }, text: money(bigFigure) }) : null));
       if (turfPaying === 'all' && collect > 0) {
-        ui.foot.append(turfPayChoice(collect !== status.owedPaise ? collect : 0, 'turf-paid', method => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(method) + ' · ' + b.customer + '’s booking settled.'); })));
+        // Cash + UPI where one bill is owed (the server takes parts one bill at a time).
+        const bills = status.parts.filter(x => ['open', 'unpaid', 'part'].includes(x.state) && x.owedPaise > 0 && !(x.playerId && turfAccountOf(x.playerId))).length;
+        ui.foot.append(turfPayChoice(collect, 'turf-paid', (way, said) => runCommand({ type: 'TURF_PAY_ALL', id: b.id, ...way }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + said + ' · ' + b.customer + '’s booking settled.'); }), { splittable: bills === 1, close: () => { turfPaying = ''; ui.redraw(); } }));
       } else {
         const links = h('div', 'actions');
         const link = (key, name, label, hint, run) => (onAccount && !key.startsWith('turf-items') && key !== 'turf-account-credit' ? null : links.append(h('button', { type: 'button', class: 'action', title: hint, 'aria-label': hint, data: { action: key }, onclick: run }, icon(name), h('span', { text: label }))));
         if (mainOpen) link('turf-items', 'sales', 'Add Items', split ? 'Snacks and beverages for a team or everyone' : 'Snacks and beverages on this booking', () => turfItemsSheet(b, null));
-        // Every bill of the booking closed (paid in part or pending): items bought after go on a new bill for the customer.
-        else if (!split || !turfPlayersOf(b).some(p => (tabOf(p.tabId) || {}).status === 'open')) link('turf-items-later', 'sales', 'Add Items', 'Snacks and beverages bought after the bill was closed', () => turfLaterItemsSheet(b));
+        // Every bill of the booking closed: items bought after go through Quick Sale (owner, 23 October).
         // Credit on an academy's slot (owner, 21 October): Turf ₹1,000 + Items ₹100 straight to its account, nothing to choose.
         const wholeItems = split ? 0 : accountGoods.reduce((sum, o) => sum + o.totalPaise, 0), wholeTurf = status.owedPaise + toAccount - wholeItems;
-        if (onAccount && mainOpen && status.state === 'open' && wholeTurf + wholeItems > 0) link('turf-account-credit', 'credits', 'Credit', 'Move Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' to ' + b.customer + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id }, () => { turfItemPicks.clear(); return turfAfter(b.id, 'Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' moved to ' + b.customer + '’s credit.'); }));
+        if (onAccount && mainOpen && status.state === 'open' && wholeTurf + wholeItems > 0) link('turf-account-credit', 'credits', 'To account', 'Move Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' to ' + b.customer + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id }, () => { turfItemPicks.clear(); return turfAfter(b.id, 'Turf ' + money(wholeTurf) + (wholeItems ? ' + Items ' + money(wholeItems) : '') + ' moved to ' + b.customer + '’s credit.'); }));
         // Slots booked together are paid by one payer, so they are not split.
         if (!split && mainOpen && !status.locked) link('turf-split', 'split', 'Split', 'Each player pays a share', () => runCommand({ type: 'TURF_SPLIT', id: b.id, revision: b.revision, on: true, discountPaise: 0 }, () => { turfDetailSheet(b.id); const box = $('sheetBody').querySelector('[data-field=turf-discount]'); if (box) { box.focus(); box.select(); } }));
         // A long booking settled in parts (owner, 21 October): choose the hours to settle now; the rest get their own bill.
         if (turfSeparable(b)) link('turf-separate', 'clock', 'Hours', 'Settle some hours now and the rest separately', () => turfSeparateSheet(b));
-        if (split && collect > 0) link('turf-credit', 'credits', 'Credit', 'Move everything still owed to one credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: collect, billId: '', all: true }));
+        if (split && collect > 0) link('turf-credit', 'credits', 'Move to Credit', 'Move everything still owed to one credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: collect, billId: '', all: true }));
         // An academy playing as a team: its own Credit and Pay Items, named when another Credit is beside them.
         turfAcademyTools(b, academyDue, link, academyDue.length > 1 || collect > 0);
         // One payer, part paid at checkout: the rest to a credit account or the next booking.
-        if (!split && !mainOpen && mainPart && mainPart.billId && mainPart.owedPaise > 0) link('turf-credit', 'credits', 'Credit', 'Move the rest to a credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: mainPart.owedPaise, billId: mainPart.billId }));
-        if (!split && mainOpen && collect > 0) link('turf-credit', 'credits', 'Credit', 'Move what is owed to a credit account or to the next booking', () => {
+        if (!split && !mainOpen && mainPart && mainPart.billId && mainPart.owedPaise > 0) link('turf-credit', 'credits', 'Move to Credit', 'Move the rest to a credit account or to the next booking', () => turfCreditSheet(b, null, { owedPaise: mainPart.owedPaise, billId: mainPart.billId }));
+        if (!split && mainOpen && collect > 0) link('turf-credit', 'credits', 'Move to Credit', 'Move what is owed to a credit account or to the next booking', () => {
           if (b.tabId) turfCreditSheet(b, null, { owedPaise: status.owedPaise, billId: '' });
           else runCommand({ type: 'TURF_CHECKOUT', id: b.id }, () => turfCreditSheet(b, null, { owedPaise: turfStatusOf(b.id).owedPaise, billId: '' }));
         });
         // A one-payer booking collects at the foot directly; its discount is typed at the top (owner, 22 October).
-        if (collect > 0 && (split || !mainOpen)) link('turf-paid', 'checkCircle', 'Paid', split ? 'Everyone still owing pays now, in full' : 'The whole booking is paid now, in full', () => { turfPaying = 'all'; ui.redraw(); });
+        if (collect > 0 && (split || !mainOpen)) link('turf-paid', 'checkCircle', split ? 'All pay now' : 'Pay in full', split ? 'Everyone still owing pays now, in full' : 'The whole booking is paid now, in full', () => { turfPaying = 'all'; ui.redraw(); });
         // Pending: they clear it in a day or two (owner, 20 October). Every open bill of the booking waits under Credit → Pending.
         const openOwed = split ? status.parts.filter(x => x.playerId && x.state === 'open' && !turfAccountOf(x.playerId)).reduce((sum, x) => sum + x.owedPaise, 0) : mainOpen && !(mainPart && mainPart.state === 'playing') ? status.owedPaise : 0;
         if (openOwed > 0) link('turf-pending', 'clock', 'Pending', 'Keep what is owed pending, to be cleared later', () => runCommand({ type: 'TURF_PENDING', id: b.id }, () => turfAfter(b.id, money(openOwed) + ' pending · ' + b.customer + '.')));
@@ -9266,14 +9318,18 @@ function turfDetailSheet(id) {
           h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) + ' · Cash + UPI' }), how.node, gap, go));
         paint();
       }
-      // Cash, UPI or CA only chooses; the booking closes with End Session, so a wrong tap is put right first (owner, 21 October).
+      // Cash or UPI only chooses; the booking closes with End Session, so a wrong tap is put right first (owner, 21 October).
       const oneKey = 'one:' + b.id, oneHow = turfPick.key === oneKey ? turfPick.method : '';
       if (!split && !onAccount && mainOpen && collect > 0 && turfPaying !== 'all' && turfPaying !== 'split') ui.foot.prepend(h('div', { class: 'turf-collect', data: { collect: '1' } },
         h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) }),
-        h('div', 'turf-pay', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-          btn([icon(glyphName), label], () => { turfPick = { key: oneKey, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(oneHow === method), data: { action: 'turf-collect-' + method.replace(':', '-') } })),
+        h('div', 'turf-pay',
+          btn([icon('cash'), 'Cash'], () => { turfPick = { key: oneKey, method: 'cash' }; ui.redraw(); }, 'collect', { 'aria-pressed': String(oneHow === 'cash'), data: { action: 'turf-collect-cash' } }),
+          btn([icon('upi'), 'UPI'], () => { turfPick = { key: oneKey, method: 'upi' }; ui.redraw(); }, 'collect', { 'aria-pressed': String(isUpi(oneHow)), data: { action: 'turf-collect-upi' } }),
           btn([icon('split'), 'Cash + UPI'], () => { turfPaying = 'split'; turfPick = { key: '', method: '' }; turfSplitStore = {}; ui.redraw(); const box = $('sheetFoot').querySelector('[data-field=pay-cash]'); if (box) box.focus(); }, 'collect', { data: { action: 'turf-collect-split' } })),
-        btn([icon('stop'), oneHow ? 'End Session · Collect ' + money(collect) + ' · ' + methodText(oneHow) : 'End Session · choose Cash, UPI or CA'], () => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method: oneHow }, () => { turfPaying = ''; turfPick = { key: '', method: '' }; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(oneHow) + ' · ' + b.customer + '’s booking settled.'); }), 'primary block', { disabled: !oneHow, data: { action: 'turf-collect-go' } })));
+        // UPI asks which scanner (owner, 23 October), instead of a CA button of its own.
+        isUpi(oneHow) ? h('div', { class: 'turf-scanner', data: { field: 'turf-collect-scanner' } },
+          segmented([['upi', 'Scanner'], ['upi:ca', 'CA']], oneHow, v => { turfPick = { key: oneKey, method: v }; ui.redraw(); }).node) : null,
+        btn([icon('stop'), oneHow ? 'End Session · Collect ' + money(collect) + ' · ' + methodText(oneHow) : 'End Session · choose Cash, UPI or Cash + UPI'], () => runCommand({ type: 'TURF_PAY_ALL', id: b.id, method: oneHow }, () => { turfPaying = ''; turfPick = { key: '', method: '' }; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + methodText(oneHow) + ' · ' + b.customer + '’s booking settled.'); }), 'primary block', { disabled: !oneHow, data: { action: 'turf-collect-go' } })));
       if (!split && !mainOpen && mainPart && mainPart.billId) ui.foot.prepend(h('button', { type: 'button', class: 'btn primary block', data: { action: 'turf-bill' }, onclick: () => receiptSheet(mainPart.billId, back) }, icon('bills'), mainPart.owedPaise ? 'Collect ' + money(mainPart.owedPaise) : 'View Bill'));
     }
   });
@@ -9366,7 +9422,7 @@ function turfAcademyTools(b, due, add, named) {
       turfItemPicks.clear();
       current.ui.redraw();
     });
-    add('turf-academy-credit', 'credits', 'Credit' + suffix, 'Move ' + what + ' to ' + p.name + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => {
+    add('turf-academy-credit', 'credits', 'To account' + suffix, 'Move ' + what + ' to ' + p.name + '’s credit now', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => {
       turfPaying = '';
       turfItemPicks.clear();
       return turfAfter(b.id, what + ' moved to ' + p.name + '’s credit.');
@@ -9376,17 +9432,14 @@ function turfAcademyTools(b, due, add, named) {
 // An academy's items paid at the counter now, all or how many (owner, 21 October); the rest goes to its account. Cash, UPI or
 // CA chooses; Collect takes them. p is an academy playing as a team in a split booking, or null for an academy's own slot.
 function turfCounterItems(b, p, goods, ui) {
-  const name = p ? p.name : b.customer, key = 'items:' + (p ? p.id : b.id), how = turfPick.key === key ? turfPick.method : '';
+  const name = p ? p.name : b.customer;
   const rows = pickRows(goods), worth = rows.reduce((total, row) => total + row.worth(turfItemPicks.get(row.key) || 0), 0), all = rows.reduce((total, row) => total + row.worth(row.most), 0);
   const chosen = pickedLines(rows, turfItemPicks);
   return h('div', { class: 'turf-collect', data: { collect: 'items' } },
     h('span', { class: 'turf-collect-label', text: 'Items · paid at the counter now, or left for ' + name + '’s account' }),
     h('div', { class: 'lines end-pick', data: { field: 'counter-items' } }, pickLines(rows, turfItemPicks, () => ui.redraw(), o => removeOne(o, () => { turfItemPicks.set(o.id, Math.min(turfItemPicks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))),
-    h('div', 'turf-pay', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-      btn([icon(glyphName), label], () => { turfPick = { key, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(how === method), data: { action: 'counter-items-' + method.replace(':', '-') } }))),
-    btn([icon('wallet'), !worth ? 'Choose the items paid now' : !how ? 'Collect ' + money(worth) + ' · choose Cash, UPI or CA' : 'Collect ' + money(worth) + ' · ' + methodText(how) + (all > worth ? ' · the rest to ' + name + '’s account' : '')],
-      () => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p ? p.id : undefined, items: chosen.items, method: how }, () => { turfPaying = ''; turfPick = { key: '', method: '' }; turfItemPicks.clear(); return turfAfter(b.id, 'Items paid ' + money(worth) + ' · ' + methodText(how) + '.'); }),
-      'primary block', { disabled: !worth || !how, data: { action: 'counter-items-go' } }));
+    turfPayChoice(worth, 'counter-items', (way, said) => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p ? p.id : undefined, items: chosen.items, ...way }, () => { turfPaying = ''; turfItemPicks.clear(); return turfAfter(b.id, 'Items paid ' + money(worth) + ' · ' + said + '.'); }),
+      { ready: worth > 0, label: worth ? 'Collect ' + money(worth) : 'Choose the items paid now', after: all > worth ? ' · the rest to ' + name + '’s account' : '', icon: 'wallet' }));
 }
 // A player's card stays on the list whatever happens; a settled card turns green, so it is plain who is still to pay.
 // Their tools are on the card itself (owner, 21 October: Add Items, Pay, Credit, Pending, Move next to the player).
@@ -9399,20 +9452,30 @@ function turfPlayerRow(b, p, status) {
   const detail = [turfAccountOf(p.id) && part.state !== 'account' ? 'On account' : '', share ? 'Turf ' + money(share) : '', own ? 'Items ' + money(own) : '', team ? 'Shared ' + money(team) : ''].filter(Boolean).join(' · ');
   const [text, tone] = TURF_PART[part.state] || ['', ''];
   const tool = (name, label, action, run) => iconButton(name, label, run, { data: { action } });
-  const pay = method => runCommand(part.billId
-    ? { type: 'PAY', billId: part.billId, amountPaise: part.owedPaise, method }
-    : { type: 'SETTLE_REVIEW', tabId: p.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: part.owedPaise, method }, () => { turfPaying = ''; return turfAfter(b.id, p.name + ' paid ' + money(part.owedPaise) + ' · ' + methodText(method) + ' · ' + b.customer + '’s booking settled.'); });
+  // The two most used say what they do in words (23 October); the rest stay icons, named on hover and to screen readers.
+  const named = (name, text, label, action, run) => btn([icon(name), text], run, 'quiet tool-named', { title: label, 'aria-label': label, data: { action } });
+  const atFoot = turfAcademyDue(b, status).some(x => x.id === p.id);
+  const pay = (way, said) => runCommand(part.billId
+    ? { type: 'PAY', billId: part.billId, amountPaise: part.owedPaise, ...way }
+    : { type: 'SETTLE_REVIEW', tabId: p.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: part.owedPaise, ...way }, () => { turfPaying = ''; return turfAfter(b.id, p.name + ' paid ' + money(part.owedPaise) + ' · ' + said + ' · ' + b.customer + '’s booking settled.'); });
   // An academy playing as a team: its share goes to its account, so its row has Add Items only (owner, 21 October).
   const owing = part.owedPaise > 0 && (open || part.state === 'unpaid' || part.state === 'part') && !turfAccountOf(p.id);
   let tools;
-  if (turfPaying === p.id && owing) tools = [turfPayChoice(0, 'player-pay', pay)];
+  if (turfPaying === p.id && owing) tools = [turfPayChoice(part.owedPaise, 'player-pay', pay, { close: () => { turfPaying = ''; current.ui.redraw(); } })];
   else tools = [
-    ...(open ? [tool('sales', 'Add items for ' + p.name, 'player-items', () => turfItemsSheet(b, p))] : []),
+    ...(open ? [named('sales', 'Add Items', 'Add items for ' + p.name, 'player-items', () => turfItemsSheet(b, p))] : []),
     // An academy's items paid at the counter, the rest to its account (owner, 21 October); Credit moves its turf share and
     // items to its account now, in one tap.
-    ...(open && turfAccountOf(p.id) && ordersOf(p.tabId).some(o => o.category !== 'Turf') ? [tool('wallet', p.name + '’s items at the counter', 'player-counter', () => turfPlayerActions(b, p))] : []),
-    ...(open && turfAccountOf(p.id) && lines.length ? [tool('credits', 'Move Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' to ' + p.name + '’s credit now', 'player-account-credit', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => turfAfter(b.id, 'Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' moved to ' + p.name + '’s credit.')))] : []),
-    ...(owing ? [tool('cash', 'Collect payment from ' + p.name, 'player-pay', () => { turfPaying = p.id; current.ui.redraw(); }),
+    ...(open && turfAccountOf(p.id) && ordersOf(p.tabId).some(o => o.category !== 'Turf') ? [tool('wallet', p.name + '’s items at the counter', 'player-counter', () => {
+      // The same place as Pay Items at the foot, so its items are paid in one way (23 October).
+      if (!atFoot) return turfPlayerActions(b, p);
+      turfPaying = 'items:' + p.id;
+      turfPick = { key: '', method: '' };
+      turfItemPicks.clear();
+      current.ui.redraw();
+    })] : []),
+    ...(open && turfAccountOf(p.id) && lines.length ? [tool('credits', 'Move Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' to ' + p.name + '’s account now', 'player-account-credit', () => runCommand({ type: 'TURF_ACCOUNT_DUE', id: b.id, playerId: p.id }, () => turfAfter(b.id, 'Turf ' + money(share) + (own ? ' + Items ' + money(own) : '') + ' moved to ' + p.name + '’s credit.')))] : []),
+    ...(owing ? [named('cash', 'Pay', 'Collect payment from ' + p.name, 'player-pay', () => { turfPaying = p.id; current.ui.redraw(); }),
       tool('credits', 'Move ' + p.name + '’s amount to credit', 'player-credit', () => turfCreditSheet(b, p, part))] : []),
     // Pending: this player clears it in a day or two.
     ...(owing && open && part.state === 'open' ? [tool('clock', 'Keep ' + p.name + '’s amount pending', 'player-pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back))] : []),
@@ -9451,33 +9514,25 @@ function turfPlayerActions(b, p) {
       if (academy) {
         const goods = goodsOf(lines);
         if (goods.length) {
-          const key = 'pitems:' + p.id, how = turfPick.key === key ? turfPick.method : '', rows = pickRows(goods);
+          const rows = pickRows(goods);
           const worth = rows.reduce((total, row) => total + row.worth(turfItemPicks.get(row.key) || 0), 0), chosen = pickedLines(rows, turfItemPicks);
           ui.body.append(h('div', 'group-title', icon('sales'), 'Items · paid at the counter now, or left for ' + p.name + '’s account'),
             h('div', { class: 'lines end-pick', data: { field: 'counter-items' } }, pickLines(rows, turfItemPicks, () => ui.redraw(), o => removeOne(o, () => { turfItemPicks.set(o.id, Math.min(turfItemPicks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))));
-          ui.foot.append(h('div', 'turf-pay three', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-            btn([icon(glyphName), label], () => { turfPick = { key, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(how === method), data: { action: 'counter-items-' + method.replace(':', '-') } }))),
-          btn([icon('wallet'), !worth ? 'Choose the items paid now' : !how ? 'Collect ' + money(worth) + ' · choose Cash, UPI or CA' : 'Collect ' + money(worth) + ' · ' + methodText(how)],
-            () => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p.id, items: chosen.items, method: how }, () => { turfPick = { key: '', method: '' }; turfItemPicks.clear(); ui.redraw(); return null; }),
-            'primary block', { disabled: !worth || !how, data: { action: 'counter-items-go' } }));
+          ui.foot.append(turfPayChoice(worth, 'counter-items', way => runCommand({ type: 'TURF_ITEMS_PAY', id: b.id, playerId: p.id, items: chosen.items, ...way }, () => { turfItemPicks.clear(); ui.redraw(); return null; }),
+            { ready: worth > 0, label: worth ? 'Collect ' + money(worth) : 'Choose the items paid now', icon: 'wallet' }));
         }
         ui.body.append(h('p', { class: 'muted', style: 'margin-top:12px', text: 'The turf share' + (goods.length ? ' and the items not paid here go' : ' goes') + ' to ' + p.name + '’s account when the slot ends.' }));
       }
       // Paying: Cash, UPI or CA chooses, Collect takes it, and the booking opens again.
-      const pay = method => runCommand(part.billId
-        ? { type: 'PAY', billId: part.billId, amountPaise: part.owedPaise, method }
-        : { type: 'SETTLE_REVIEW', tabId: p.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: part.owedPaise, method }, () => { turfPaying = ''; return turfAfter(b.id, p.name + ' paid ' + money(part.owedPaise) + ' · ' + methodText(method) + '.'); });
-      // Cash, UPI or CA chooses; Collect takes it (owner, 21 October: a wrong tap is put right first).
-      const payKey = 'pay:' + p.id, payHow = turfPick.key === payKey ? turfPick.method : '';
-      if (owing) ui.foot.append(h('div', { class: 'turf-collect', data: { collect: 'player' } },
-        h('span', { class: 'turf-collect-label', text: 'Collect ' + money(part.owedPaise) }),
-        h('div', 'turf-pay three', ...[['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi'], ['upi:ca', 'CA', 'upi']].map(([method, label, glyphName]) =>
-          btn([icon(glyphName), label], () => { turfPick = { key: payKey, method }; ui.redraw(); }, 'collect', { 'aria-pressed': String(payHow === method), data: { action: 'player-pay-' + (method === 'upi:ca' ? 'ca' : method) } }))),
-        btn([icon('checkCircle'), payHow ? 'Collect ' + money(part.owedPaise) + ' · ' + methodText(payHow) : 'Collect · choose Cash, UPI or CA'], () => { turfPick = { key: '', method: '' }; pay(payHow); }, 'primary block', { disabled: !payHow, data: { action: 'player-pay-go' } })));
+      const pay = (way, said) => runCommand(part.billId
+        ? { type: 'PAY', billId: part.billId, amountPaise: part.owedPaise, ...way }
+        : { type: 'SETTLE_REVIEW', tabId: p.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: part.owedPaise, ...way }, () => { turfPaying = ''; return turfAfter(b.id, p.name + ' paid ' + money(part.owedPaise) + ' · ' + said + '.'); });
+      // The same Cash / UPI / Cash + UPI as everywhere on the turf; Collect takes it.
+      if (owing) ui.foot.append(h('div', { class: 'turf-collect', data: { collect: 'player' } }, turfPayChoice(part.owedPaise, 'player-pay', pay)));
       const actions = h('div', 'actions');
       const action = (key, glyph, label, run) => actions.append(h('button', { type: 'button', class: 'action', data: { action: key }, onclick: run }, icon(glyph), h('span', { text: label })));
       if (open) action('player-items', 'sales', 'Add Items', () => turfItemsSheet(b, p));
-      if (owing) action('player-credit', 'credits', 'Credit', () => turfCreditSheet(b, p, part));
+      if (owing) action('player-credit', 'credits', 'Move to Credit', () => turfCreditSheet(b, p, part));
       if (owing && open && part.state === 'open') action('player-pending', 'clock', 'Pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back));
       if (open && !academy) action('player-move', 'transfer', 'Move', () => turfMoveSheet(b, p));
       if (open && !academy) action('player-discount', 'percent', 'Discount', () => settleSheet(p.tabId, 'discount'));
@@ -9647,30 +9702,6 @@ function turfSeparateSheet(b) {
     },
     command: () => ({ type: 'TURF_SEPARATE', id: b.id, revision: b.revision, hours: [...picked] }),
     then() { turfDetailSheet(b.id); }
-  });
-}
-// Items bought after a booking's bill is closed: a new bill for the booking's customer, collected at once (or kept pending or
-// put on credit) on the usual bill sheet. The closed bill is never reopened.
-function turfLaterItemsSheet(b) {
-  let picker = null;
-  openSheet({
-    title: 'Add Items',
-    sub: b.customer + ' · after the booking',
-    icon: 'sales',
-    focus: false,
-    onClose: () => turfDetailSheet(b.id),
-    build(ui) {
-      picker = picker || productPicker(() => ui.redraw());
-      ui.body.append(picker.node);
-      const n = picker.count();
-      ui.primary(n ? 'Add ' + n + (n === 1 ? ' item' : ' items') + ' · ' + money(picker.total()) : 'Choose items', !n);
-    },
-    command() {
-      const items = picker.items();
-      if (!items.length) throw new Error('Choose items.');
-      return { type: 'QUICK_TAB', customer: b.customer, phone: b.phone || '', items };
-    },
-    then(result) { settleSheet(result.tabId); }
   });
 }
 // A player's amount goes onto a bill already running on a system, named so it is never the wrong bill; or they start playing.
