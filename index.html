@@ -257,6 +257,9 @@ input[type=checkbox]:checked::before { transform: scale(1); }
 .suggest .avatar { width: 30px; height: 30px; font-size: 13px; }
 
 /* ---------- Shell: a floating menu panel, then the page ---------- */
+/* A test copy's strip across the top (Script Property TEST_COPY). */
+.test-copy { flex: none; padding: 6px 16px; background: var(--danger); color: #ffffff; font-size: 14px; font-weight: 600; text-align: center; letter-spacing: 0.02em; }
+.test-copy[hidden] { display: none; }
 .app { flex: 1; min-height: 0; display: grid; grid-template-columns: var(--side) minmax(0, 1fr); }
 /* The menu: a cream column, flush with the window edge (the owner's picture). */
 .side { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 22px 12px 12px; border-right: 1px solid #e0dacd; background: var(--side-bg); }
@@ -1567,6 +1570,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   </div>
 </section>
 
+<!-- A test copy (Script Property TEST_COPY) says so on every screen, so it is never taken for the real records. -->
+<div id="testCopy" class="test-copy" hidden>TEST COPY · not the real records</div>
 <div id="app" class="app" hidden>
   <aside class="side">
     <div class="brand">
@@ -10359,6 +10364,7 @@ function applySnapshot(data) {
   clockOffset = data.serverMs - Date.now();
   lastGood = data.serverMs;
   session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError };
+  $('testCopy').hidden = !data.testCopy;
   const first = !state;
   if (!data.unchanged && setConfirmed(data.state, data.version)) keepLast(data);
   // Saves left on their way (a reload, a lost connection) carry on.
