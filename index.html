@@ -915,6 +915,13 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .games { display: grid; gap: 6px; }
 .game-row { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 14px; border: 1px solid var(--gold-line); border-radius: 10px; background: var(--gold-soft); }
 .game-row .btn { min-height: 38px; padding: 0 12px; font-size: 14px; }
+/* A closed game is a row tapped to pay it, no amount on the card (owner, 25 October, as on Manipal). */
+.game-row.open { cursor: pointer; }
+.game-row.open:hover { border-color: var(--warn-line); }
+.game-row .game-go { width: 18px; height: 18px; flex: none; color: var(--ink-2); }
+/* A console in a group: End Group, small and red, on the who line (as on Manipal). */
+.btn.stop.group-end { margin-left: auto; min-height: 30px; padding: 0 10px; gap: 5px; font-size: 13px; border-radius: 8px; background: linear-gradient(180deg, #d0605a 0%, var(--danger) 55%, #a8362f 100%); border-color: var(--danger); }
+.btn.stop.group-end svg { width: 12px; height: 12px; }
 /* Less received than owed: the rest goes pending, to credit, or stays on the system. */
 .rest-box { display: grid; gap: 8px; padding: 10px 12px 12px; border: 1px solid var(--warn-line); border-radius: 12px; background: var(--warn-soft); }
 .rest-box[hidden] { display: none; }
@@ -2003,7 +2010,7 @@ var ArenaApp=(function(){
 
 /* Post-session settlement and physical-table parties. Called inside the existing locked atomic command. */
 var ArenaLifecycle=(function(){
- var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT'];
+ var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT','TABLE_ITEMS_PAY'];
  function check(v,m){ArenaCore.check(v,m);}
  function row(rows,id){var r=(rows||[]).find(function(x){return x.id===id;});check(!!r,'Record not found.');return r;}
  function tab(s,id){var t=row(s.Tabs,id);check(t.status==='open','This tab is already finalized or moved.');return t;}
@@ -2217,6 +2224,35 @@ var ArenaLifecycle=(function(){
    (s.TableGuests||[]).forEach(function(g){if(g.tableSegmentId===game.id)g.tableSegmentId=next.id;});
    reminders.forEach(function(r){r.status='set';});
    return {tabId:host.id,segmentId:next.id,closedPaise:game.totalPaise,message:unit.name+': game closed. The next game has started.'};
+  }
+  if(c.type==='TABLE_ITEMS_PAY'){
+   // Items on a table paid on their own, before or without the table's time (owner, 24 October: "what if the drinks were for
+   // another", "only the items before the table"): how many of each, paid in full now; they become a bill of their own and
+   // the rest, the time included, stays on the table.
+   var it=tab(s,c.tabId);check(it.status==='open','This tab is already finalized.');
+   check(Array.isArray(c.items)&&c.items.length>=1&&c.items.length<=40,'Choose the items they are paying for.');
+   var onIt=(s.Orders||[]).filter(function(o){return o.tabId===it.id&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried';}),taking=[];
+   // Checked first, then taken: a refused payment changes nothing.
+   var chosen=c.items.map(function(item){
+    var o=onIt.find(function(x){return x.id===(item&&item.orderId);});check(!!o,'This item is no longer on the table. Refresh and try again.');
+    check(Number.isInteger(item.quantity)&&item.quantity>=1&&item.quantity<=Number(o.quantity),'Choose how many of each item.');
+    return {order:o,quantity:item.quantity};
+   });
+   check(new Set(chosen.map(function(x){return x.order.id;})).size===chosen.length,'Choose each item once.');
+   var itemsDue=chosen.reduce(function(n,x){return n+x.order.unitPricePaise*x.quantity;},0);
+   check(c.amountPaise===itemsDue,'Collect '+(itemsDue/100)+' for these items.');
+   chosen.forEach(function(x,i){
+    var o=x.order;
+    if(x.quantity===Number(o.quantity)){taking.push(o);return;}
+    o.quantity=Number(o.quantity)-x.quantity;o.totalPaise=o.unitPricePaise*o.quantity;o.revision++;
+    var part=Object.assign({},o,{id:id+'-item-'+i,quantity:x.quantity,totalPaise:o.unitPricePaise*x.quantity,revision:1});s.Orders.push(part);taking.push(part);
+   });
+   var own=newTab(s,id+'-items',it.customer,it.phone,now,'individual');
+   taking.forEach(function(o){o.tabId=own.id;});
+   s.OrderOwners=(s.OrderOwners||[]).filter(function(w){return !taking.some(function(o){return o.id===w.id;});});
+   var paidItems=execute(s,{type:'SETTLE_REVIEW',tabId:own.id,settlement:'pay',discountType:'none',discountValue:0,amountPaise:itemsDue,method:c.method||'cash',payments:c.payments},actor,now,id+'-settle');
+   paidItems.tabId=own.id;paidItems.message='Items paid. The table plays on.';
+   return paidItems;
   }
   if(c.type==='TABLE_COLLECT'){
    // One closed game at a time (owner, 20 October: games are separate, never added together), with the items bought during
@@ -5520,14 +5556,19 @@ function groupRow(name, text, ...extras) { return h('div', 'who-row', icon(name)
 // ---------- Groups over several consoles ----------
 // The consoles a bill is playing on, this one first.
 const unitsOfTab = tabId => [...new Set(state.Segments.filter(g => g.tabId === tabId && g.status === 'active').map(g => g.unitId))];
-// A console whose bill also plays on other consoles: "Group · PS5 2 + PS5 3" and one button to end them all.
-function groupStrip(unit) {
+// Consoles grouped on one bill keep their card's shape and buttons (Add Items, Pick to end, End all), as on Manipal (owner,
+// 24–25 October): End Group is a small red button on the who line, and the other consoles are named on the time line.
+function compactGroupOf(unit) {
   const tab = billOn(unit), units = tab ? unitsOfTab(tab.id) : [];
-  if (units.length < 2) return null;
-  const names = [unit.id, ...units.filter(id => id !== unit.id)].map(id => (unitOf(id) || {}).name || id);
-  const everyone = state.Segments.filter(g => g.tabId === tab.id && g.status === 'active');
-  return h('div', { class: 'group-strip', data: { group: tab.id } }, icon('users'), h('span', 'group-strip-text', h('b', { text: 'Group' }), h('span', { text: names.join(' + ') })),
-    btn([icon('stop'), 'End Group'], () => endSheet(everyone), 'tonal', { data: { action: 'end-group' } }));
+  return units.length >= 2 ? { tab, others: units.filter(id => id !== unit.id).map(id => (unitOf(id) || {}).name || id) } : null;
+}
+function markCompactGroup(card, unit) {
+  const group = compactGroupOf(unit);
+  if (!group) return;
+  const who = card.querySelector('.card-who, .who-row'), since = card.querySelector('.card-since');
+  const everyone = state.Segments.filter(g => g.tabId === group.tab.id && g.status === 'active');
+  if (who) who.append(btn([icon('stop'), 'End Group'], e => { e.stopPropagation(); endSheet(everyone); }, 'stop group-end', { title: 'End every console of the group: ' + [unit.name, ...group.others].join(' + '), data: { action: 'end-group' } }));
+  if (since) since.textContent = 'With ' + group.others.join(', ');
 }
 // Other consoles in use whose bill can join this one.
 const groupable = unit => state.Equipment.filter(u => u.category === 'PS5' && u.id !== unit.id && activeOn(u.id).length && billOn(u) && billOn(unit) && billOn(u).id !== billOn(unit).id);
@@ -5561,16 +5602,26 @@ function gameOwed(tabId, game) {
   return { items, total, paid, owed: Math.max(0, total - paid) };
 }
 // Each game closed with Close & Open, one under another, each with its own Collect. A game paid in full becomes its own bill.
+// The table and the items are said apart (owner, 24 October), and items on the game playing now can be paid on their own
+// (Pay items) before or without the table.
 function closedGamesList(unit, tab) {
   const games = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs);
-  if (!games.length) return null;
-  return h('div', { class: 'games', data: { games: String(games.length) } }, games.map((g, i) => {
-    const sum = gameOwed(tab.id, g);
-    return h('div', { class: 'game-row', data: { game: g.id } },
-      h('div', 'games-main', h('b', { text: 'Game ' + (i + 1) + ' · ' + period(g.startMs, g.endMs) }),
-        h('span', { class: 'small muted', text: [sum.items.length ? sum.items.length + (sum.items.length === 1 ? ' item' : ' items') : '', sum.paid ? money(sum.paid) + ' paid' : ''].filter(Boolean).join(' · ') || 'Closed' })),
-      btn([icon('wallet'), 'Collect ' + money(sum.owed)], () => tableCollectSheet(unit, tab, g), 'go', { data: { action: 'collect-game' } }));
-  }));
+  const owned = new Set(ArenaLifecycle.gameOrders(state, tab.id, games).map(o => o.id));
+  const now = ordersOf(tab.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried' && !owned.has(o.id));
+  if (!games.length && !now.length) return null;
+  // No amounts here (owner, 25 October: an item may not be that game's): the game and its time; a tap opens it to be paid,
+  // where what it pays is counted.
+  const rows = games.map((g, i) => {
+    const paid = gameOwed(tab.id, g).paid;
+    return h('div', { class: 'game-row open', role: 'button', tabindex: '0', 'aria-label': 'Pay game ' + (i + 1), data: { game: g.id, action: 'collect-game' }, onclick: e => { e.stopPropagation(); tableCollectSheet(unit, tab, g); }, onkeydown: e => { if (e.key === 'Enter') { e.stopPropagation(); tableCollectSheet(unit, tab, g); } } },
+      h('div', 'games-main', h('b', { text: 'Game ' + (i + 1) + ' · ' + period(g.startMs, g.endMs) }), h('span', { class: 'small muted', text: paid ? money(paid) + ' paid' : 'Closed' })),
+      icon('right', 'game-go'));
+  });
+  // Items paid on their own, before or without the table (owner, 24 October).
+  if (now.length) rows.push(h('div', { class: 'game-row', data: { game: 'now' } },
+    h('div', 'games-main', h('b', { text: 'Items' }), h('span', { class: 'small muted', text: 'Pay for them without the table' })),
+    btn([icon('wallet'), 'Pay items'], () => tableItemsSheet(unit, tab, now), 'go', { data: { action: 'pay-items' } })));
+  return h('div', { class: 'games', data: { games: String(games.length) } }, rows);
 }
 
 // Corrections for one timer. The same two entries are offered on the floor and on the bill.
@@ -5680,7 +5731,8 @@ function stationCardBody(unit) {
       actions.append(items);
     }
     if (!small) card.append(h('div', { class: 'slots-head', 'aria-hidden': 'true' }, h('span', { text: 'Controllers' }), h('span', { text: 'Session time' })), list);
-    card.append(...[groupStrip(unit)].filter(Boolean), actions);
+    card.append(actions);
+    markCompactGroup(card, unit);
     return card;
   }
 
@@ -6176,6 +6228,46 @@ function pickedLines(rows, picks) {
   const chosen = rows.map(row => [row, picks.get(row.key) || 0]).filter(([, n]) => n > 0);
   return chosen.length ? { ids: chosen.filter(([row]) => row.timers).flatMap(([row, n]) => row.timers.slice(0, n).map(g => g.id)), items: chosen.filter(([row]) => row.order).map(([row, n]) => ({ orderId: row.order.id, quantity: n })) } : undefined;
 }
+// Items on a table paid on their own (owner, 24 October): how many of each, paid in full now; the table plays on and the rest
+// stays on it.
+function tableItemsSheet(unit, tab, orders) {
+  const picks = new Map(orders.map(o => [o.id, Number(o.quantity)])), store = { method: 'cash' };
+  let rows = [], how = null;
+  const due = () => rows.reduce((n, row) => n + row.worth(picks.get(row.key) || 0), 0);
+  openSheet({
+    title: 'Pay items · ' + unit.name,
+    sub: tab.customer,
+    icon: 'sales',
+    tone: 'jade',
+    focus: false,
+    build(ui) {
+      rows = pickRows(orders);
+      ui.body.append(h('p', { class: 'small muted', style: 'margin-bottom:10px', text: 'The table’s time stays on the table.' }),
+        h('div', { class: 'lines end-pick', data: { field: 'items-pick' } }, pickLines(rows, picks, () => ui.redraw())));
+      how = payChoice(store, () => paint(), { due });
+      ui.foot.append(h('div', 'foot-row', h('div', { class: 'foot-label', text: 'To collect' }), h('div', { class: 'foot-total', text: money(due()) })), how.node);
+      ui.primary('');
+      const paint = () => {
+        const owed = due(), split = how.paid(), b = current.primaryButton;
+        const label = !owed ? 'Choose the items' : split != null && split !== owed ? 'Cash and UPI must make ' + money(owed) : 'Collect ' + money(owed) + ' · ' + how.text();
+        b.dataset.label = label;
+        b.textContent = label;
+        b.disabled = !owed || (split != null && split !== owed);
+      };
+      paint();
+    },
+    command() {
+      const owed = due(), picked = pickedLines(rows, picks);
+      if (!owed || !picked) throw new Error('Choose the items they are paying for.');
+      return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items: picked.items, amountPaise: owed, ...how.value() };
+    },
+    then(result, command) {
+      closeSheet();
+      render();
+      return { text: 'Items paid · ' + [money(command.amountPaise), methodText(result.method || command.method), result.receiptNumber].filter(Boolean).join(' · ') + '. ' + unit.name + ' plays on.' };
+    }
+  });
+}
 function tableCollectSheet(unit, tab, game) {
   const draft = { received: '', edited: false, pay: {}, rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '', account: newAccountStore() };
   const number = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs).findIndex(g => g.id === game.id) + 1;
@@ -6184,7 +6276,10 @@ function tableCollectSheet(unit, tab, game) {
   const picks = new Map();
   for (const o of gameOwed(tab.id, game).items) picks.set(o.id, Number(o.quantity));
   let picker = null, extras = [];
-  const due = () => Math.max(0, game.totalPaise - gameOwed(tab.id, game).paid + extras.reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0));
+  // The table's time unticked: only the items counted are paid now, in full, and the game stays to be paid (owner, 24 October).
+  let tableOff = false;
+  const itemsDue = () => extras.filter(row => row.order).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
+  const due = () => (tableOff ? itemsDue() : Math.max(0, game.totalPaise - gameOwed(tab.id, game).paid + extras.reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0)));
   openSheet({
     title: 'Game ' + number + ' · ' + unit.name,
     sub: tab.customer,
@@ -6193,7 +6288,7 @@ function tableCollectSheet(unit, tab, game) {
     focus: false,
     build(ui) {
       const { paid: before } = gameOwed(tab.id, game);
-      drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false });
+      drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false, ticks: { off: new Set(tableOff ? [game.id] : []), toggle: () => { tableOff = !tableOff; draft.edited = false; ui.redraw(); }, count: () => 0, setCount: () => {} } });
       if (before) ui.body.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
       // Each item says which game it was added during, or that it is for the table.
       const games = closedGames(tab.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active')).sort((x, y) => x.startMs - y.startMs);
@@ -6208,11 +6303,19 @@ function tableCollectSheet(unit, tab, game) {
       const paint = () => {
         const paid = paidNow(), left = owed - paid, sound = Number.isSafeInteger(paid) && paid >= 0 && paid <= owed, blank = !!draft.how && draft.how.blank();
         restBox.replaceChildren();
-        if (sound && left > 0 && !blank) {
+        if (sound && left > 0 && !blank && !tableOff) {
           // Choosing credit or pending puts the cursor where the account or the name is typed.
           restBox.append(h('div', 'group-title', icon('clock'), 'The other ' + money(left)), restChoice(draft, 'Keep on ' + unit.name, () => { ui.redraw(); focusRest(ui); }).node);
           if (draft.rest === 'credit') { picker = accountPicker(draft.account); restBox.append(picker.node); }
           if (draft.rest === 'pending') restBox.append(pendingFields(draft).node);
+        }
+        if (tableOff) {
+          // Items alone are paid in full; nothing to choose for a rest.
+          const b = current.primaryButton, label = !owed ? 'Count the items they are paying for' : blank ? 'Enter cash and UPI' : paid !== owed ? 'Collect the full ' + money(owed) : 'Collect ' + money(owed) + ' · items';
+          b.dataset.label = label;
+          b.textContent = label;
+          b.disabled = !owed || blank || paid !== owed;
+          return;
         }
         const b = current.primaryButton, label = blank ? 'Enter cash and UPI' : !sound ? 'Up to ' + money(owed) : left > 0 && !draft.rest ? 'Choose for the other ' + money(left) : paid > 0 ? 'Collect ' + money(paid) : draft.rest === 'credit' ? 'Move ' + money(left) + ' to Credit' : 'Keep ' + money(left) + ' pending';
         b.dataset.label = label;
@@ -6231,13 +6334,18 @@ function tableCollectSheet(unit, tab, game) {
       // becomes a bill of its own and opens there; the table plays on.
       const apart = then => runCommand({ type: 'TABLE_COLLECT', tabId: tab.id, segmentId: game.id, extra: pickedLines(extras, picks) || { ids: [], items: [] }, apart: true, amountPaise: 0, method: 'cash' }, result => { render(); then(result.tabId); return null; });
       const action = (key, glyph, label, run) => h('button', { type: 'button', class: 'action', data: { action: key }, onclick: run }, icon(glyph), h('span', { text: label }));
-      ui.foot.append(h('div', 'actions',
+      if (!tableOff) ui.foot.append(h('div', 'actions',
         action('credit', 'credits', 'Move to Credit', () => apart(id => settleSheet(id, 'credit'))),
         action('pending', 'clock', 'Pending', () => apart(id => settleSheet(id, 'pending'))),
         action('move', 'transfer', 'Move', () => apart(id => moveSheet(tabOf(id))))));
     },
     command() {
       const owed = due(), split = draft.how.paid(), paid = split != null ? split : draft.edited ? toPaise(draft.received || 0) : owed;
+      if (tableOff) {
+        const items = (pickedLines(extras.filter(row => row.order), picks) || { items: [] }).items;
+        if (!items.length || paid !== owed) throw new Error('Collect ' + money(owed) + ' for the items.');
+        return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items, amountPaise: owed, ...draft.how.value(owed) };
+      }
       if (!(paid >= 0) || paid > owed) throw new Error('Enter up to ' + money(owed) + '.');
       const rest = paid < owed ? draft.rest : undefined;
       if (paid < owed && !rest) throw new Error('Choose what happens to the rest.');
@@ -6248,6 +6356,7 @@ function tableCollectSheet(unit, tab, game) {
       closeSheet();
       render();
       const how = methodText(result.method || command.method);
+      if (command.type === 'TABLE_ITEMS_PAY') return { text: 'Items paid · ' + [money(command.amountPaise), how, result.receiptNumber].filter(Boolean).join(' · ') + '. Game ' + number + ' stays to be paid.' };
       return { text: 'Game ' + number + ': ' + (command.amountPaise ? 'Paid ' + [money(command.amountPaise), how, result.receiptNumber].filter(Boolean).join(' · ') + '.' : '') + (command.rest === 'keep' ? ' The rest stays on ' + unit.name + '.' : command.rest === 'credit' ? ' The rest is on credit.' : command.rest === 'pending' ? ' The rest is pending.' : '') };
     }
   });
@@ -10557,6 +10666,8 @@ function watchArrivals() {
     h('span', 'arrival-text', h('b', { text: 'New booking' }), h('span', { text: item.text })),
     iconButton('close', 'Close this notice', () => { item.ids.forEach(id => seen.ids.add(id)); keepSeen(); watchArrivals(); }, { data: { action: 'arrival-close' } }))));
 }
+// When a save left unconfirmed was last checked again by itself.
+let pendingTried = 0;
 function applySnapshot(data) {
   clockOffset = data.serverMs - Date.now();
   lastGood = data.serverMs;
@@ -10572,7 +10683,12 @@ function applySnapshot(data) {
   watchArrivals();
   postAcademyDue();
   extendSeries();
-  if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
+  // A save left unconfirmed (the internet dropped) is checked again by itself, at most once a minute, with the same request,
+  // so it can never save twice (owner, 25 October: while it waits, every tap waits for the server and the app feels slow).
+  if (flow.pending() && !flow.saving() && nowMs() - pendingTried > 60000) {
+    pendingTried = nowMs();
+    retrySave();
+  } else if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
 }
 // The data that came back with a save: the screen is brought up to date without asking again.
 function applySaved(snapshot) {
