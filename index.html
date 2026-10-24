@@ -2964,8 +2964,12 @@ var ArenaViews = (function () {
       Applied: (state.Operations || []).slice(-80).map(function (o) { return o.id; }),
       DayCloses: (state.DayCloses || []).slice(-14).map(function (d) { return { id: d.id, dateKey: d.dateKey, countedCashPaise: d.countedCashPaise, note: d.note, createdMs: d.createdMs }; })
     };
+    // The screen's copy has no bills paid off more than a day and a half ago, though their moves to credit stay. They owe
+    // nothing, so the summary leaves them out rather than stop at them (owner, 25 October: one such bill sent every save to
+    // the server the slow way, with "Saving…" on the button).
+    var onHand = index(state.Bills), ledger = Object.assign({}, state, { CreditTransfers: (state.CreditTransfers || []).filter(function (t) { return has(onHand, t.billId); }) });
     out.CreditSummary = out.CreditAccounts.map(function (a) {
-      return { id: a.id, outstandingPaise: ArenaCredits.balance(state, a.id), obligations: ArenaCredits.obligations(state, a.id) };
+      return { id: a.id, outstandingPaise: ArenaCredits.balance(ledger, a.id), obligations: ArenaCredits.obligations(ledger, a.id) };
     });
     return out;
   }
@@ -10443,6 +10447,8 @@ function trySaveHere(command) {
   try { out = predict(state, item); }
   catch (e) {
     if (e.userFacing && e.message !== 'Record not found.') return { refused: e.message };
+    // Said in the console, so a save that keeps going the slow way can be traced.
+    console.warn('[City Arena] ' + command.type + ' could not be worked out on screen (' + e.message + '); the server saves it');
     return null;
   }
   outbox.push(item);
