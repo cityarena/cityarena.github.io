@@ -3144,7 +3144,7 @@ var ArenaViews = (function () {
    Charges raised and money received are always reported separately: a bill moved to credit is a charge, not a receipt. */
 var ArenaReports = (function () {
   'use strict';
-  var types = ['CLOSE_DAY', 'BUSINESS_DAY_SETTING'], DAY_MS = 86400000, GAMING = ['PC', 'PS5', 'RC', 'Pool', 'Snooker', 'Manual'];
+  var types = ['CLOSE_DAY', 'BUSINESS_DAY_SETTING', 'PAY_QR_SETTING'], DAY_MS = 86400000, GAMING = ['PC', 'PS5', 'RC', 'Pool', 'Snooker', 'Manual'];
 
   function check(ok, message) { ArenaCore.check(ok, message); }
   function setting(state, key, fallback) {
@@ -3366,6 +3366,15 @@ var ArenaReports = (function () {
       var saved = state.Settings.find(function (r) { return r.id === 'businessDayStartMinutes'; });
       if (saved) saved.value = cmd.startMinutes; else state.Settings.push({ id: 'businessDayStartMinutes', value: cmd.startMinutes });
       return { message: 'Business day setting saved.' };
+    }
+    // The payment QR switched off or on again from Settings (owner, 25 October: "if incase it needs to be removed, make sure
+    // i can anytime"): payQrOff 1 hides it on every screen, 0 shows it.
+    if (cmd.type === 'PAY_QR_SETTING') {
+      check(typeof cmd.on === 'boolean', 'Choose On or Off.');
+      state.Settings = state.Settings || [];
+      var qr = state.Settings.find(function (r) { return r.id === 'payQrOff'; });
+      if (qr) qr.value = cmd.on ? 0 : 1; else state.Settings.push({ id: 'payQrOff', value: cmd.on ? 0 : 1 });
+      return { message: cmd.on ? 'Payment QR is on.' : 'Payment QR is off.' };
     }
     check(cmd.type === 'CLOSE_DAY', 'Unsupported operation.');
     state.DayCloses = state.DayCloses || [];
@@ -9411,8 +9420,10 @@ function whatsapp(phone, text) {
 // being, chethanlobo@ybl").
 // From web-config.json "pay" (the build puts it here): { upi, name, live }. live: the QR is shown and copied;
 // off in a release until the owner says so (owner, 25 October), on in the preview and the TEST app.
-const PAY_CONFIG = {"upi":"chethanlobo@ybl","name":"City Arena","live":false};
+const PAY_CONFIG = {"upi":"chethanlobo@ybl","name":"City Arena","live":true};
 const PAY_UPI = { id: PAY_CONFIG.upi, name: PAY_CONFIG.name };
+// In the build and not switched off in Settings (payQrOff; owner, 25 October).
+const payQrOn = () => PAY_CONFIG.live && !(state && settingValue('payQrOff', 0) === 1);
 // The UPI ID with its @ as it is (some UPI apps do not read %40).
 const upiLink = (paise, note) => 'upi://pay?pa=' + encodeURIComponent(PAY_UPI.id).replace('%40', '@') + '&pn=' + encodeURIComponent(PAY_UPI.name) + '&am=' + (paise / 100).toFixed(2) + '&cu=INR' + (note ? '&tn=' + encodeURIComponent(note.slice(0, 50)) : '');
 // The picture: the name, the QR, the amount and what it is for, on white, large enough to scan from a phone screen.
@@ -11023,6 +11034,9 @@ const setupPage = {
           btn('Save', () => runCommand({ type: 'RESERVATION_SETTINGS', horizon: Number(horizon.value), grace: Number(grace.value) }, () => {}))),
         h('section', 'panel', head('sun', 'Business day'), field('The report day starts at', dayStart),
           btn('Save', () => runCommand({ type: 'BUSINESS_DAY_SETTING', startMinutes: Number(dayStart.value) }, () => {}))),
+        // The payment QR on or off for every screen, at once, without a release (owner, 25 October).
+        PAY_CONFIG.live ? h('section', { class: 'panel', data: { field: 'pay-qr-setting' } }, head('upi', 'Payment QR'),
+          segmented([['on', 'On', 'check'], ['off', 'Off', 'close']], payQrOn() ? 'on' : 'off', v => runCommand({ type: 'PAY_QR_SETTING', on: v === 'on' }, () => {})).node) : null,
         h('section', 'panel', head('drive', 'Backups', backupError ? 'bad' : ''),
           h('div', 'kv', h('span', { text: 'Last backup' }), h('b', { text: session.lastBackup ? when(Date.parse(session.lastBackup)) : 'None yet' })),
           backupError ? h('p', { class: 'small', style: 'color:var(--danger);margin:8px 0', text: 'Last scheduled backup failed on ' + when(Date.parse(backupError.at)) + ': ' + backupError.message }) : null,
@@ -11361,7 +11375,7 @@ const turfAdvanceNote = b => 'Turf advance · ' + turfDayName(b.dateKey) + ' ' +
 // The hold message, sent on the tap itself; with the payment QR on, its picture is copied too, to paste into the chat
 // (owner, 25 October: "make sure the qr code copies over there only").
 function turfHoldSend(b) {
-  if (PAY_CONFIG.live) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
+  if (payQrOn()) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
   whatsapp(b.phone, turfHoldMessage(b));
 }
 // WhatsApp on a held booking: the advance can be changed before the message goes (owner, 25 October: "if i want to adjust
@@ -13023,6 +13037,7 @@ function titleParts(title, accent) {
 // Draws the current section from the snapshot. Called when the data really changed, not on every poll.
 function render() {
   if (!state) return;
+  $('payQr').hidden = !payQrOn();
   const section = PAGES[page] || floorPage, scroll = $('main').scrollTop;
   $('pageTitle').replaceChildren(...titleParts(section.title, sectionText(section.accent)));
   $('pageSub').textContent = sectionText(section.subtitle);
@@ -13172,7 +13187,7 @@ function refresh(force) {
 $('refresh').append(icon('refresh'));
 $('payQr').append(icon('upi'), h('span', { class: 'desk-only', text: 'Payment QR' }));
 $('payQr').onclick = () => paymentQrSheet({});
-$('payQr').hidden = !PAY_CONFIG.live;
+$('payQr').hidden = true;
 $('logout').append(icon('logout'));
 $('sheetClose').append(icon('close'));
 // Back (owner, 21 October): a sheet opened from another goes back to it, one step, plainly named.
