@@ -9417,10 +9417,11 @@ function whatsapp(phone, text) {
 }
 // ---------- A payment QR (owner, 25 October): a UPI QR with the amount filled in, sent as a picture on WhatsApp ----------
 // Free: the picture is made here and sent by hand (no paid WhatsApp plan). The UPI ID is the owner's for now ("for time
-// being, chethanlobo@ybl").
+// being, chethanlobo@ybl"); since 25 October City Arena's own business ID, from the owner's picture of the counter's
+// Google Pay stand (web-config.json pay.upi).
 // From web-config.json "pay" (the build puts it here): { upi, name, live }. live: the QR is shown and copied;
 // off in a release until the owner says so (owner, 25 October), on in the preview and the TEST app.
-const PAY_CONFIG = {"upi":"chethanlobo@ybl","name":"City Arena","live":true};
+const PAY_CONFIG = {"upi":"9980388444@okbizaxis","name":"City Arena","live":true};
 const PAY_UPI = { id: PAY_CONFIG.upi, name: PAY_CONFIG.name };
 // In the build and not switched off in Settings (payQrOff; owner, 25 October).
 const payQrOn = () => PAY_CONFIG.live && !(state && settingValue('payQrOff', 0) === 1);
