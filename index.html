@@ -870,7 +870,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .sheet-status.error { border-color: var(--danger-line); background: var(--danger-soft); }
 .sheet-status.pending { border-color: var(--warn-line); background: var(--warn-soft); }
 .sheet-status .btn { margin-top: 8px; min-height: 38px; }
-.sheet-foot { flex: none; display: grid; gap: 10px; padding: 12px 20px 14px; border-top: 1px solid var(--line-strong); background: #f5f0e6; }
+.sheet-foot { flex: none; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 20px 14px; border-top: 1px solid var(--line-strong); background: #f5f0e6; }
 .sheet-foot:empty { display: none; }
 .sheet-foot .btn.block { min-height: 44px; border-radius: 11px; }
 /* The main button of a sheet: tall, in slate teal; an arrow in a soft circle at its end. */
@@ -1166,6 +1166,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-block.hold { border-style: dashed; border-color: var(--warn); background: linear-gradient(180deg, #fbebd5 0%, #f7e2c4 100%); box-shadow: none; }
 .turf-hold-tag { flex: none; padding: 0 6px; border: 1px solid var(--warn-line); border-radius: 6px; background: transparent; color: var(--warn); font: inherit; font-weight: 700; line-height: 20px; cursor: pointer; }
 .turf-hold-tag:hover { background: var(--warn-soft); }
+.turf-hold-tag svg { display: none; }
 /* A small box beside what was tapped (owner, 25 October: "ask there only"). */
 .popover { position: fixed; z-index: 60; width: min(300px, calc(100vw - 16px)); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--raised); box-shadow: 0 14px 34px -12px rgba(80, 62, 30, 0.35); color: var(--ink); animation: pop-in var(--ease); }
 .popover-title { font-size: 15px; }
@@ -1174,9 +1175,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .popover-foot { display: flex; gap: 8px; }
 .popover-foot .btn { flex: 1; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
-.turf-hold { display: flex; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 1px solid var(--warn-line); border-radius: 12px; background: var(--warn-soft); }
+.turf-hold { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 1px solid var(--warn-line); border-radius: 12px; background: var(--warn-soft); }
 .turf-hold > svg { width: 18px; height: 18px; color: var(--warn); flex: none; }
-.turf-hold-text { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
+.turf-hold-text { flex: 1 1 150px; min-width: 0; display: grid; line-height: 1.35; }
 .turf-hold-text b { color: var(--warn); }
 .turf-hold .btn { min-height: 38px; padding: 0 12px; }
 /* A booking made on another screen: at the top until this screen closes it. */
@@ -1277,9 +1278,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-pay .btn svg { color: var(--accent); }
 .sheet-foot .turf-pay { display: grid; grid-template-columns: 1fr 1fr auto; }
 /* A one-payer booking's foot: the amount, then Cash, UPI and CA, each one tap. */
-.turf-collect { display: grid; gap: 8px; }
+.turf-collect { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.turf-collect > .btn.primary { white-space: normal; text-align: center; line-height: 1.25; }
 .turf-collect-label { font-family: var(--display); font-size: 20px; font-weight: 700; }
-.turf-collect .turf-pay { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.turf-collect .turf-pay { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.turf-collect .turf-pay .btn { min-width: 0; padding: 0 8px; }
 /* Cash, UPI or CA chosen (not yet saved): marked until End Session or Collect is pressed. */
 .turf-pay .btn[aria-pressed=true] { border-color: var(--primary); background: var(--primary); color: #ffffff; }
 .turf-pay .btn[aria-pressed=true] svg { color: #ffffff; }
@@ -1591,6 +1594,27 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .login-panel { padding: 0 max(16px, calc(50% - 280px)) 32px; }
   /* A tablet's turf columns are wide enough for the time beside the sport. */
   .turf-time { display: inline; }
+  /* A tablet, or a phone on its side (owner, 26 October: the time cut off below the cross): the name, WhatsApp and the
+     cross share one line, the time (and On hold) under them, as on a computer. */
+  .turf-block-top { flex-wrap: nowrap; height: 24px; }
+  .turf-name { flex: 1 1 auto; }
+  .turf-block .turf-wa { display: inline-grid; }
+  .turf-block-top .turf-x { margin-left: auto; }
+}
+/* A phone's turf board (owner, 25 October: a hold showed its name and the cross, On hold cut off below): the name on its
+   own line, then the cross and, on a hold, a clock that asks Confirm or No, side by side within the hour. */
+@media (max-width: 599px) {
+  .turf-block { flex-direction: row; flex-wrap: wrap; align-content: center; align-items: center; gap: 4px; }
+  .turf-block-top, .turf-block-sub { display: contents; }
+  .turf-hold-tag { display: inline-grid; place-items: center; width: 28px; height: 24px; padding: 0; }
+  .turf-hold-tag svg { display: block; width: 15px; height: 15px; }
+  .turf-hold-tag span { display: none; }
+  /* Collect's three ways in words alone, so Cash + UPI fits its third of a phone. */
+  .turf-collect .turf-pay .btn { gap: 0; font-size: 15px; }
+  .turf-collect .turf-pay .btn svg { display: none; }
+  /* The hold strip: the words on the first line, Message and Confirm together on the second. */
+  .turf-hold-text { flex-basis: calc(100% - 40px); }
+  .turf-hold-text + * { margin-left: auto; }
 }
 /* Cash, UPI and CA side by side, the same width. */
 .turf-pay.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
@@ -12707,7 +12731,7 @@ function turfBlock(b, row, column, rows) {
   const tone = settled === 'settled' ? ' paid' : settled === 'pending' || settled === 'part' || (ended && !turfAccountOf(b.id)) ? ' owing' : '';
   return h('div', { class: 'turf-block' + tone + (hold ? ' hold' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
     h('span', 'turf-block-top', h('button', { type: 'button', class: 'turf-name', 'aria-label': b.customer + ', ' + courtLabel(b.court) + ', ' + b.sport + ', ' + turfRange(b), text: b.customer }), send, mark, cancel),
-    h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('button', { type: 'button', class: 'turf-hold-tag', title: 'Advance paid? Confirm the booking', 'aria-label': 'On hold: confirm ' + b.customer + '’s booking?', data: { action: 'turf-hold-ask' }, onclick: e => { e.stopPropagation(); turfHoldAsk(b, e.currentTarget); } }, 'On hold') : null, h('span', { class: 'turf-time', text: turfRange(b) })));
+    h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('button', { type: 'button', class: 'turf-hold-tag', title: 'Advance paid? Confirm the booking', 'aria-label': 'On hold: confirm ' + b.customer + '’s booking?', data: { action: 'turf-hold-ask' }, onclick: e => { e.stopPropagation(); turfHoldAsk(b, e.currentTarget); } }, icon('clock'), h('span', { text: 'On hold' })) : null, h('span', { class: 'turf-time', text: turfRange(b) })));
 }
 // The board keeps the hours still to come, and any earlier hour of a booking not yet settled (it stays until it is).
 // Every hour of the day stays on the board (owner, 20 October): nothing leaves it, its colour says what it is.
