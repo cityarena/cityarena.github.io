@@ -64,14 +64,13 @@
   --danger: #bf433d;
   --danger-soft: rgba(208, 80, 70, 0.1);
   --danger-line: rgba(191, 67, 61, 0.42);
-  /* A turf slot held, Hold (Pay) or Hold: one dark plum, solid, white words on it, unlike booked (teal-grey), paid
-     (green), pending (orange) and gone by (red) (owner, 27 October: "let it be dark. dont make it transparent"; "both holds
-     let it be same colour"). */
+  /* A turf slot held, Hold (Pay) or Hold: a light plum, solid, outlined in dark plum, unlike booked (teal-grey), paid
+     (green), pending (orange) and gone by (red) (owner, 27 October: the dark fill "became too dark. revert it back to how
+     it was colours, but outline with dark"; "both holds let it be same colour"). */
   --hold: #5c2a50;
-  --hold-deep: #461f3d;
-  --hold-pale: #f1e6ee;
-  --hold-line: #b48aa8;
-  --on-hold: #ffffff;
+  --hold-top: #f1e3ec;
+  --hold-bottom: #e8d4e2;
+  --hold-pale: #f6edf3;
   --card: #fcfaf5;
   --card-live: #fcfaf5;
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.85);
@@ -700,7 +699,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.95; }
 .badge.good { color: var(--accent); border-color: var(--accent-line); background: rgba(31, 125, 74, 0.085); }
 .badge.warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
-.badge.hold { color: var(--on-hold); border-color: var(--hold-deep); background: var(--hold); }
+.badge.hold { color: var(--ink); border-color: var(--hold); background: #ffffff; }
 .badge.gold { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
 .badge.bad { color: var(--danger); border-color: var(--danger-line); background: var(--danger-soft); }
 .kv { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -1180,18 +1179,14 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .chip.warn { border-color: var(--warn-line); color: var(--warn); }
 .academy-note { display: flex; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--gold); font-size: 14px; }
 .academy-note svg { width: 16px; height: 16px; flex: none; }
-/* A slot held, Hold (Pay) or Hold: dark plum, solid, white words, on the board and in its sheet; its tag says which (owner,
-   27 October). */
-.turf-block.hold, .turf-block.maybe { border-color: var(--hold-deep); background: var(--hold); color: var(--on-hold); box-shadow: none; }
-.turf-block.hold:hover, .turf-block.maybe:hover { border-color: var(--hold-deep); }
-.turf-block.hold .turf-block-sub, .turf-block.maybe .turf-block-sub { color: var(--hold-pale); }
-.turf-block.hold .turf-wa, .turf-block.maybe .turf-wa { color: var(--on-hold); }
-.turf-block.hold .turf-x, .turf-block.maybe .turf-x { border-color: var(--raised); background: var(--raised); }
-/* The sport on white on a hold, so Cricket reads too (owner, 27 October: "that cricket text is not visible"). */
-.turf-block.hold .turf-sport, .turf-block.maybe .turf-sport { border-color: var(--raised); background: var(--raised); color: var(--ink); }
-.turf-hold-tag { flex: none; padding: 0 6px; border: 1px solid var(--on-hold); border-radius: 6px; background: var(--on-hold); color: var(--hold); font: inherit; font-weight: 700; line-height: 20px; cursor: pointer; }
-.turf-hold-tag:hover { background: var(--hold-pale); }
-.turf-key.hold i { border-color: var(--hold-deep); background: var(--hold); }
+/* A slot held, Hold (Pay) or Hold: light plum outlined in dark plum, on the board and in its sheet; its tag says which
+   (owner, 27 October). */
+.turf-block.hold, .turf-block.maybe { border: 2px solid var(--hold); background: linear-gradient(180deg, var(--hold-top) 0%, var(--hold-bottom) 100%); box-shadow: none; }
+.turf-block.hold:hover, .turf-block.maybe:hover { border-color: var(--hold); }
+/* Hold and Hold (Pay) in black, in a white chip like Football and Cricket (owner, 27 October). */
+.turf-hold-tag { flex: none; height: 20px; padding: 0 8px; border: 1px solid var(--primary-line); border-radius: 999px; background: #ffffff; color: var(--ink); font: inherit; font-weight: 600; line-height: 18px; cursor: pointer; }
+.turf-hold-tag:hover { border-color: var(--hold); }
+.turf-key.hold i { border: 2px solid var(--hold); background: var(--hold-bottom); }
 .turf-hold-tag svg { display: none; }
 /* A small box beside what was tapped (owner, 25 October: "ask there only"). */
 .popover { position: fixed; z-index: 60; width: min(300px, calc(100vw - 16px)); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--raised); box-shadow: 0 14px 34px -12px rgba(80, 62, 30, 0.35); color: var(--ink); animation: pop-in var(--ease); }
@@ -1202,12 +1197,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .popover-foot { display: flex; flex-wrap: wrap; gap: 8px; }
 .popover-foot .btn { flex: 1 1 auto; min-width: 0; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
-.turf-hold { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 1px solid var(--hold-deep); border-radius: 12px; background: var(--hold); color: var(--on-hold); }
-.turf-hold > svg { width: 18px; height: 18px; color: var(--on-hold); flex: none; }
+.turf-hold { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 2px solid var(--hold); border-radius: 12px; background: var(--hold-pale); }
+.turf-hold > svg { width: 18px; height: 18px; color: var(--hold); flex: none; }
 .turf-hold-text { flex: 1 1 150px; min-width: 0; display: grid; line-height: 1.35; }
-.turf-hold-text b { color: var(--on-hold); }
-.turf-hold .btn { min-height: 38px; padding: 0 12px; border-color: var(--hold-deep); background: var(--raised); color: var(--ink); }
-.turf-hold .btn.danger-text, .turf-hold .btn.danger-text svg { color: var(--danger); }
+.turf-hold-text b { color: var(--ink); }
+.turf-hold .btn { min-height: 38px; padding: 0 12px; }
 /* A booking made on another screen: at the top until this screen closes it. */
 /* Floats at the top right of the screen, over the page, wherever it is scrolled to. */
 .arrivals { position: fixed; top: 16px; right: 16px; z-index: 41; display: grid; gap: 8px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
@@ -11537,7 +11531,7 @@ function turfHoldMessage(b) {
   const together = [b, ...turfLinkedOf(b)].sort((x, y) => Number(x.startHour) - Number(y.startHour));
   return [greetingLine(b.customer, nowMs()), '', '*Your slot at City Arena is on hold.* ⏳', '', 'Here are the details:', '', '*📋 Booking Details*', '',
     '📅 *Date:* ' + ordinalDate(b.dateKey), ...together.map(x => '⏰ *Time:* ' + paddedHour(Number(x.startHour)) + ' – ' + paddedHour(Number(x.startHour) + Number(x.hours)) + ' · ' + courtLabel(x.court)), (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '',
-    ...(turfMaybe(b) ? ['Kindly let us know at the earliest to confirm your booking. 🙌', ''] : ['To confirm your booking, kindly pay an advance of *' + money(turfHoldOf(b)) + '*.', '', 'Once we receive it, your slot will be confirmed. 🙌', '']),
+    'To confirm your booking, kindly pay an advance of *' + money(turfHoldOf(b)) + '*.', '', 'Once we receive it, your slot will be confirmed. 🙌', '',
     '*#PlayAtCityArena*', '*Team City Arena*', 'Mangalore'].join('\n');
 }
 // What the advance is for, written under the QR.
@@ -11545,12 +11539,13 @@ const turfAdvanceNote = b => 'Turf advance · ' + turfDayName(b.dateKey) + ' ' +
 // The hold message, sent on the tap itself; with the payment QR on, its picture is copied too, to paste into the chat
 // (owner, 25 October: "make sure the qr code copies over there only").
 function turfHoldSend(b) {
-  if (payQrOn() && turfHoldOf(b)) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
+  if (payQrOn()) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
   whatsapp(b.phone, turfHoldMessage(b));
 }
 // A hold's box, from its tag or WhatsApp on the board and the Message on its strip (owner, 27 October: "an option where i can
 // edit the advance needed and send changed QR"). Hold (Pay): the advance needed, changeable and saved, then Send on WhatsApp
-// (the message, the QR copied for that amount); Advance received confirms it. Hold: the message, Confirm. Both: Cancel booking.
+// (the message, the QR copied for that amount); Advance received confirms it. Hold: Confirm, nothing to send (owner, 27 October:
+// "why is this send on whatsapp there for hold also??"). Both: Cancel booking.
 function turfHoldAsk(b, anchor) {
   const pay = !!turfHoldOf(b);
   const amount = pay ? h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(turfHoldOf(b) / 100), 'aria-label': 'Advance needed', data: { field: 'hold-send-amount' } }) : null;
@@ -11568,9 +11563,9 @@ function turfHoldAsk(b, anchor) {
   if (amount) amount.onkeydown = e => { if (e.key === 'Enter') send(); };
   popover(anchor, h('b', { class: 'popover-title', text: pay ? 'Hold (Pay)' : 'Hold' }), h('span', { class: 'muted', text: b.customer + ' · ' + turfRange(b) }),
     ...(pay ? [field('Advance needed (₹)', amount)] : []),
-    btn([icon('whatsapp'), 'Send on WhatsApp'], send, 'primary block', { data: { action: 'turf-hold-send' } }),
+    ...(pay ? [btn([icon('whatsapp'), 'Send on WhatsApp'], send, 'primary block', { data: { action: 'turf-hold-send' } })] : []),
     h('div', 'popover-foot',
-      btn([icon('check'), pay ? 'Advance received' : 'Confirm'], () => { closePopover(); if (inSheet) turfConfirmSheet(b); else turfHoldReceived(b); }, '', { data: { action: 'turf-hold-received' } }),
+      btn([icon('check'), pay ? 'Advance received' : 'Confirm'], () => { closePopover(); if (inSheet) turfConfirmSheet(b); else turfHoldReceived(b); }, pay ? '' : 'primary', { data: { action: 'turf-hold-received' } }),
       // Not coming after all (owner, 27 October: a hold "should have cancellation as well").
       btn([icon('close'), 'Cancel booking'], () => { closePopover(); turfCancelSheet(b, inSheet ? () => turfDetailSheet(b.id) : null); }, 'quiet danger-text', { data: { action: 'turf-hold-cancel' } })));
   if (amount) {
@@ -11874,7 +11869,8 @@ function turfBookingSheet(existing, preset) {
       render();
       const slots = more.length + 1, first = turfBookingOf(result.bookingId);
       const text = (command.holdPaise || command.maybe ? 'On hold for ' : 'Booked for ') + first.customer + ' · ' + (slots > 1 ? slots + ' slots from ' + hourLabel(Math.min(main.start, ...more.map(slot => slot.start))) : turfRange(first)) + '.';
-      if (command.holdPaise || command.maybe) return { text, action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(result.bookingId)) } };
+      if (command.holdPaise) return { text, action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(result.bookingId)) } };
+      if (command.maybe) return { text };
       // Send confirmation opens WhatsApp for the first week; each later week is confirmed from its own booking.
       return { text, action: { label: 'Send confirmation', run: () => { const b = turfBookingOf(result.bookingId); whatsapp(b.phone, turfMessage(b, false)); runCommand({ type: 'TURF_SENT', id: b.id, revision: b.revision }, () => null); } } };
     }
@@ -12052,7 +12048,7 @@ function turfDetailSheet(id) {
       // Held for someone not sure yet: no advance, the message asks them to let us know. Either can be cancelled from here.
       if (turfHeld(b)) ui.body.append(h('div', { class: 'turf-hold' + (turfMaybe(b) ? ' maybe' : ''), data: { hold: turfMaybe(b) ? 'maybe' : String(turfHoldOf(b)) } }, icon('clock'),
         h('span', 'turf-hold-text', h('b', { text: turfMaybe(b) ? 'Hold' : 'Hold (Pay)' }), h('span', { text: turfMaybe(b) ? 'No advance' : money(turfHoldOf(b)) + ' advance needed' })),
-        btn([icon('whatsapp'), 'Message'], e => turfHoldAsk(b, e.currentTarget), 'quiet', { data: { action: 'turf-hold-message' } }),
+        ...(turfMaybe(b) ? [] : [btn([icon('whatsapp'), 'Message'], e => turfHoldAsk(b, e.currentTarget), 'quiet', { data: { action: 'turf-hold-message' } })]),
         btn([icon('check'), 'Confirm'], () => turfConfirmSheet(b), 'go', { data: { action: 'turf-confirm-hold' } }),
         ...(turfCancellable(b) ? [btn([icon('close'), 'Cancel'], () => turfCancelSheet(b, () => turfDetailSheet(b.id)), 'quiet danger-text', { data: { action: 'turf-hold-cancel' } })] : [])));
       const quick = h('div', 'station-links');
@@ -12895,7 +12891,7 @@ function turfBlock(b, row, column, rows) {
   // The confirmation goes from the board, beside the name: green until it is sent, then orange. It can always be sent again;
   // a change of time, date or court makes it green again (the booking needs a new confirmation).
   const hold = turfHeld(b), maybe = turfMaybe(b), hint = hold ? 'Send the hold message' : sent ? 'Confirmation sent · send again' : 'Send confirmation';
-  const send = ended ? null : h('button', { type: 'button', class: 'turf-wa' + (sent ? ' sent' : ''), title: hint, 'aria-label': hint + ' to ' + b.customer, data: { action: 'turf-confirm' }, onclick: e => { e.stopPropagation(); if (hold) turfHoldAsk(b, e.currentTarget); else turfSendConfirmation(b, () => null); } }, icon('whatsapp'));
+  const send = ended || maybe ? null : h('button', { type: 'button', class: 'turf-wa' + (sent ? ' sent' : ''), title: hint, 'aria-label': hint + ' to ' + b.customer, data: { action: 'turf-confirm' }, onclick: e => { e.stopPropagation(); if (hold) turfHoldAsk(b, e.currentTarget); else turfSendConfirmation(b, () => null); } }, icon('whatsapp'));
   // A cancel button big enough to see and tap (owner, 20 October).
   const cancel = turfCancellable(b) ? h('button', { type: 'button', class: 'turf-x', title: 'Cancel booking', 'aria-label': 'Cancel ' + b.customer + '’s booking', data: { action: 'turf-cancel' }, onclick: e => { e.stopPropagation(); turfCancelSheet(b, null); } }, icon('close')) : null;
   // The card opens the booking from anywhere on it; the name is the button a keyboard reaches. Under the name, the sport in
