@@ -2077,7 +2077,7 @@ var ArenaApp=(function(){
 
 /* Post-session settlement and physical-table parties. Called inside the existing locked atomic command. */
 var ArenaLifecycle=(function(){
- var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT','TABLE_ITEMS_PAY'];
+ var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT','TABLE_ITEMS_PAY','REOPEN_END'];
  function check(v,m){ArenaCore.check(v,m);}
  function row(rows,id){var r=(rows||[]).find(function(x){return x.id===id;});check(!!r,'Record not found.');return r;}
  function tab(s,id){var t=row(s.Tabs,id);check(t.status==='open','This tab is already finalized or moved.');return t;}
@@ -2258,6 +2258,29 @@ var ArenaLifecycle=(function(){
    if(allSelected&&origins.length>1)origins.forEach(function(original){var t=row(s.Tabs,original);if(t.status==='open')merge(s,original,target.id);});
    if(typeof ArenaReservations!=='undefined')ArenaReservations.complete(s);
    return {tabId:target.id,segmentIds:c.segmentIds,message:'Selected timers stopped. Review charges and choose the next step.'};
+  }
+  if(c.type==='REOPEN_END'){
+   // Back from the bill an End opened (owner, 27 October: "i need the back button everywhere because if i need to change
+   // anything by going back"): while nothing is paid on that bill, the controllers stopped there play on as before (their
+   // time counted from when they started), and whatever the End took onto the bill goes back where it came from.
+   var bill=tab(s,c.tabId);
+   check(Array.isArray(c.segmentIds)&&c.segmentIds.length>=1&&c.segmentIds.length<=32&&new Set(c.segmentIds).size===c.segmentIds.length,'Invalid selection.');
+   check(!(s.Advances||[]).some(function(a){return a.tabId===bill.id&&a.status==='held';}),'Money was already taken on this bill, so it cannot go back. Correct it instead.');
+   var back=c.segmentIds.map(function(sid){
+    var g=row(s.Segments,sid),e=(s.Endings||[]).filter(function(x){return x.segmentId===sid&&(x.status==='review'||x.status==='shared');}).pop();
+    check(g.status==='ended'&&!!e&&(g.tabId===bill.id||e.status==='shared'),'This stop cannot be taken back. Refresh and try again.');
+    var home=row(s.Tabs,e.originalTabId);if(home.status==='merged')home.status='open';check(home.status==='open','The bill it came from is already closed.');
+    return {g:g,e:e};
+   });
+   var home=back[0].e.originalTabId;
+   back.forEach(function(x){x.g.status='active';x.g.endMs='';x.g.totalPaise=0;x.g.billableMinutes=0;x.g.tabId=x.e.originalTabId;x.e.status='undone';});
+   // The rest the End took onto this bill (items, controllers closed earlier, time moved here) goes back too.
+   if(bill.id!==home){
+    (s.Endings||[]).forEach(function(e){if(e.reviewTabId===bill.id&&e.status==='review')e.status='undone';});
+    lines(s,bill.id).forEach(function(x){x.tabId=home;});
+    bill.status='merged';
+   }
+   return {tabId:home,segmentIds:c.segmentIds,message:'Back: they are playing again.'};
   }
   if(c.type==='GROUP_TABS'){
    // Consoles already playing become one group on one bill (owner, 20 October): every charge, payment and reminder moves
@@ -7532,7 +7555,14 @@ function dismissSheet() {
   closeSheet();
   if (next) next();
 }
-// config: { title, sub, caption, icon, tone, build(ui), command(), then(result, command), onClose(), onFailed() }
+// ← Back: where onBack says (the bill after End takes the End back, owner 27 October), otherwise as ✕.
+function goBack() {
+  const back = current && current.onBack;
+  if (!back) return dismissSheet();
+  closeSheet();
+  back();
+}
+// config: { title, sub, caption, icon, tone, build(ui), command(), then(result, command), onClose(), onBack(), onFailed() }
 // build(ui) fills ui.body and ui.foot. ui.primary(label) adds the one main button; it submits command().
 // A sheet opened from another sheet (Add Items from a bill, a bill from a booking) goes back to it on ✕, Esc or Done (owner,
 // 20 October), unless it says where to go itself. A sheet that follows a save does not: the one before it is done with. The
@@ -7559,7 +7589,7 @@ function openSheet(config) {
   $('sheetIcon').replaceChildren(...(config.icon ? [icon(config.icon)] : []));
   sheetStatus('', '');
   // Back shows when there is a sheet to go back to (the one it was opened from, or the place it says).
-  $('sheetBack').hidden = !current.onClose;
+  $('sheetBack').hidden = !(current.onBack || current.onClose);
   const ui = {
     body: $('sheetBody'), foot: $('sheetFoot'),
     primary(label, disabled) {
@@ -8466,7 +8496,8 @@ function closedEarlier(segments) {
   const left = new Set(state.Endings.filter(e => e.status === 'shared' && tabs.has(e.originalTabId)).map(e => e.segmentId));
   return state.Segments.filter(g => left.has(g.id) && tabs.has(g.tabId) && g.status === 'ended');
 }
-function endSheet(segments) {
+// memory: the ticks as they were, when the bill after End goes Back to it.
+function endSheet(segments, memory = null) {
   if (!segments.length) return;
   const unit = unitOf(segments[0].unitId);
   const ps5 = unit.category === 'PS5', units = [...new Set(segments.map(g => g.unitId))];
@@ -8478,8 +8509,8 @@ function endSheet(segments) {
   // the system. Something ticked: Collect. Their own time not ticked is asked for (Others will pay, Credit or Pending); with
   // Credit or Pending it goes on the bill too, the amount received set to what is ticked and the rest asked there.
   // own: their controllers paying now. rows: the rest; picks: how many of each. rest: their unticked time.
-  let time, rows = [], rest = 'others', paidNow = 0;
-  const own = new Set(), picks = new Map();
+  let time, rows = [], rest = memory ? memory.rest : 'others', paidNow = 0;
+  const own = new Set(memory ? memory.own : []), picks = new Map(memory ? memory.picks : []);
   const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
   const others = () => state.Segments.filter(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id));
   const shared = () => pickedLines(rows, picks);
@@ -8545,7 +8576,13 @@ function endSheet(segments) {
       if (result.kept && !result.restTabId) { closeSheet(); return null; }
       const asking = rest !== 'others' && own.size < segments.length;
       const ownPaid = segments.filter(g => own.has(g.id)).reduce((total, g) => total + ((state.Segments.find(x => x.id === g.id) || g).totalPaise || 0), 0);
-      settleSheet(result.restTabId || result.tabId, 'pay', asking ? { receive: ownPaid + paidNow, rest } : null);
+      const billId = result.restTabId || result.tabId, memo = { own: [...own], picks: [...picks], rest };
+      // Back (owner, 27 October): the End taken back while nothing is paid, and this screen again with the same ticks.
+      const back = () => runCommand({ type: 'REOPEN_END', tabId: billId, segmentIds: segments.map(g => g.id) }, () => {
+        endSheet(segments.map(g => state.Segments.find(x => x.id === g.id)).filter(g => g && g.status === 'active'), memo);
+        return null;
+      });
+      settleSheet(billId, 'pay', { ...(asking ? { receive: ownPaid + paidNow, rest } : {}), back });
       return null;
     }
   });
@@ -8930,7 +8967,7 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
   if (pendingFirst || discountFirst) mode = 'pay';
   const draft = { discount: '', received: '', edited: false, pay: {}, account: newAccountStore(), toAccount: mode === 'credit', rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '' };
   if (pendingFirst) { draft.edited = true; draft.received = '0'; draft.rest = 'pending'; }
-  if (preset) { draft.edited = true; draft.received = String(preset.receive / 100); draft.rest = preset.rest; }
+  if (preset && preset.receive != null) { draft.edited = true; draft.received = String(preset.receive / 100); draft.rest = preset.rest; }
   let picker = null;
   const comment = commentField();
   // Lines not paid now (unticked): they stay on this bill, to be moved, put on credit or kept pending after.
@@ -8976,6 +9013,8 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
     // Closing one player's bill returns to the list of players still to settle, when there is one; Back only shows then
     // (owner, 27 October: Back on a bill opened after End closed everything).
     onClose: returnsTo(tab.id) ? () => returnToSplit(tab.id) : undefined,
+    // After End: Back takes the End back, until something is paid here.
+    onBack: preset && preset.back && !heldFor([tab.id]) ? preset.back : undefined,
     build(ui) {
       // An item changed here redraws this bill in place, so the ticks and what was typed stay (owner, 21 October).
       // Ticks when there is more than one line and nothing that must go with the bill (a turf fee, a carried amount).
@@ -13295,7 +13334,7 @@ $('logout').append(icon('logout'));
 $('sheetClose').append(icon('close'));
 // Back (owner, 21 October): a sheet opened from another goes back to it, one step, plainly named.
 $('sheetBack').append(icon('back'), h('span', { text: 'Back' }));
-$('sheetBack').onclick = () => { if (!flow.saving()) dismissSheet(); };
+$('sheetBack').onclick = () => { if (!flow.saving()) goBack(); };
 $('refresh').onclick = () => refresh(true);
 $('logout').onclick = signOut;
 $('sheetClose').onclick = () => { if (!flow.saving()) dismissSheet(); };
