@@ -64,6 +64,14 @@
   --danger: #bf433d;
   --danger-soft: rgba(208, 80, 70, 0.1);
   --danger-line: rgba(191, 67, 61, 0.42);
+  /* A turf slot held, Hold (Pay) or Hold: one dark plum, solid, white words on it, unlike booked (teal-grey), paid
+     (green), pending (orange) and gone by (red) (owner, 27 October: "let it be dark. dont make it transparent"; "both holds
+     let it be same colour"). */
+  --hold: #5c2a50;
+  --hold-deep: #461f3d;
+  --hold-pale: #f1e6ee;
+  --hold-line: #b48aa8;
+  --on-hold: #ffffff;
   --card: #fcfaf5;
   --card-live: #fcfaf5;
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.85);
@@ -692,6 +700,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.95; }
 .badge.good { color: var(--accent); border-color: var(--accent-line); background: rgba(31, 125, 74, 0.085); }
 .badge.warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-soft); }
+.badge.hold { color: var(--on-hold); border-color: var(--hold-deep); background: var(--hold); }
 .badge.gold { color: var(--gold); border-color: var(--gold-line); background: var(--gold-soft); }
 .badge.bad { color: var(--danger); border-color: var(--danger-line); background: var(--danger-soft); }
 .kv { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -1171,24 +1180,34 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .chip.warn { border-color: var(--warn-line); color: var(--warn); }
 .academy-note { display: flex; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--gold); font-size: 14px; }
 .academy-note svg { width: 16px; height: 16px; flex: none; }
-/* A slot on hold until an advance is paid: amber on the board and in its sheet. */
-.turf-block.hold { border-style: dashed; border-color: var(--warn); background: linear-gradient(180deg, #fbebd5 0%, #f7e2c4 100%); box-shadow: none; }
-.turf-hold-tag { flex: none; padding: 0 6px; border: 1px solid var(--warn-line); border-radius: 6px; background: transparent; color: var(--warn); font: inherit; font-weight: 700; line-height: 20px; cursor: pointer; }
-.turf-hold-tag:hover { background: var(--warn-soft); }
+/* A slot held, Hold (Pay) or Hold: dark plum, solid, white words, on the board and in its sheet; its tag says which (owner,
+   27 October). */
+.turf-block.hold, .turf-block.maybe { border-color: var(--hold-deep); background: var(--hold); color: var(--on-hold); box-shadow: none; }
+.turf-block.hold:hover, .turf-block.maybe:hover { border-color: var(--hold-deep); }
+.turf-block.hold .turf-block-sub, .turf-block.maybe .turf-block-sub { color: var(--hold-pale); }
+.turf-block.hold .turf-wa, .turf-block.maybe .turf-wa { color: var(--on-hold); }
+.turf-block.hold .turf-x, .turf-block.maybe .turf-x { border-color: var(--raised); background: var(--raised); }
+/* The sport on white on a hold, so Cricket reads too (owner, 27 October: "that cricket text is not visible"). */
+.turf-block.hold .turf-sport, .turf-block.maybe .turf-sport { border-color: var(--raised); background: var(--raised); color: var(--ink); }
+.turf-hold-tag { flex: none; padding: 0 6px; border: 1px solid var(--on-hold); border-radius: 6px; background: var(--on-hold); color: var(--hold); font: inherit; font-weight: 700; line-height: 20px; cursor: pointer; }
+.turf-hold-tag:hover { background: var(--hold-pale); }
+.turf-key.hold i { border-color: var(--hold-deep); background: var(--hold); }
 .turf-hold-tag svg { display: none; }
 /* A small box beside what was tapped (owner, 25 October: "ask there only"). */
 .popover { position: fixed; z-index: 60; width: min(300px, calc(100vw - 16px)); display: grid; gap: 10px; padding: 14px; border: 1px solid var(--line-strong); border-radius: 14px; background: var(--raised); box-shadow: 0 14px 34px -12px rgba(80, 62, 30, 0.35); color: var(--ink); animation: pop-in var(--ease); }
 .popover-title { font-size: 15px; }
 .popover .field { margin: 0; }
 .popover .seg { width: 100%; }
-.popover-foot { display: flex; gap: 8px; }
-.popover-foot .btn { flex: 1; }
+/* Buttons too wide for one line take a line each, never past the box (owner, 27 October: Cancel booking stood out of it). */
+.popover-foot { display: flex; flex-wrap: wrap; gap: 8px; }
+.popover-foot .btn { flex: 1 1 auto; min-width: 0; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(-4px); } }
-.turf-hold { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 1px solid var(--warn-line); border-radius: 12px; background: var(--warn-soft); }
-.turf-hold > svg { width: 18px; height: 18px; color: var(--warn); flex: none; }
+.turf-hold { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -4px 0 14px; padding: 8px 8px 8px 12px; border: 1px solid var(--hold-deep); border-radius: 12px; background: var(--hold); color: var(--on-hold); }
+.turf-hold > svg { width: 18px; height: 18px; color: var(--on-hold); flex: none; }
 .turf-hold-text { flex: 1 1 150px; min-width: 0; display: grid; line-height: 1.35; }
-.turf-hold-text b { color: var(--warn); }
-.turf-hold .btn { min-height: 38px; padding: 0 12px; }
+.turf-hold-text b { color: var(--on-hold); }
+.turf-hold .btn { min-height: 38px; padding: 0 12px; border-color: var(--hold-deep); background: var(--raised); color: var(--ink); }
+.turf-hold .btn.danger-text, .turf-hold .btn.danger-text svg { color: var(--danger); }
 /* A booking made on another screen: at the top until this screen closes it. */
 /* Floats at the top right of the screen, over the page, wherever it is scrolled to. */
 .arrivals { position: fixed; top: 16px; right: 16px; z-index: 41; display: grid; gap: 8px; width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
@@ -3552,6 +3571,7 @@ var ArenaTurf = (function () {
   // their bill from the start, so they are paid once, together.
   // On hold (owner, 20 October): a slot kept for a new customer until they pay an advance. The advance asked for is kept in
   // the confirmation field as 'hold:<paise>'; confirming clears it, and the usual confirmation then marks it sent.
+  // Held for someone not sure yet (owner, 27 October): no advance asked, kept as 'maybe' until confirmed or cancelled.
   // A weekly series (Bulk booking, owner 21 October): Settings 'turfSeries-<id>' holds its plan; each booking of it carries
   // 'series:<id>' in its reason while booked. Forever keeps about twelve weeks booked ahead and is topped up as days pass.
   var SERIES_AHEAD_DAYS = 84;
@@ -3589,6 +3609,8 @@ var ArenaTurf = (function () {
     return { made: made, skipped: skipped };
   }
   function holdOf(booking) { var m = /^hold:(\d+)$/.exec(String(booking.confirmSent || '')); return m ? Number(m[1]) : 0; }
+  function maybeOf(booking) { return String(booking.confirmSent || '') === 'maybe'; }
+  function heldOf(booking) { return !!holdOf(booking) || maybeOf(booking); }
   function holdMark(value) { check(Number.isSafeInteger(value) && value > 0 && value <= 10000000, 'Enter the advance to ask for.'); return 'hold:' + value; }
   // Money paid towards a one-payer booking before it is billed, at any time: held on the booking's bill, taken off at checkout.
   function advanceOn(state, booking, pay, actor, now, id) {
@@ -3905,7 +3927,7 @@ var ArenaTurf = (function () {
       // An academy's coaching slot: booked in its name at its coaching rate, and on its account.
       var club2 = cmd.academyId ? academy(state, cmd.academyId) : null;
       if (club2) cmd = Object.assign({}, cmd, { customer: club2.name, phone: cmd.phone || ((state.CreditDetails || []).find(function (d) { return d.id === club2.accountId; }) || {}).phone || '' });
-      var person = who(cmd), dates = [cmd.dateKey], made = [], skipped = [], onHold = cmd.holdPaise ? holdMark(cmd.holdPaise) : '';
+      var person = who(cmd), dates = [cmd.dateKey], made = [], skipped = [], onHold = cmd.maybe ? 'maybe' : cmd.holdPaise ? holdMark(cmd.holdPaise) : '';
       // One slot, or several on the same day (another court or hour), booked together on one bill.
       var slots = Array.isArray(cmd.slots) && cmd.slots.length ? cmd.slots : [{ court: cmd.court, startHour: cmd.startHour, hours: cmd.hours }];
       check(slots.length <= 6, 'Book up to six slots at once.');
@@ -4010,7 +4032,7 @@ var ArenaTurf = (function () {
       var moved = changed.dateKey !== booking.dateKey || changed.startHour !== Number(booking.startHour) || changed.hours !== Number(booking.hours) || cmd.court !== booking.court;
       check(!moved || !locked(state, booking), 'This booking is already settled or moved, so its time and court cannot change.');
       // A new time, court or date needs a fresh confirmation.
-      if (moved && !holdOf(booking)) booking.confirmSent = '';
+      if (moved && !heldOf(booking)) booking.confirmSent = '';
       // An academy's slot keeps its coaching rate on another court.
       var coached = accountOf(state, booking.id), club3 = coached ? academies(state).find(function (a) { return a.accountId === coached.accountId; }) : null;
       if (cmd.court !== booking.court) booking.ratePaise = club3 ? coachRate(state, club3, cmd.court) : rateFor(state, cmd.court);
@@ -4095,7 +4117,7 @@ var ArenaTurf = (function () {
       // all of them. Hours chosen that are not next to each other are slots on this booking's bill.
       check(cmd.revision === booking.revision, 'This booking changed on another device. Refresh and try again.');
       check(booking.split !== 'yes' && !linked(state, booking).length, 'Separate hours on a one-payer booking of one slot.');
-      check(!locked(state, booking) && !held(state, booking.tabId) && !holdOf(booking) && !accountOf(state, booking.id), 'This booking is already settled, paid ahead or on hold.');
+      check(!locked(state, booking) && !held(state, booking.tabId) && !heldOf(booking) && !accountOf(state, booking.id), 'This booking is already settled, paid ahead or on hold.');
       var from = Number(booking.startHour), all = [];
       for (var hh = from; hh < from + Number(booking.hours); hh++) all.push(hh);
       var pick = Array.isArray(cmd.hours) ? cmd.hours.map(Number) : [];
@@ -4123,14 +4145,14 @@ var ArenaTurf = (function () {
       return { bookingId: booking.id, receiptNumber: number, amountPaise: cmd.amountPaise, method: cmd.method, message: 'Paid in advance. Receipt ' + number + '.' };
     }
     if (cmd.type === 'TURF_HOLD') {
-      // Every slot booked with it is held too.
-      var mark = holdMark(cmd.amountPaise);
+      // Every slot booked with it is held too: until an advance is paid, or for someone not sure yet.
+      var mark = cmd.maybe ? 'maybe' : holdMark(cmd.amountPaise);
       [booking].concat(linked(state, booking)).forEach(function (b) { b.confirmSent = mark; b.updatedMs = now; b.revision = b.revision + 1; });
-      return { bookingId: booking.id, message: 'On hold until ' + (cmd.amountPaise / 100) + ' is paid.' };
+      return { bookingId: booking.id, message: cmd.maybe ? 'Held until they are sure.' : 'On hold until ' + (cmd.amountPaise / 100) + ' is paid.' };
     }
     if (cmd.type === 'TURF_CONFIRM') {
       // The advance came: recorded (when given) and the hold lifted; the confirmation is sent next.
-      check(!!holdOf(booking), 'This booking is not on hold.');
+      check(heldOf(booking), 'This booking is not on hold.');
       var paidAhead = cmd.advance && cmd.advance.amountPaise ? advanceOn(state, booking, { amountPaise: cmd.advance.amountPaise, method: ArenaCore.payMethod(state, cmd.advance.method) }, actor, now, id) : '';
       [booking].concat(linked(state, booking)).forEach(function (b) { b.confirmSent = ''; b.updatedMs = now; b.revision = b.revision + 1; });
       return { bookingId: booking.id, receiptNumber: paidAhead || undefined, message: 'Booking confirmed.' + (paidAhead ? ' Advance receipt ' + paidAhead + '.' : '') };
@@ -4504,7 +4526,7 @@ var ArenaTurf = (function () {
 
   return {
     handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
-    clash: clash, linked: linked, holdOf: holdOf, dateKeyOf: dateKeyOf, feeOf: feeOf, rateFor: rateFor, locked: locked, meta: meta, COURTS: COURTS, SPORTS: SPORTS, OPEN_HOUR: OPEN_HOUR, CLOSE_HOUR: CLOSE_HOUR
+    clash: clash, linked: linked, holdOf: holdOf, maybeOf: maybeOf, dateKeyOf: dateKeyOf, feeOf: feeOf, rateFor: rateFor, locked: locked, meta: meta, COURTS: COURTS, SPORTS: SPORTS, OPEN_HOUR: OPEN_HOUR, CLOSE_HOUR: CLOSE_HOUR
   };
 })();
 
@@ -11507,12 +11529,15 @@ function newYearWishes() {
 // A confirmation sent with festival wishes (chosen, or New Year's on its days) follows the owner's festive sample.
 // On hold until an advance is paid (Turf.gs): the advance asked for, or 0.
 const turfHoldOf = b => { const m = /^hold:(\d+)$/.exec(String(b.confirmSent || '')); return m ? Number(m[1]) : 0; };
+// Held for someone not sure yet (owner, 27 October): no advance asked, until confirmed or cancelled.
+const turfMaybe = b => String(b.confirmSent || '') === 'maybe';
+const turfHeld = b => !!turfHoldOf(b) || turfMaybe(b);
 // The message for a slot on hold, in the owner's style: the details, then the advance that confirms it.
 function turfHoldMessage(b) {
   const together = [b, ...turfLinkedOf(b)].sort((x, y) => Number(x.startHour) - Number(y.startHour));
   return [greetingLine(b.customer, nowMs()), '', '*Your slot at City Arena is on hold.* ⏳', '', 'Here are the details:', '', '*📋 Booking Details*', '',
     '📅 *Date:* ' + ordinalDate(b.dateKey), ...together.map(x => '⏰ *Time:* ' + paddedHour(Number(x.startHour)) + ' – ' + paddedHour(Number(x.startHour) + Number(x.hours)) + ' · ' + courtLabel(x.court)), (SPORT_EMOJI[b.sport] || '🎯') + ' *Sport:* ' + b.sport, '',
-    'To confirm your booking, kindly pay an advance of *' + money(turfHoldOf(b)) + '*.', '', 'Once we receive it, your slot will be confirmed. 🙌', '',
+    ...(turfMaybe(b) ? ['Kindly let us know at the earliest to confirm your booking. 🙌', ''] : ['To confirm your booking, kindly pay an advance of *' + money(turfHoldOf(b)) + '*.', '', 'Once we receive it, your slot will be confirmed. 🙌', '']),
     '*#PlayAtCityArena*', '*Team City Arena*', 'Mangalore'].join('\n');
 }
 // What the advance is for, written under the QR.
@@ -11520,33 +11545,44 @@ const turfAdvanceNote = b => 'Turf advance · ' + turfDayName(b.dateKey) + ' ' +
 // The hold message, sent on the tap itself; with the payment QR on, its picture is copied too, to paste into the chat
 // (owner, 25 October: "make sure the qr code copies over there only").
 function turfHoldSend(b) {
-  if (payQrOn()) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
+  if (payQrOn() && turfHoldOf(b)) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
   whatsapp(b.phone, turfHoldMessage(b));
 }
-// WhatsApp on a held booking: the advance can be changed before the message goes (owner, 25 October: "if i want to adjust
-// the advance money before sending"); a changed amount is saved as the hold's.
-function turfHoldSendAsk(b, anchor) {
-  const amount = h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(turfHoldOf(b) / 100), 'aria-label': 'Advance to confirm', data: { field: 'hold-send-amount' } });
+// A hold's box, from its tag or WhatsApp on the board and the Message on its strip (owner, 27 October: "an option where i can
+// edit the advance needed and send changed QR"). Hold (Pay): the advance needed, changeable and saved, then Send on WhatsApp
+// (the message, the QR copied for that amount); Advance received confirms it. Hold: the message, Confirm. Both: Cancel booking.
+function turfHoldAsk(b, anchor) {
+  const pay = !!turfHoldOf(b);
+  const amount = pay ? h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(turfHoldOf(b) / 100), 'aria-label': 'Advance needed', data: { field: 'hold-send-amount' } }) : null;
   const send = () => {
-    const paise = toPaise(amount.value || 0);
-    if (!(paise > 0)) {
+    const paise = pay ? toPaise(amount.value || 0) : 0;
+    if (pay && !(paise > 0)) {
       amount.focus();
       return;
     }
     closePopover();
-    turfHoldSend({ ...b, confirmSent: 'hold:' + paise });
-    if (paise !== turfHoldOf(b)) runCommand({ type: 'TURF_HOLD', id: b.id, revision: b.revision, amountPaise: paise }, () => ($('sheet').open ? turfAfter(b.id) : { text: 'Advance to confirm: ' + money(paise) + '.' }));
+    turfHoldSend(pay ? { ...b, confirmSent: 'hold:' + paise } : b);
+    if (pay && paise !== turfHoldOf(b)) runCommand({ type: 'TURF_HOLD', id: b.id, revision: b.revision, amountPaise: paise }, () => ($('sheet').open ? turfAfter(b.id) : { text: 'Advance needed: ' + money(paise) + '.' }));
   };
-  amount.onkeydown = e => { if (e.key === 'Enter') send(); };
-  popover(anchor, h('b', { class: 'popover-title', text: 'Hold message' }), field('Advance to confirm (₹)', amount),
-    btn([icon('whatsapp'), 'Send on WhatsApp'], send, 'primary block', { data: { action: 'turf-hold-send' } }));
-  amount.focus();
-  amount.select();
+  const inSheet = $('sheet').open;
+  if (amount) amount.onkeydown = e => { if (e.key === 'Enter') send(); };
+  popover(anchor, h('b', { class: 'popover-title', text: pay ? 'Hold (Pay)' : 'Hold' }), h('span', { class: 'muted', text: b.customer + ' · ' + turfRange(b) }),
+    ...(pay ? [field('Advance needed (₹)', amount)] : []),
+    btn([icon('whatsapp'), 'Send on WhatsApp'], send, 'primary block', { data: { action: 'turf-hold-send' } }),
+    h('div', 'popover-foot',
+      btn([icon('check'), pay ? 'Advance received' : 'Confirm'], () => { closePopover(); if (inSheet) turfConfirmSheet(b); else turfHoldReceived(b); }, '', { data: { action: 'turf-hold-received' } }),
+      // Not coming after all (owner, 27 October: a hold "should have cancellation as well").
+      btn([icon('close'), 'Cancel booking'], () => { closePopover(); turfCancelSheet(b, inSheet ? () => turfDetailSheet(b.id) : null); }, 'quiet danger-text', { data: { action: 'turf-hold-cancel' } })));
+  if (amount) {
+    amount.focus();
+    amount.select();
+  }
 }
-// On hold, tapped on the board: asked there and then (owner, 25 October: "it should ask there only confirm or no"): the
-// advance received and how it came (Cash, or UPI to the Scanner or CA), then Confirm, or No to leave it on hold.
-function turfHoldAsk(b, anchor) {
-  const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String(turfHoldOf(b) / 100), 'aria-label': 'Advance received', data: { field: 'hold-received' } });
+// The hold's tag on the board, where its Advance received box opens.
+const turfHoldAnchor = b => document.querySelector('.turf-block[data-booking="' + b.id + '"] .turf-hold-tag') || document.body;
+function turfHoldReceived(b) {
+  const anchor = turfHoldAnchor(b);
+  const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: turfHoldOf(b) ? String(turfHoldOf(b) / 100) : '', placeholder: '0', 'aria-label': 'Advance received', data: { field: 'hold-received' } });
   const way = { method: 'cash', ca: false };
   const scanner = h('div', { class: 'turf-scanner', data: { field: 'hold-scanner' } });
   const paintScanner = () => {
@@ -11564,24 +11600,24 @@ function turfHoldAsk(b, anchor) {
     runCommand({ type: 'TURF_CONFIRM', id: b.id, revision: b.revision, advance: paise > 0 ? { amountPaise: paise, method } : undefined },
       result => ({ text: 'Confirmed' + (result.receiptNumber ? ' · advance receipt ' + result.receiptNumber : '') + '.', action: { label: 'Send confirmation', run: () => turfSendConfirmation(turfBookingOf(b.id), () => null) } }));
   };
-  popover(anchor, h('b', { class: 'popover-title', text: 'Confirm booking?' }), h('span', { class: 'muted', text: b.customer + ' · ' + turfRange(b) }),
+  popover(anchor, h('b', { class: 'popover-title', text: turfHoldOf(b) ? 'Advance received?' : 'Confirm booking?' }), h('span', { class: 'muted', text: b.customer + ' · ' + turfRange(b) }),
     field('Advance received (₹)', amount), how.node, scanner,
     h('div', 'popover-foot', btn([icon('check'), 'Confirm'], confirm, 'primary', { data: { action: 'turf-hold-yes' } }), btn('No', closePopover, 'quiet', { data: { action: 'turf-hold-no' } })));
 }
 // Put a booking on hold: the advance to ask for, then the message is one tap away.
 function turfHoldSheet(b) {
-  const amount = h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(300 * Number(b.hours)), 'aria-label': 'Advance to confirm', data: { field: 'hold-amount' } });
+  const amount = h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(300 * Number(b.hours)), 'aria-label': 'Advance needed', data: { field: 'hold-amount' } });
   openSheet({
-    title: 'Hold until advance is paid', sub: b.customer + ' · ' + turfRange(b), icon: 'clock', tone: 'warn',
+    title: 'Hold (Pay)', sub: b.customer + ' · ' + turfRange(b), icon: 'clock', tone: 'warn',
     onClose: () => turfDetailSheet(b.id),
-    build(ui) { ui.body.append(field('Advance to confirm (₹)', amount)); ui.primary('Put on Hold'); },
+    build(ui) { ui.body.append(field('Advance needed (₹)', amount)); ui.primary('Hold (Pay)'); },
     command: () => ({ type: 'TURF_HOLD', id: b.id, revision: b.revision, amountPaise: toPaise(amount.value) }),
-    then() { const x = turfBookingOf(b.id); turfDetailSheet(b.id); return { text: 'On hold · ' + money(turfHoldOf(x)) + ' to confirm.', action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(b.id)) } }; }
+    then() { const x = turfBookingOf(b.id); turfDetailSheet(b.id); return { text: 'Hold (Pay) · ' + money(turfHoldOf(x)) + ' advance needed.', action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(b.id)) } }; }
   });
 }
 // The advance came in: record it (or confirm without one) and the hold becomes a confirmed booking.
 function turfConfirmSheet(b) {
-  const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String(turfHoldOf(b) / 100), 'aria-label': 'Advance received', data: { field: 'received' } });
+  const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: turfHoldOf(b) ? String(turfHoldOf(b) / 100) : '', placeholder: '0', 'aria-label': 'Advance received', data: { field: 'received' } });
   const pay = { method: 'cash' };
   let how;
   openSheet({
@@ -11644,8 +11680,10 @@ function turfMessage(b, cancelled, wishes, slots) {
 }
 // Which hours are still open on each court, for sending to a group.
 function turfAvailabilityText(key, list) {
+  // The table as it went out on 27 October (owner's picture: "revert back to that format"); the words around it bold (owner,
+  // 27 October: "make certain things bold, like heading and all"), without emoji (a phone draws the calendar as a page reading 24).
   const d = new Date(key + 'T00:00:00+05:30'), lines = ['*City Arena - Mangalore*', ''];
-  lines.push('Slot availability on *' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
+  lines.push('*Slot availability on ' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
   // Every hour written in seven letters, as many as Timings ("06-07am", "11-12pm"): WhatsApp on a phone or tablet gives a
   // run of spaces less room than letters, so padding cannot even out a longer time; the same letters in every row keep the
   // columns straight on the phone, the tablet and the laptop (owner, 27 October).
@@ -11666,7 +11704,7 @@ function turfAvailabilityText(key, list) {
   }
   if (table.length > 1) lines.push('```', ...table, '```');
   else lines.push('No hours left on this day.');
-  lines.push('', '✅ : Slot available', '❌ : Not available', '', 'For bookings,', 'Contact 📱: ' + TURF_CONTACT, '', '#playatcityarena');
+  lines.push('', '✅ : Slot available', '❌ : Not available', '', '*For bookings,*', '*Contact 📱: ' + TURF_CONTACT + '*', '', '*#PlayAtCityArena*');
   return lines.join('\n');
 }
 
@@ -11748,7 +11786,7 @@ function turfSlotFields(key, slot, exceptId, others, redraw) {
 // A new booking can take more slots the same day (another court or hour: say 4–5 PM on 5A and 5–6 PM on 6A), all on one bill.
 function turfBookingSheet(existing, preset) {
   const base = existing || preset;
-  let dateKey = base.dateKey, who, date, sport, forWho, holding = false, holdAmount = null;
+  let dateKey = base.dateKey, who, date, sport, forWho, holding = '', holdAmount = null;
   // Academies on account (Settings): a coaching slot is booked in the academy's name, at its rate.
   const clubs = existing ? [] : turfAcademies(), clubOf = () => clubs.find(a => forWho && a.accountId === forWho.value()) || null;
   const exceptId = existing ? existing.id : '';
@@ -11798,12 +11836,23 @@ function turfBookingSheet(existing, preset) {
         ui.redraw();
       }, 'quiet', { data: { action: 'add-slot' } })));
       ui.body.append(h('div', 'field', h('span', { text: 'Date' }), date));
-      // A new customer's slot can be held until they pay an advance (owner, 20 October); ₹300 an hour unless changed.
+      // A new customer's slot can be held until they pay an advance (owner, 20 October; ₹300 an hour unless changed), or for
+      // someone not sure yet, with no advance (owner, 27 October).
       if (!existing) {
         const hours = [main, ...more].reduce((sum, slot) => sum + slot.hours, 0);
-        holdAmount = holdAmount || h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(300 * hours), 'aria-label': 'Advance to confirm', data: { field: 'hold-amount' } });
-        ui.body.append(h('div', { class: 'station-links', style: 'margin:0 0 10px' }, btn([icon('clock'), 'Hold until advance is paid'], () => { holding = !holding; ui.redraw(); if (holding) { holdAmount.focus(); holdAmount.select(); } }, 'quiet', { 'aria-pressed': String(holding), data: { action: 'hold' } })));
-        if (holding) ui.body.append(field('Advance to confirm (₹)', holdAmount));
+        holdAmount = holdAmount || h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(300 * hours), 'aria-label': 'Advance needed', data: { field: 'hold-amount' } });
+        const hold = kind => () => {
+          holding = holding === kind ? '' : kind;
+          ui.redraw();
+          if (holding === 'advance') {
+            holdAmount.focus();
+            holdAmount.select();
+          }
+        };
+        ui.body.append(h('div', { class: 'station-links', style: 'margin:0 0 10px' },
+          btn([icon('clock'), 'Hold (Pay)'], hold('advance'), 'quiet', { 'aria-pressed': String(holding === 'advance'), data: { action: 'hold' } }),
+          btn([icon('clock'), 'Hold'], hold('maybe'), 'quiet', { 'aria-pressed': String(holding === 'maybe'), data: { action: 'hold-maybe' } })));
+        if (holding === 'advance') ui.body.append(field('Advance needed (₹)', holdAmount));
       }
       const label = holding ? 'Hold · ' + hourLabel(main.start) + ' – ' + hourLabel(main.start + main.hours) + (more.length ? ' + ' + more.length : '') : existing ? 'Save Changes' : more.length ? 'Confirm ' + (more.length + 1) + ' Slots' : 'Confirm Booking · ' + hourLabel(main.start) + ' – ' + hourLabel(main.start + main.hours);
       ui.primary(label, !main.ok || more.some(slot => !slot.ok));
@@ -11813,7 +11862,7 @@ function turfBookingSheet(existing, preset) {
       if (!sport.value()) throw new Error('Choose Football or Cricket.');
       const slots = more.length ? [main, ...more].map(slot => ({ court: slot.court, startHour: slot.start, hours: slot.hours })) : undefined;
       const club = clubOf();
-      return { type: existing ? 'TURF_CHANGE' : 'TURF_BOOK', id: exceptId || undefined, revision: existing ? existing.revision : undefined, dateKey, court: main.court, startHour: main.start, hours: main.hours, slots, customer: who.name.value.trim(), phone: who.phone.value.trim(), sport: sport.value(), academyId: club ? club.accountId : undefined, holdPaise: holding ? toPaise(holdAmount.value) : undefined };
+      return { type: existing ? 'TURF_CHANGE' : 'TURF_BOOK', id: exceptId || undefined, revision: existing ? existing.revision : undefined, dateKey, court: main.court, startHour: main.start, hours: main.hours, slots, customer: who.name.value.trim(), phone: who.phone.value.trim(), sport: sport.value(), academyId: club ? club.accountId : undefined, holdPaise: holding === 'advance' ? toPaise(holdAmount.value) : undefined, maybe: holding === 'maybe' || undefined };
     },
     then(result, command) {
       turfDay = dateKey;
@@ -11824,8 +11873,8 @@ function turfBookingSheet(existing, preset) {
       turfPicked.cells.clear();
       render();
       const slots = more.length + 1, first = turfBookingOf(result.bookingId);
-      const text = (command.holdPaise ? 'On hold for ' : 'Booked for ') + first.customer + ' · ' + (slots > 1 ? slots + ' slots from ' + hourLabel(Math.min(main.start, ...more.map(slot => slot.start))) : turfRange(first)) + '.';
-      if (command.holdPaise) return { text, action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(result.bookingId)) } };
+      const text = (command.holdPaise || command.maybe ? 'On hold for ' : 'Booked for ') + first.customer + ' · ' + (slots > 1 ? slots + ' slots from ' + hourLabel(Math.min(main.start, ...more.map(slot => slot.start))) : turfRange(first)) + '.';
+      if (command.holdPaise || command.maybe) return { text, action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(result.bookingId)) } };
       // Send confirmation opens WhatsApp for the first week; each later week is confirmed from its own booking.
       return { text, action: { label: 'Send confirmation', run: () => { const b = turfBookingOf(result.bookingId); whatsapp(b.phone, turfMessage(b, false)); runCommand({ type: 'TURF_SENT', id: b.id, revision: b.revision }, () => null); } } };
     }
@@ -11990,20 +12039,22 @@ function turfDetailSheet(id) {
         ...(together.length && !split && !status.locked && status.state === 'open' ? [['Pay each slot on its own', () => runCommand({ type: 'TURF_UNLINK', id: b.id, revision: b.revision }, () => { turfDetailSheet(b.id); return { text: 'Each slot is paid on its own.' }; }), false, 'split']] : []),
         ['Send confirmation', sendConfirmation, false, 'whatsapp'],
         ...(split && !status.locked ? [['One payer', () => runCommand({ type: 'TURF_SPLIT', id: b.id, revision: b.revision, on: false }, back), false, 'user']] : []),
-        ...(!ended && !turfHoldOf(b) && status.state === 'open' && !turfHasCharges(b) ? [['Put on hold', () => turfHoldSheet(b), false, 'clock']] : []),
+        ...(!ended && !turfHeld(b) && status.state === 'open' && !turfHasCharges(b) ? [['Hold (Pay)', () => turfHoldSheet(b), false, 'clock'], ['Hold', () => runCommand({ type: 'TURF_HOLD', id: b.id, revision: b.revision, maybe: true }, back), false, 'clock']] : []),
         ...(turfCancellable(b) ? [['Cancel booking', () => turfCancelSheet(b, () => turfDetailSheet(b.id)), true, 'close']] : [])
       ];
       ui.body.append(h('div', 'bill-head', glyph('turf', 'jade', 'lg'),
         h('div', 'bill-who', h('div', { class: 'who turf-when', text: turfRange(b) }), h('div', { class: 'small muted', text: [turfDayName(b.dateKey), courtLabel(b.court), b.sport].join(' · ') }),
-          h('div', 'turf-head-badge', h('span', { class: 'badge ' + (sent ? 'good' : turfHoldOf(b) ? 'warn' : ''), text: sent ? 'Confirmed' : turfHoldOf(b) ? 'On hold' : 'Not confirmed' }))),
+          h('div', 'turf-head-badge', h('span', { class: 'badge ' + (sent ? 'good' : turfHeld(b) ? 'hold' : ''), text: sent ? 'Confirmed' : turfMaybe(b) ? 'Hold' : turfHoldOf(b) ? 'Hold (Pay)' : 'Not confirmed' }))),
         h('span', 'bill-tools', menu(actions, 'Booking actions'))));
       // Moving the slot (another time, court or day, wherever it is free) is one tap, not hidden in the menu (owner, 20 October).
       // A booking left pending sends its reminder from here.
       // On hold: what confirms it, the message, and Confirm.
-      if (turfHoldOf(b)) ui.body.append(h('div', { class: 'turf-hold', data: { hold: String(turfHoldOf(b)) } }, icon('clock'),
-        h('span', 'turf-hold-text', h('b', { text: 'On hold' }), h('span', { text: money(turfHoldOf(b)) + ' advance to confirm' })),
-        btn([icon('whatsapp'), 'Message'], e => turfHoldSendAsk(b, e.currentTarget), 'quiet', { data: { action: 'turf-hold-message' } }),
-        btn([icon('check'), 'Confirm'], () => turfConfirmSheet(b), 'go', { data: { action: 'turf-confirm-hold' } })));
+      // Held for someone not sure yet: no advance, the message asks them to let us know. Either can be cancelled from here.
+      if (turfHeld(b)) ui.body.append(h('div', { class: 'turf-hold' + (turfMaybe(b) ? ' maybe' : ''), data: { hold: turfMaybe(b) ? 'maybe' : String(turfHoldOf(b)) } }, icon('clock'),
+        h('span', 'turf-hold-text', h('b', { text: turfMaybe(b) ? 'Hold' : 'Hold (Pay)' }), h('span', { text: turfMaybe(b) ? 'No advance' : money(turfHoldOf(b)) + ' advance needed' })),
+        btn([icon('whatsapp'), 'Message'], e => turfHoldAsk(b, e.currentTarget), 'quiet', { data: { action: 'turf-hold-message' } }),
+        btn([icon('check'), 'Confirm'], () => turfConfirmSheet(b), 'go', { data: { action: 'turf-confirm-hold' } }),
+        ...(turfCancellable(b) ? [btn([icon('close'), 'Cancel'], () => turfCancelSheet(b, () => turfDetailSheet(b.id)), 'quiet danger-text', { data: { action: 'turf-hold-cancel' } })] : [])));
       const quick = h('div', 'station-links');
       if (!split && !turfAccountOf(b.id) && mainOpen && !(mainPart && mainPart.state === 'playing') && status.state !== 'settled') quick.append(btn([icon('wallet'), 'Paid in advance'], () => turfAdvanceSheet(b), 'quiet', { data: { action: 'turf-advance' } }));
       if (!ended && !status.locked) quick.append(btn([icon('transfer'), 'Move slot'], () => turfBookingSheet(b), 'quiet', { data: { action: 'turf-move-slot' } }));
@@ -12555,7 +12606,7 @@ function turfItemsSheet(b, p) {
 // be settled or cancelled apart.
 function turfSeparable(b) {
   const main = b.tabId ? tabOf(b.tabId) : null, status = turfStatusOf(b.id);
-  return b.split !== 'yes' && Number(b.hours) >= 2 && !status.locked && (!main || main.status === 'open') && !turfLinkedOf(b).length && !turfHoldOf(b) && !turfAccountOf(b.id) && !(main && (state.Advances || []).some(x => x.tabId === main.id && x.status === 'held'));
+  return b.split !== 'yes' && Number(b.hours) >= 2 && !status.locked && (!main || main.status === 'open') && !turfLinkedOf(b).length && !turfHeld(b) && !turfAccountOf(b.id) && !(main && (state.Advances || []).some(x => x.tabId === main.id && x.status === 'held'));
 }
 function turfSeparateSheet(b) {
   const hours = [], picked = new Set();
@@ -12843,8 +12894,8 @@ function turfBlock(b, row, column, rows) {
   const mark = settled === 'settled' ? h('span', { class: 'turf-mark ok', title: 'Settled' }, icon('checkCircle')) : settled === 'part' || settled === 'pending' ? h('span', { class: 'turf-mark part', title: settled === 'pending' ? 'Pending' : 'Part settled' }, icon('clock')) : null;
   // The confirmation goes from the board, beside the name: green until it is sent, then orange. It can always be sent again;
   // a change of time, date or court makes it green again (the booking needs a new confirmation).
-  const hold = turfHoldOf(b), hint = hold ? 'Send the hold message' : sent ? 'Confirmation sent · send again' : 'Send confirmation';
-  const send = ended ? null : h('button', { type: 'button', class: 'turf-wa' + (sent ? ' sent' : ''), title: hint, 'aria-label': hint + ' to ' + b.customer, data: { action: 'turf-confirm' }, onclick: e => { e.stopPropagation(); if (hold) turfHoldSendAsk(b, e.currentTarget); else turfSendConfirmation(b, () => null); } }, icon('whatsapp'));
+  const hold = turfHeld(b), maybe = turfMaybe(b), hint = hold ? 'Send the hold message' : sent ? 'Confirmation sent · send again' : 'Send confirmation';
+  const send = ended ? null : h('button', { type: 'button', class: 'turf-wa' + (sent ? ' sent' : ''), title: hint, 'aria-label': hint + ' to ' + b.customer, data: { action: 'turf-confirm' }, onclick: e => { e.stopPropagation(); if (hold) turfHoldAsk(b, e.currentTarget); else turfSendConfirmation(b, () => null); } }, icon('whatsapp'));
   // A cancel button big enough to see and tap (owner, 20 October).
   const cancel = turfCancellable(b) ? h('button', { type: 'button', class: 'turf-x', title: 'Cancel booking', 'aria-label': 'Cancel ' + b.customer + '’s booking', data: { action: 'turf-cancel' }, onclick: e => { e.stopPropagation(); turfCancelSheet(b, null); } }, icon('close')) : null;
   // The card opens the booking from anywhere on it; the name is the button a keyboard reaches. Under the name, the sport in
@@ -12853,9 +12904,11 @@ function turfBlock(b, row, column, rows) {
   // is past no, it should be orange"), as when pending or part paid; green once paid.
   // An academy's slot on its account stays teal until it is put on the account (by hand, or by itself two hours after).
   const tone = settled === 'settled' ? ' paid' : settled === 'pending' || settled === 'part' || (ended && !turfAccountOf(b.id)) ? ' owing' : '';
-  return h('div', { class: 'turf-block' + tone + (hold ? ' hold' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
+  // A hold in a colour of its own, the same for both kinds (owner, 27 October); its tag says which.
+  // Paid green and pending or over-and-unpaid orange come before the hold's plum.
+  return h('div', { class: 'turf-block' + tone + (tone ? '' : maybe ? ' maybe' : hold ? ' hold' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
     h('span', 'turf-block-top', h('button', { type: 'button', class: 'turf-name', 'aria-label': b.customer + ', ' + courtLabel(b.court) + ', ' + b.sport + ', ' + turfRange(b), text: b.customer }), send, mark, cancel),
-    h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('button', { type: 'button', class: 'turf-hold-tag', title: 'Advance paid? Confirm the booking', 'aria-label': 'On hold: confirm ' + b.customer + '’s booking?', data: { action: 'turf-hold-ask' }, onclick: e => { e.stopPropagation(); turfHoldAsk(b, e.currentTarget); } }, icon('clock'), h('span', { text: 'On hold' })) : null, h('span', { class: 'turf-time', text: turfRange(b) })));
+    h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('button', { type: 'button', class: 'turf-hold-tag', title: maybe ? 'Hold: message, confirm or cancel' : 'Hold (Pay): advance needed, message, confirm or cancel', 'aria-label': (maybe ? 'Hold' : 'Hold (Pay)') + ': ' + b.customer, data: { action: 'turf-hold-ask' }, onclick: e => { e.stopPropagation(); turfHoldAsk(b, e.currentTarget); } }, icon('clock'), h('span', { text: maybe ? 'Hold' : 'Hold (Pay)' })) : null, h('span', { class: 'turf-time', text: turfRange(b) })));
 }
 // The board keeps the hours still to come, and any earlier hour of a booking not yet settled (it stays until it is).
 // Every hour of the day stays on the board (owner, 20 October): nothing leaves it, its colour says what it is.
@@ -12917,7 +12970,7 @@ function turfBoard(key, all) {
 let turfScrolledTo = '';
 // What each colour on the board means.
 function turfLegend() {
-  return h('div', { class: 'turf-legend', 'aria-hidden': 'true' }, [['free', 'Free'], ['booked', 'Booked'], ['paid', 'Paid'], ['owing', 'Pending · part paid'], ['missed', 'Time gone, not booked']].map(([k, t]) => h('span', 'turf-key ' + k, h('i'), t)));
+  return h('div', { class: 'turf-legend', 'aria-hidden': 'true' }, [['free', 'Free'], ['booked', 'Booked'], ['paid', 'Paid'], ['owing', 'Pending · part paid'], ['hold', 'Hold · Hold (Pay)'], ['missed', 'Time gone, not booked']].map(([k, t]) => h('span', 'turf-key ' + k, h('i'), t)));
 }
 // Every booking still to come, soonest first.
 function turfUpcoming(target) {
@@ -12928,7 +12981,7 @@ function turfUpcoming(target) {
       h('td', null, h('div', 'cell-text', h('b', { text: turfDayWord(b.dateKey) }), h('span', { class: 'small muted num', text: turfRange(b) }))),
       h('td', null, person(b.customer, b.phone)),
       h('td', { class: 'hide-s' }, h('span', 'cell', icon(sportIcon(b.sport)), h('span', { text: courtLabel(b.court) + ' · ' + b.sport }))),
-      h('td', { class: 'r' }, turfHoldOf(b) ? h('span', { class: 'badge warn', text: 'On hold' }) : h('span', { class: 'badge ' + (b.confirmSent === 'yes' ? 'good' : 'warn'), text: b.confirmSent === 'yes' ? 'Sent' : 'Not sent' })))),
+      h('td', { class: 'r' }, turfHeld(b) ? h('span', { class: 'badge hold', text: turfMaybe(b) ? 'Hold' : 'Hold (Pay)' }) : h('span', { class: 'badge ' + (b.confirmSent === 'yes' ? 'good' : 'warn'), text: b.confirmSent === 'yes' ? 'Sent' : 'Not sent' })))),
     'No bookings to come.', 'turf'));
 }
 
