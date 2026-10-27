@@ -11408,6 +11408,9 @@ const TURF_COURTS = ['6-a-side', '5-a-side', '1v1'];
 // As the owner says them, 5A Side on the left of the board and 6A Side on the right (owner, 20 October).
 const COURT_LABELS = { '6-a-side': '6A Side', '5-a-side': '5A Side', '1v1': '1V1' };
 const courtLabel = court => COURT_LABELS[court] || court;
+// The courts offered in the messages sent out (whole day and slot available). 1V1 is not open yet (owner, 27 October:
+// "when i send the availability message, do not send 1v1"); it stays on the board and for booking.
+const SHARE_COURTS = ['6-a-side', '5-a-side'];
 const TURF_OPEN = 6, TURF_CLOSE = 22;
 // Shown on the availability message, as on the old turf app.
 const TURF_CONTACT = '+91 9980388444';
@@ -11643,10 +11646,14 @@ function turfMessage(b, cancelled, wishes, slots) {
 function turfAvailabilityText(key, list) {
   const d = new Date(key + 'T00:00:00+05:30'), lines = ['*City Arena - Mangalore*', ''];
   lines.push('Slot availability on *' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
-  const short = hour => (hour % 12 || 12) + (hour < 12 ? 'am' : 'pm');
+  // Every hour written in seven letters, as many as Timings ("06-07am", "11-12pm"): WhatsApp on a phone or tablet gives a
+  // run of spaces less room than letters, so padding cannot even out a longer time; the same letters in every row keep the
+  // columns straight on the phone, the tablet and the laptop (owner, 27 October).
+  const two = hour => String(hour % 12 || 12).padStart(2, '0');
+  const slot = hour => two(hour) + '-' + two(hour + 1) + (hour + 1 < 12 ? 'am' : 'pm');
   // In straight columns (owner, 23 October, as on Manipal): the table goes in WhatsApp's monospace between ``` fences, each
   // sign centred under its court's name. An emoji takes about two letters' room in monospace.
-  const names = TURF_COURTS.map(c => courtLabel(c).replace(' Side', ' side')), timeWidth = 13, widths = names.map(name => Math.max(name.length, 2));
+  const names = SHARE_COURTS.map(c => courtLabel(c).replace(' Side', ' side')), timeWidth = 10, widths = names.map(name => Math.max(name.length, 2));
   const cell = (text, width, emoji) => {
     const room = width - (emoji ? 2 : text.length), left = Math.floor(room / 2);
     return ' '.repeat(left) + text + ' '.repeat(room - left);
@@ -11655,7 +11662,7 @@ function turfAvailabilityText(key, list) {
   for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) {
     // An hour is left out from one minute past its start (owner, 25 October: "once its 2:01 pm do not send 2-3").
     if (hourStart(key, hour) + 60000 <= nowMs()) continue;
-    table.push((short(hour) + ' - ' + short(hour + 1)).padEnd(timeWidth) + TURF_COURTS.map((court, i) => cell(bookingAt(list, court, hour) ? '❌' : '✅', widths[i], true)).join(' | '));
+    table.push(slot(hour).padEnd(timeWidth) + SHARE_COURTS.map((court, i) => cell(bookingAt(list, court, hour) ? '❌' : '✅', widths[i], true)).join(' | '));
   }
   if (table.length > 1) lines.push('```', ...table, '```');
   else lines.push('No hours left on this day.');
@@ -12779,7 +12786,7 @@ function turfSlotText(key, court, start, hours) {
 // Share availability: the whole day for a group, or one free slot as a status, for any day from today on (owner,
 // 22 October: any date can be chosen here).
 function turfShareSheet(key, list, kindFirst = 'day') {
-  let mode = kindFirst, court = TURF_COURTS[0], start = null, hours = 1;
+  let mode = kindFirst, court = SHARE_COURTS[0], start = null, hours = 1;
   openSheet({
     title: 'Share availability',
     sub: turfDayName(key),
@@ -12801,7 +12808,7 @@ function turfShareSheet(key, list, kindFirst = 'day') {
         if (!starts.includes(start)) start = starts.length ? starts[0] : null;
         const longest = start == null ? 0 : freeRun(key, court, start, '');
         hours = Math.max(1, Math.min(hours, longest || 1));
-        const courts = segmented(TURF_COURTS.map(c => [c, courtLabel(c), 'turf']), court, value => { court = value; ui.redraw(); });
+        const courts = segmented(SHARE_COURTS.map(c => [c, courtLabel(c), 'turf']), court, value => { court = value; ui.redraw(); });
         ui.body.append(h('div', 'field', h('span', { text: 'Court' }), courts.node));
         if (!starts.length) {
           ui.body.append(h('p', { class: 'muted', text: 'No free hours on this court that day.' }));
