@@ -11752,31 +11752,29 @@ function turfMessage(b, cancelled, wishes, slots) {
   return lines.join('\n');
 }
 // Which hours are still open on each court, for sending to a group.
+// Digits all of one width (Mathematical Sans-Serif Digits, U+1D7E2 on): a phone's own font draws 1 narrower than 0, which
+// moved the signs of 10:00 and 11:00 left (owner's picture of the Manipal message, 29 October); these keep every row the same.
+const sameWidthDigits = text => text.replace(/\d/g, d => String.fromCodePoint(0x1d7e2 + Number(d)));
 function turfAvailabilityText(key, list) {
-  // The table as it went out on 27 October (owner's picture: "revert back to that format"); the words around it bold (owner,
-  // 27 October: "make certain things bold, like heading and all"), without emoji (a phone draws the calendar as a page reading 24).
-  const d = new Date(key + 'T00:00:00+05:30'), lines = ['*City Arena - Mangalore*', ''];
-  lines.push('*Slot availability on ' + d.toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) + '*', '');
-  // Every hour written in seven letters, as many as Timings ("06-07am", "11-12pm"): WhatsApp on a phone or tablet gives a
-  // run of spaces less room than letters, so padding cannot even out a longer time; the same letters in every row keep the
-  // columns straight on the phone, the tablet and the laptop (owner, 27 October).
-  const two = hour => String(hour % 12 || 12).padStart(2, '0');
-  const slot = hour => two(hour) + '-' + two(hour + 1) + (hour + 1 < 12 ? 'am' : 'pm');
-  // In straight columns (owner, 23 October, as on Manipal): the table goes in WhatsApp's monospace between ``` fences, each
-  // sign centred under its court's name. An emoji takes about two letters' room in monospace.
-  const names = SHARE_COURTS.map(c => courtLabel(c).replace(' Side', ' side')), timeWidth = 10, widths = names.map(name => Math.max(name.length, 2));
-  const cell = (text, width, emoji) => {
-    const room = width - (emoji ? 2 : text.length), left = Math.floor(room / 2);
-    return ' '.repeat(left) + text + ' '.repeat(room - left);
-  };
-  const table = ['Timings'.padEnd(timeWidth) + names.map((name, i) => cell(name, widths[i], false)).join(' | ')];
+  // As the Manipal message (owner, 29 October: "can you not do it like that"): WhatsApp's own font, not the grey monospace
+  // block that spaced the digits out; the day as "29th October 2026 Thursday" in bold; Timings; then one row an hour.
+  const day = new Date(key + 'T00:00:00+05:30').toLocaleDateString('en-IN', { timeZone: IST, weekday: 'long' });
+  // The courts over their signs on the Timings line, as the owner wrote it and found it right on the phone (29 October: "the
+  // below one is perfect"): *Timings*, seventeen spaces, *6A | 5A*, all bold.
+  const names = SHARE_COURTS.map(c => courtLabel(c).replace(' Side', ''));
+  const lines = ['*City Arena - Mangalore*', '', 'Slot availability on *' + ordinalDate(key) + ' ' + day + '*', '', '*Timings' + ' '.repeat(17) + names.join(' | ') + '*'];
+  // Every hour as "06:00am - 07:00am" (owner, 29 October), then a sign for each court (✅ ❌), single spaces only, so every
+  // row is the same width and the signs stand in straight lines.
+  const clock = hour => String(hour % 12 || 12).padStart(2, '0') + ':00' + (hour % 24 < 12 ? 'am' : 'pm');
+  const slot = hour => sameWidthDigits(clock(hour) + ' - ' + clock(hour + 1));
+  let rows = 0;
   for (let hour = TURF_OPEN; hour < TURF_CLOSE; hour++) {
     // An hour is left out from one minute past its start (owner, 25 October: "once its 2:01 pm do not send 2-3").
     if (hourStart(key, hour) + 60000 <= nowMs()) continue;
-    table.push(slot(hour).padEnd(timeWidth) + SHARE_COURTS.map((court, i) => cell(bookingAt(list, court, hour) ? '❌' : '✅', widths[i], true)).join(' | '));
+    lines.push(slot(hour) + ' ' + SHARE_COURTS.map(court => (bookingAt(list, court, hour) ? '❌' : '✅')).join(' '));
+    rows++;
   }
-  if (table.length > 1) lines.push('```', ...table, '```');
-  else lines.push('No hours left on this day.');
+  if (!rows) lines.push('No hours left on this day.');
   lines.push('', '✅ : Slot available', '❌ : Not available', '', '*For bookings,*', '*Contact 📱: ' + TURF_CONTACT + '*', '', '*#PlayAtCityArena*');
   return lines.join('\n');
 }
