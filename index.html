@@ -7038,7 +7038,7 @@ var qrcode = function() {
 /* FLOW_START */
 // One save at a time. The request keeps its ID until the server gives a definite answer,
 // so a lost reply is checked with the same request and can never save twice.
-function createSaveFlow(storage, send, notify) {
+function createSaveFlow(storage, send, notify, clock = () => Date.now()) {
   let pending = null, saving = false, last = null;
   try { pending = JSON.parse(storage.getItem('arenaPending') || 'null'); }
   catch (e) { notify('error', 'Saved request could not be read. Resolve browser storage before saving.'); throw e; }
@@ -7079,8 +7079,9 @@ function createSaveFlow(storage, send, notify) {
   async function run(command) {
     if (saving) return false;
     if (pending) { notify('pending', 'Resolve the previous request before saving another.', pending.id); return false; }
-    // Plain data, the same however it travels (a field left empty dropped once, here).
-    const next = { id: crypto.randomUUID(), command: JSON.parse(JSON.stringify(command)) };
+    // Plain data, the same however it travels (a field left empty dropped once, here), with the moment it was made, kept
+    // through every retry, so a save that arrives late keeps its times.
+    const next = { id: crypto.randomUUID(), command: JSON.parse(JSON.stringify(command)), at: clock() };
     try { storage.setItem('arenaPending', JSON.stringify(next)); }
     catch (e) { notify('error', 'Browser storage is unavailable. Nothing was submitted.'); return false; }
     pending = next;
@@ -7658,7 +7659,7 @@ function openSheet(config) {
   }
 }
 
-const flow = createSaveFlow(storage || { getItem: () => null, setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, request => rpc('rpcCommand', token, request), flowNotice);
+const flow = createSaveFlow(storage || { getItem: () => null, setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, request => rpc('rpcCommand', token, request), flowNotice, () => nowMs());
 
 function setBusy(on) {
   document.body.classList.toggle('busy', on);
@@ -13207,7 +13208,8 @@ async function pumpOutbox() {
     while (outbox.length && token) {
       const item = outbox[0];
       let reply;
-      try { reply = await rpc('rpcCommand', token, { id: item.id, command: item.command }); }
+      // With the moment it was made, so a save that arrives late keeps its times.
+      try { reply = await rpc('rpcCommand', token, { id: item.id, command: item.command, at: item.at }); }
       catch (e) {
         if (e.notSaved) {
           // Refused for good: off the screen, with the reason.
