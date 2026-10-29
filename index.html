@@ -7064,6 +7064,11 @@ function createSaveFlow(storage, send, notify) {
         storage.removeItem('arenaPending');
         pending = null;
         notify('error', e.message + ' Nothing was saved.');
+      } else if (e.alreadySaved) {
+        // The server already holds the save made under this ID.
+        storage.removeItem('arenaPending');
+        pending = null;
+        notify('success', 'Already saved.');
       } else {
         notify('pending', e.message + ' Do not enter this again. Check the same saved request.', pending.id);
       }
@@ -7074,7 +7079,8 @@ function createSaveFlow(storage, send, notify) {
   async function run(command) {
     if (saving) return false;
     if (pending) { notify('pending', 'Resolve the previous request before saving another.', pending.id); return false; }
-    const next = { id: crypto.randomUUID(), command };
+    // Plain data, the same however it travels (a field left empty dropped once, here).
+    const next = { id: crypto.randomUUID(), command: JSON.parse(JSON.stringify(command)) };
     try { storage.setItem('arenaPending', JSON.stringify(next)); }
     catch (e) { notify('error', 'Browser storage is unavailable. Nothing was submitted.'); return false; }
     pending = next;
@@ -7538,7 +7544,7 @@ function rpcWithin(ms, name, ...args) {
       if (settled) return;
       clearTimeout(timer);
       if (reply && reply.ok) resolve(reply.data);
-      else reject(Object.assign(new Error(reply && reply.error || 'Request failed.'), { notSaved: !!(reply && reply.notSaved) }));
+      else reject(Object.assign(new Error(reply && reply.error || 'Request failed.'), { notSaved: !!(reply && reply.notSaved), alreadySaved: !!(reply && reply.alreadySaved) }));
     }, () => { if (settled) return; clearTimeout(timer); reject(new Error('Connection interrupted.')); });
   });
 }
@@ -13134,7 +13140,7 @@ function postAcademyDue() {
 // the screen with the reason. The server always has the last word: the screen is the server's data with the saves still
 // on their way laid over it.
 const OUTBOX_KEY = 'arenaOutbox';
-let outbox = [], confirmed = null, confirmedVersion = '', outboxBusy = false, outboxTrouble = '', outboxWaiters = [];
+let outbox = [], confirmed = null, confirmedVersion = '', outboxBusy = false, outboxTrouble = '', outboxReason = '', outboxWaiters = [];
 try { outbox = JSON.parse((storage && storage.getItem(OUTBOX_KEY)) || '[]') || []; }
 catch (e) { outbox = []; }
 function keepOutbox() {
@@ -13170,9 +13176,13 @@ function setConfirmed(serverState, serverVersion) {
 }
 // A save tried on screen first. The screen's result; a refusal the rules gave at once; or null when the screen does
 // not hold what the save needs and the server must decide.
+// A request as plain data, the same however it travels: a field left empty is dropped here, once, as the browser's copy and
+// the direct connection drop it, so the hidden connection cannot send it otherwise (owner, 29 October: a save sent again
+// without its empty fields was refused as different).
+const plainCommand = command => JSON.parse(JSON.stringify(command));
 function trySaveHere(command) {
   if (!confirmed || !state || typeof ArenaCore === 'undefined') return null;
-  const item = { id: crypto.randomUUID(), command, at: nowMs() };
+  const item = { id: crypto.randomUUID(), command: plainCommand(command), at: nowMs() };
   let out;
   try { out = predict(state, item); }
   catch (e) {
@@ -13208,7 +13218,17 @@ async function pumpOutbox() {
           await refresh(true);
           continue;
         }
-        // No answer: the same request again, a little later. It is never entered twice.
+        if (e.alreadySaved) {
+          // The server already holds the save made under this ID: done, never sent again (it held every later save).
+          outbox.shift();
+          keepOutbox();
+          outboxTrouble = '';
+          await refresh(true);
+          continue;
+        }
+        // No answer: the same request again, a little later. It is never entered twice. What the server said is kept for the
+        // sync pill, so a save that stays waiting can be read on the screen.
+        outboxReason = e.message;
         outboxTrouble = /sign in|expired|Access denied/i.test(e.message) ? 'Sign in again to finish saving.' : 'Not saved yet · retrying';
         showSync(true, lastGood);
         if (outboxTrouble.startsWith('Sign in')) break;
@@ -13218,6 +13238,7 @@ async function pumpOutbox() {
       }
       wait = 2000;
       outboxTrouble = '';
+      outboxReason = '';
       outbox.shift();
       keepOutbox();
       if (reply.snapshot) {
@@ -13350,7 +13371,8 @@ function showSync(ok, at) {
   $('sync').classList.toggle('stale', !ok || !!trouble);
   $('sync').classList.toggle('saving', !!saving && !trouble);
   $('syncText').textContent = trouble ? outboxTrouble : saving ? 'Saving…' : ok ? 'Up to date' : 'Not updated since ' + clock(at);
-  $('sync').title = saving ? 'Changes are on screen; the server is confirming them' : ok ? 'Up to date at ' + clock(at) : 'The last refresh failed';
+  // A save that stays waiting says how many, since when and what the server said (owner, 29 October: only the console showed it).
+  $('sync').title = trouble ? saving + (saving === 1 ? ' change' : ' changes') + ' waiting since ' + clock(outbox[0].at) + (outboxReason ? ' · ' + outboxReason : '') : saving ? 'Changes are on screen; the server is confirming them' : ok ? 'Up to date at ' + clock(at) : 'The last refresh failed';
 }
 
 // ---------- Refresh: the server answers "unchanged" cheaply, so the screen is only redrawn for real changes ----------
