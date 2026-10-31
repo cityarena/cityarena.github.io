@@ -799,10 +799,6 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .rep-legend.inline { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .rep-legend.inline li { display: inline-grid; grid-template-columns: 10px auto auto; padding: 0; border: 0; }
 /* The day close, for one day. */
-.rep-close { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; grid-template-areas: "icon main action"; align-items: center; column-gap: 14px; row-gap: 12px; padding: 14px 18px; }
-.rep-close .btn { grid-area: action; min-height: 42px; padding: 0 18px; border-radius: 10px; }
-.rep-close .rep-icon { width: 44px; height: 44px; align-self: center; color: var(--ink-2); }
-.rep-close.done .rep-icon { color: var(--accent); }
 
 /* ---------- Menu tiles (Add Items, Snacks & beverages) ---------- */
 .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 10px; }
@@ -819,21 +815,63 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .stock-note { color: var(--ink-3); font-size: 13px; white-space: nowrap; }
 .stock-note.out { color: var(--danger); font-weight: 600; }
 .stock-note.low { color: var(--warn); font-weight: 600; }
-/* Reports → Stock (owner, 31 October): each heading with its icon in its colour; the calculation under the table. */
-.stock-table th { white-space: normal; vertical-align: bottom; }
-.stock-head { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 110px; text-align: right; line-height: 1.25; }
-.stock-chip { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--hover); color: var(--ink-2); }
-.stock-chip svg { width: 14px; height: 14px; }
+/* Reports → Stock Report, as the owner's picture (1 November). */
+.stock-report { padding: 26px 28px 24px; border-radius: 22px; }
+.stock-report-head { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
+.stock-report-icon { display: grid; place-items: center; flex: none; width: 56px; height: 56px; border: 1px solid var(--accent-line); border-radius: 15px; background: linear-gradient(180deg, #eef5ee 0%, #e3eee4 100%); color: var(--accent); box-shadow: var(--hi), 0 4px 10px -6px rgba(31, 125, 74, 0.35); }
+.stock-report-icon svg { width: 28px; height: 28px; }
+.stock-report-title { flex: 1; min-width: 0; display: grid; gap: 3px; padding-left: 18px; border-left: 1px solid var(--line-strong); }
+.stock-report-title h2 { font-family: var(--display); font-size: 25px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.15; }
+.stock-report-title span { color: var(--ink-2); font-size: 15px; }
+.stock-when-button { display: inline-flex; align-items: center; gap: 10px; flex: none; min-height: 46px; padding: 0 18px; border: 1px solid var(--line-strong); border-radius: 12px; background: #fefcf8; color: var(--ink); font: inherit; font-size: 15px; font-weight: 500; box-shadow: var(--hi); cursor: pointer; transition: border-color var(--ease); }
+.stock-when-button:hover { border-color: var(--primary-line); }
+.stock-when-button svg { width: 19px; height: 19px; color: var(--ink-2); }
+.stock-when { display: grid; gap: 4px; min-width: 0; }
+.stock-when-option { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; font: inherit; font-weight: 500; text-align: left; cursor: pointer; }
+.stock-when-option:hover { background: var(--hover); }
+.stock-when-option[aria-pressed=true] { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.stock-when-option svg { width: 16px; height: 16px; }
+.stock-when-custom { display: grid; gap: 8px; margin-top: 4px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
+.stock-when-label { color: var(--ink-2); font-size: 13px; font-weight: 600; }
+.stock-when-dates { display: grid; gap: 8px; }
+.stock-when-dates input { width: 100%; min-width: 0; }
+.stock-when-dates .field { margin: 0; }
+.stock-box { overflow-x: auto; border: 1px solid var(--line-strong); border-radius: 16px; background: #fefcf8; box-shadow: 0 1px 2px rgba(80, 62, 30, 0.05); }
+.stock-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.stock-table th { padding: 18px 14px 16px; border-bottom: 1px solid var(--line-strong); background: rgba(80, 62, 30, 0.035); color: var(--ink); font-size: 16px; font-weight: 600; line-height: 1.25; text-align: center; vertical-align: top; }
+.stock-table th.stock-item-head { padding-left: 24px; text-align: left; vertical-align: middle; }
+/* Every icon on one line, each label under it on two lines (a short one centred in them), as the owner's picture. */
+.stock-head { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; }
+.stock-head > span { display: flex; align-items: center; justify-content: center; max-width: 92px; min-height: 2.5em; }
+.stock-chip { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--busy-soft); color: var(--ink-2); }
+.stock-chip svg { width: 16px; height: 16px; }
 .stock-chip.added { background: var(--primary-soft); color: var(--primary); }
 .stock-chip.found { background: var(--accent-soft); color: var(--accent); }
 .stock-chip.missing { background: var(--danger-soft); color: var(--danger); }
-.stock-chip.sold { background: var(--busy-soft); color: var(--busy); }
-.stock-chip.closing { background: var(--gold-soft); color: var(--gold); }
+.stock-chip.sold, .stock-chip.closing { background: var(--busy-soft); color: var(--busy); }
+.stock-table td { padding: 17px 14px; border-bottom: 1px solid var(--line); font-size: 16px; font-weight: 600; text-align: center; white-space: nowrap; }
+.stock-table tbody tr:last-child td { border-bottom: 0; }
+.stock-table tbody tr { cursor: pointer; transition: background var(--ease); }
+.stock-table tbody tr:hover { background: var(--hover); }
+.stock-table td.stock-item { padding-left: 24px; text-align: left; font-weight: 700; }
+/* The item column stays put while a phone scrolls the figures sideways. */
+.stock-table .stock-item, .stock-table .stock-item-head { position: sticky; left: 0; z-index: 1; }
+.stock-table td.stock-item { background: #fefcf8; }
+.stock-table th.stock-item-head { background: #f8f5ee; }
+.stock-table tbody tr:hover td.stock-item { background: var(--hover); }
+.stock-num.none { color: var(--ink-3); font-weight: 500; }
 .stock-num.found:not(.none) { color: var(--accent); }
 .stock-num.missing:not(.none) { color: var(--danger); }
-.stock-num.none { color: var(--ink-3); }
-.stock-sum { margin: 12px 2px 0; color: var(--ink-2); font-size: 14px; }
-.stock-table td:first-child { white-space: nowrap; }
+.stock-sum { display: flex; align-items: center; gap: 12px; margin: 16px 0 0; padding: 14px 18px; border-radius: 12px; background: var(--hover); color: var(--ink-2); font-size: 15px; }
+.stock-sum svg { flex: none; width: 20px; height: 20px; color: var(--ink-3); }
+.stock-empty { padding: 18px 4px; }
+@media (max-width: 640px) {
+  .stock-report { padding: 18px 16px; }
+  .stock-report-head { flex-wrap: wrap; gap: 14px; }
+  .stock-report-title h2 { font-size: 21px; }
+  .stock-when-button { width: 100%; justify-content: center; }
+  .stock-table th, .stock-table td { padding-left: 10px; padding-right: 10px; }
+}
 .stock-row { display: flex; align-items: center; gap: 8px; }
 /* The menu (owner, 30 October): a card for each item under its kind. */
 .menu-group { margin-bottom: 28px; }
@@ -1515,7 +1553,6 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .rep-chart-body { grid-template-columns: 140px minmax(0, 1fr); gap: 18px; }
   .rep-ring { width: 140px; height: 140px; }
   .rep-ring-centre b { font-size: 17px; }
-  .rep-close { grid-template-columns: 38px minmax(0, 1fr); grid-template-areas: "icon main" "action action"; }
   .panel { padding: 16px; }
   .list th, .list td { padding-left: 14px; padding-right: 14px; }
   .sheet { width: 100vw; border-left: 0; }
@@ -7323,6 +7360,9 @@ const ICONS = {
   play: ['M6 3l14 9-14 9V3z'],
   stop: ['r:5,5,14,14,2.5'],
   plus: ['M5 12h14', 'M12 5v14'],
+  boxes: ['M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z', 'M7 16.5l-4.74-2.85', 'M7 16.5l5-3', 'M7 16.5v5.17', 'M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z', 'M17 16.5l-5-3', 'M17 16.5l4.74-2.85', 'M17 16.5v5.17', 'M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z', 'M12 8L7.26 5.15', 'M12 8l4.74-2.85', 'M12 13.5V8'],
+  archive: ['r:2,3,20,5,1', 'M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8', 'M10 12h4'],
+  layers: ['M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z', 'M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12', 'M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17'],
   box: ['M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z', 'M12 22V12', 'M3.29 7L12 12l8.71-5', 'M7.5 4.27l9 5.15'],
   arrowUp: ['M12 19V5', 'M5 12l7-7 7 7'],
   arrowDown: ['M12 5v14', 'M19 12l-7 7-7-7'],
@@ -7591,7 +7631,7 @@ function customerFields(initialName = '', initialPhone = '', phoneRequired = fal
 let token = '', state = null, version = '', clockOffset = 0, session = { user: null, lastBackup: null, backupError: null };
 const storage = (() => { try { localStorage.getItem('arenaToken'); return localStorage; } catch (e) { return null; } })();
 
-const AFTER_SAVES = new Set(['rpcBill', 'rpcHistory', 'rpcReport', 'rpcQuote', 'rpcTurf', 'rpcExport']);
+const AFTER_SAVES = new Set(['rpcBill', 'rpcHistory', 'rpcReport', 'rpcStock', 'rpcQuote', 'rpcTurf', 'rpcExport']);
 // On City Arena's own web address the page reaches the same server through a hidden bridge frame loaded without cookies
 // (ARENA_API, set by the build), so the browser's signed-in Google accounts never get in the way.
 const ARENA_API = "https://script.google.com/macros/s/AKfycbwoZOVuZ6rp7gDVmMdqrOx16x3jj0iddMGqTiT-Qd8AVaZXhMY9VsED-R-GvsrW-mjp/exec";
@@ -11292,20 +11332,46 @@ async function loadReport(key) {
   if (page === 'settings' && settingsMode === 'reports') render();
 }
 const reportKey = () => version + '|' + reportFrom + '|' + reportTo;
-function closeDaySheet(summary) {
-  let counted, note;
-  openSheet({
-    title: 'Close ' + day(reportRange().fromMs),
-    icon: 'reports',
-    sub: 'Cash received today: ' + money(summary.cashPaise),
-    build(ui) {
-      counted = counted || h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', 'aria-label': 'Cash counted', data: { field: 'counted' } });
-      note = note || textInput({ 'aria-label': 'Note' });
-      ui.body.append(field('Cash counted in the drawer (₹)', counted), field('Note (optional)', note));
-      ui.primary('Close day');
-    },
-    command: () => ({ type: 'CLOSE_DAY', dateKey: reportFrom, countedCashPaise: counted.value === '' ? undefined : toPaise(counted.value), note: note.value.trim() })
-  });
+// The Stock report's own dates (owner, 1 November): Today at first, Yesterday, or any two dates; read from the server only
+// when they differ from the report's.
+let stockPreset = 'today', stockFrom = '', stockTo = '', stockCache = { key: '', rows: null };
+function stockDates() {
+  if (stockPreset !== 'custom') [stockFrom, stockTo] = reportPresetRange(stockPreset);
+  return [stockFrom, stockTo];
+}
+const stockKey = () => version + '|' + stockDates().join('|');
+async function loadStock(key) {
+  stockCache = { key, rows: null };
+  const start = dateKey => Date.parse(dateKey + 'T00:00:00+05:30') + settingValue('businessDayStartMinutes', 0) * 60000;
+  try {
+    const rows = await rpc('rpcStock', token, start(stockFrom), start(stockTo) + 86400000, reportPass);
+    if (key === stockKey()) stockCache = { key, rows };
+  } catch (e) {
+    stockCache = { key: '', rows: [] };
+    notify('error', e.message);
+  }
+  if (page === 'settings' && settingsMode === 'reports') render();
+}
+// What the date button says: Today, Yesterday, one day, or from – to.
+function stockWhen() {
+  if (stockPreset === 'today') return 'Today';
+  if (stockPreset === 'yesterday') return 'Yesterday';
+  return stockFrom === stockTo ? turfDayName(stockFrom) : turfDayName(stockFrom) + ' – ' + turfDayName(stockTo);
+}
+// The date button's box: Today, Yesterday, or Custom with two dates and Show.
+function stockDatesAsk(anchor) {
+  const choose = preset => { closePopover(); stockPreset = preset; render(); };
+  const option = (preset, label) => h('button', { type: 'button', class: 'stock-when-option', 'aria-pressed': String(stockPreset === preset), data: { stockWhen: preset }, onclick: () => choose(preset) }, h('span', { text: label }), stockPreset === preset ? icon('check') : null);
+  const from = h('input', { type: 'date', value: stockFrom, max: businessToday(), 'aria-label': 'From', data: { field: 'stock-from' } });
+  const to = h('input', { type: 'date', value: stockTo, max: businessToday(), 'aria-label': 'To', data: { field: 'stock-to' } });
+  const show = btn('Show', () => {
+    if (!from.value || !to.value) return;
+    [stockFrom, stockTo] = from.value <= to.value ? [from.value, to.value] : [to.value, from.value];
+    choose('custom');
+  }, 'outline block', { data: { action: 'stock-dates-show' } });
+  popover(anchor, h('div', 'stock-when',
+    option('today', 'Today'), option('yesterday', 'Yesterday'),
+    h('div', 'stock-when-custom', h('span', { class: 'stock-when-label', text: 'Custom' }), h('div', 'stock-when-dates', field('From', from), field('To', to)), show)));
 }
 // Each part of the venue has its own colour in the report (tokens in styles.css).
 const REPORT_PARTS = {
@@ -11367,7 +11433,6 @@ const reportsPage = {
     if (reportCache.key !== key) { loadReport(key); if (!reportCache.data) { page.append(loadingRows(4)); return; } }
     const s = reportCache.data.summary, single = reportFrom === reportTo, earned = s.earnings || {}, use = s.usage || {}, turfUse = s.turfUsage || { bookings: 0, hours: 0 };
     const credit = s.credit || { openingPaise: 0, givenPaise: 0, otherPaise: 0, collectedPaise: 0, closingPaise: 0 };
-    const closed = single ? (reportCache.data.closes || []).find(c => c.dateKey === reportFrom) : null;
     const amount = k => earned[k] || 0;
     const period = single ? (reportFrom === businessToday() ? 'Today' : turfDayName(reportFrom)) : turfDayName(reportFrom) + ' – ' + turfDayName(reportTo);
     const gamingKeys = [...CATEGORIES, ...(amount('Manual') ? ['Manual'] : [])], productKeys = PRODUCT_KINDS.map(k => k[0]);
@@ -11427,37 +11492,34 @@ const reportsPage = {
     const played = playedMinutes >= 600 ? Math.round(playedMinutes / 60) + ' h' : playedMinutes ? minutes(playedMinutes * 60000) : '—';
     const best = earnParts.reduce((top, p) => (p.value > top.value ? p : top), { label: '—', value: 0 });
 
-    // The day close, for a single day.
-    let closeBox = null;
-    if (single && closed) {
-      const counted = closed.countedCashPaise;
-      closeBox = h('section', { class: 'rep-card rep-close done', data: { panel: 'close' } }, h('span', 'rep-icon', icon('checkCircle')),
-        h('div', 'rep-row-main', h('b', { text: 'Day closed' }), h('span', { class: 'rep-use', text: [clock(closed.createdMs), counted === '' ? '' : 'Cash counted ' + money(counted), counted === '' ? '' : 'Difference ' + money(counted - JSON.parse(closed.summaryJson).cashPaise)].filter(Boolean).join(' · ') })));
-    } else if (single) {
-      closeBox = h('section', { class: 'rep-card rep-close', data: { panel: 'close' } }, h('span', 'rep-icon', icon('lock')),
-        h('div', 'rep-row-main', h('b', { text: 'Day close' }), h('span', { class: 'rep-use', text: 'Saves these figures as they stand, with the cash you counted.' })),
-        btn([icon('lock'), 'Close day'], () => closeDaySheet(s), 'outline', { data: { action: 'close-day' } }));
-    }
-
-    // Stock (owner, 30 October): each item kept in stock, from the start of the range to its end; a row opens its lines.
-    // As the owner laid it out (31 October): what you started with, what came in, the corrections, what was sold, what
-    // remains; each heading with its icon and colour, and the calculation written under the table.
-    const stockRows = reportCache.data.stock || [];
-    const STOCK_COLUMNS = [['start', 'Opening Stock', 'inbox', 'open'], ['added', 'New Stock Added', 'plus', 'added'], ['plus', 'Extra Stock Found', 'arrowUp', 'found'], ['minus', 'Missing Stock', 'arrowDown', 'missing'], ['sold', 'Total Sold', 'sales', 'sold'], ['end', 'Closing Stock', 'checkCircle', 'closing']];
-    const stockPanel = stockRows.length ? h('section', { class: 'rep-card', data: { panel: 'stock' } },
-      h('div', 'rep-head', glyph('menu'), h('h2', { text: 'Stock' }), h('span', { class: 'rep-note', text: period })),
-      h('div', 'table-wrap', h('table', 'list stock-table',
-        h('thead', null, h('tr', null, h('th', { text: 'Item' }), STOCK_COLUMNS.map(([key, label, glyphName, tone]) => h('th', { class: 'r', data: { column: key } }, h('span', 'stock-head', h('i', { class: 'stock-chip ' + tone }, icon(glyphName)), h('span', { text: label })))))),
-        h('tbody', null, stockRows.map(r => h('tr', { class: 'click', data: { stockItem: r.productId }, onclick: () => stockLinesSheet(r, period) },
-          h('td', null, h('b', { text: r.name })),
-          STOCK_COLUMNS.map(([key, , , tone]) => h('td', { class: 'r num stock-num ' + tone + (r[key] ? '' : ' none') }, key === 'end' ? h('b', { text: String(r[key]) }) : String(r[key])))))))),
-      h('p', { class: 'stock-sum', text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' })) : null;
+    // Stock Report, as the owner's picture (1 November): the boxes icon, Stock Report with Daily item movement summary under it,
+    // the date button at the right (Today, Yesterday, Custom); the table in its own rounded box with each heading in words
+    // under its icon tile, the numbers centred, zeros quiet, found green and missing red; the calculation in a box below.
+    // Its dates are its own: the report's figures when they match, read from the server when they do not.
+    const [sFrom, sTo] = stockDates(), sameDates = sFrom === reportFrom && sTo === reportTo;
+    if (!sameDates && stockCache.key !== stockKey()) loadStock(stockKey());
+    const stockRows = sameDates ? reportCache.data.stock || [] : stockCache.rows;
+    const STOCK_COLUMNS = [['start', 'Opening Stock', 'archive', 'open'], ['added', 'New Stock Added', 'plus', 'added'], ['plus', 'Extra Stock Found', 'arrowUp', 'found'], ['minus', 'Missing Stock', 'arrowDown', 'missing'], ['sold', 'Total Sold', 'sales', 'sold'], ['end', 'Closing Stock', 'layers', 'closing']];
+    const stockWhenWords = stockWhen();
+    const stockTable = !stockRows ? loadingRows(3)
+      : !stockRows.length ? h('p', { class: 'muted stock-empty', text: 'No item keeps stock yet.' })
+        : h('div', 'stock-box', h('table', 'stock-table',
+          h('thead', null, h('tr', null, h('th', { class: 'stock-item-head', text: 'Item' }), STOCK_COLUMNS.map(([key, label, glyphName, tone]) => h('th', { data: { column: key } }, h('span', 'stock-head', h('i', { class: 'stock-chip ' + tone }, icon(glyphName)), h('span', { text: label })))))),
+          h('tbody', null, stockRows.map(r => h('tr', { data: { stockItem: r.productId }, onclick: () => stockLinesSheet(r, stockWhenWords) },
+            h('td', { class: 'stock-item', text: r.name }),
+            STOCK_COLUMNS.map(([key, , , tone]) => h('td', { class: 'num stock-num ' + tone + (r[key] ? '' : ' none'), text: String(r[key]) })))))));
+    const stockPanel = state.Products.some(p => stockLeft(p) !== null) || (stockRows && stockRows.length) ? h('section', { class: 'rep-card stock-report', data: { panel: 'stock' } },
+      h('div', 'stock-report-head',
+        h('span', 'stock-report-icon', icon('boxes')),
+        h('div', 'stock-report-title', h('h2', { text: 'Stock Report' }), h('span', { text: sFrom === sTo ? 'Daily item movement summary' : 'Item movement summary' })),
+        h('button', { type: 'button', class: 'stock-when-button', data: { action: 'stock-dates' }, onclick: e => stockDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: stockWhenWords }))),
+      stockTable,
+      h('p', 'stock-sum', icon('info'), h('span', { text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' }))) : null;
     page.append(
       h('div', 'rep-top', lead, received, creditCard),
       h('div', 'rep-main', floorPanel, counterPanel),
       h('div', 'rep-charts', donut('Floor usage', floorParts, played, 'played', 'By time played', 'reports'), donut('Earnings mix', earnParts, best.label, best.value ? 'earns most' : 'nothing yet', 'Without turf', 'cash')),
-      stockPanel,
-      closeBox);
+      stockPanel);
   }
 };
 
