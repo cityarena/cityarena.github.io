@@ -217,6 +217,7 @@ svg { flex: none; }
 .row-tools .icon-btn { width: 42px; height: 42px; border-radius: 10px; border-color: var(--line-strong); background: linear-gradient(180deg, #fdfbf7 0%, #f5f0e6 100%); box-shadow: var(--hi); color: var(--primary); }
 .row-tools .icon-btn svg { width: 18px; height: 18px; }
 .row-tools .icon-btn:hover { color: var(--primary-deep); border-color: var(--primary-line); }
+.row-tools .icon-btn.danger, .row-tools .icon-btn.danger:hover { color: var(--danger); }
 .row-tools .btn { min-height: 42px; border-radius: 10px; }
 .row-tools .icon-btn.placeholder { visibility: hidden; }
 
@@ -818,12 +819,6 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .stock-note { color: var(--ink-3); font-size: 13px; white-space: nowrap; }
 .stock-note.out { color: var(--danger); font-weight: 600; }
 .stock-note.low { color: var(--warn); font-weight: 600; }
-/* The Count stock list. */
-.count-line .count-box { width: 96px; flex: none; }
-.count-line .count-box input { width: 100%; text-align: right; }
-.count-diff { min-width: 40px; text-align: right; font-weight: 700; }
-.count-diff.plus { color: var(--accent); }
-.count-diff.minus { color: var(--danger); }
 /* Reports → Stock (owner, 31 October): each heading with its icon in its colour; the calculation under the table. */
 .stock-table th { white-space: normal; vertical-align: bottom; }
 .stock-head { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 110px; text-align: right; line-height: 1.25; }
@@ -841,18 +836,35 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .stock-table td:first-child { white-space: nowrap; }
 .stock-row { display: flex; align-items: center; gap: 8px; }
 /* The menu (owner, 30 October): a card for each item under its kind. */
-.menu-group { margin-bottom: 22px; }
-.menu-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
-.menu-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); box-shadow: var(--shadow); cursor: pointer; transition: border-color var(--ease), box-shadow var(--ease); }
-.menu-card:hover { border-color: var(--primary-line); }
+.menu-group { margin-bottom: 28px; }
+.menu-group .group-title { margin-bottom: 12px; font-size: 17px; }
+.menu-group .group-title .glyph { color: var(--ink-2); background: var(--card); }
+.menu-group .group-sum { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--card); color: var(--ink-2); font-family: var(--text); font-size: 13px; font-weight: 500; }
+.menu-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.menu-card { display: grid; gap: 16px; padding: 16px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: linear-gradient(180deg, #fefcf8 0%, var(--card) 100%); box-shadow: var(--hi), var(--shadow); cursor: pointer; transition: border-color var(--ease), box-shadow var(--ease), transform var(--ease); }
+.menu-card:hover { border-color: var(--primary-line); box-shadow: var(--hi), var(--shadow-pop); transform: translateY(-1px); }
+.menu-card:focus-visible { outline: 2px solid var(--primary-line); outline-offset: 2px; }
 .menu-card.off { opacity: 0.6; }
-.menu-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.menu-card-name { flex: 1; min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
-.menu-card-price { font-size: 20px; font-weight: 700; }
-.menu-card-stock { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding-top: 8px; border-top: 1px solid var(--line); }
-.menu-card-stock .stock-note { font-size: 14px; font-weight: 600; color: var(--ink-2); }
-.menu-card-stock .stock-note.out { color: var(--danger); }
-.menu-card-stock .stock-note.low { color: var(--warn); }
+.menu-card-top { display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* The kind's icon in a tile tinted for it: snacks gold, drinks slate teal, ice cream peach. */
+.menu-card-icon { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border: 1px solid var(--gold-line); border-radius: 14px; background: var(--gold-soft); color: var(--gold); box-shadow: var(--hi); }
+.menu-card-icon svg { width: 24px; height: 24px; }
+.menu-card-icon.drink { border-color: var(--primary-line); background: var(--primary-soft); color: var(--primary); }
+.menu-card-icon.icecream { border-color: var(--caramel-line); background: var(--busy-soft); color: var(--busy); }
+.menu-card-text { flex: 1; min-width: 0; display: grid; gap: 2px; align-content: center; }
+.menu-card-name { font-size: 16px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.menu-card-price { font-family: var(--display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; color: var(--ink); }
+.menu-card-text .badge { justify-self: start; }
+.menu-card-more { align-self: flex-start; margin: -6px -6px 0 0; }
+/* The stock pill across a menu card's foot. */
+.stock-pill { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 0 6px 0 12px; border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: default; }
+.stock-pill svg { width: 17px; height: 17px; flex: none; }
+.stock-pill.low { border-color: var(--warn-line); background: var(--warn-soft); color: var(--warn); }
+.stock-pill.out { border-color: var(--danger-line); background: var(--danger-soft); color: var(--danger); }
+.stock-pill.none { border-color: var(--line); background: var(--hover); color: var(--ink-2); font-weight: 500; }
+/* Reconcile or Enable stock at the bar's end: a small white button. */
+.stock-pill .btn { margin-left: auto; min-height: 30px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--card); color: var(--primary); font-size: 13px; font-weight: 600; box-shadow: var(--hi); }
+.stock-pill .btn:hover { border-color: var(--primary-line); }
 .stock-after { margin: 4px 0 0; color: var(--ink-2); }
 .tile-add { display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--ink-3); font-size: 13px; font-weight: 600; transition: color var(--ease), border-color var(--ease); }
 .tile-add svg { width: 14px; height: 14px; }
@@ -2810,7 +2822,7 @@ var ArenaCredits=(function(){
 /* Customer registry. One record per person, found again by mobile number or, failing that, by name. */
 var ArenaCustomers = (function () {
   'use strict';
-  var types = ['SAVE_CUSTOMER'];
+  var types = ['SAVE_CUSTOMER', 'DELETE_CUSTOMER'];
 
   function check(ok, message) { ArenaCore.check(ok, message); }
   function digits(phone) { return String(phone || '').replace(/\D/g, ''); }
@@ -2823,7 +2835,7 @@ var ArenaCustomers = (function () {
       var byPhone = list.find(function (c) { return digits(c.phone) === wanted; });
       if (byPhone) return byPhone;
     }
-    return list.find(function (c) { return nameKey(c.name) === nameKey(name) && (!wanted || !digits(c.phone)); }) || null;
+    return list.find(function (c) { return nameKey(c.name) && nameKey(c.name) === nameKey(name) && (!wanted || !digits(c.phone)); }) || null;
   }
 
   // Called when a visit, Quick Sale or reservation is saved: reuse the customer or register them.
@@ -2845,8 +2857,21 @@ var ArenaCustomers = (function () {
 
   function execute(state, cmd, actor, now, id) {
     check(actor && actor.role === 'owner', 'Access denied.');
-    check(cmd.type === 'SAVE_CUSTOMER', 'Unsupported operation.');
     state.Customers = state.Customers || [];
+    // Deleted (owner, 31 October: "customer names, i need option to edit and delete"): rows are never removed from the Sheet,
+    // so the record is emptied (name, mobile and notes) and every list leaves it out; their bills keep the name they had.
+    if (cmd.type === 'DELETE_CUSTOMER') {
+      var gone = state.Customers.find(function (c) { return c.id === cmd.id; });
+      check(!!gone && nameKey(gone.name), 'Record not found.');
+      check(cmd.revision === gone.revision, 'This customer changed on another device. Refresh before editing.');
+      var was = gone.name;
+      gone.name = '';
+      gone.phone = '';
+      gone.notes = '';
+      gone.revision = gone.revision + 1;
+      return { customerId: gone.id, message: was + ' deleted from customers. Their bills are unchanged.' };
+    }
+    check(cmd.type === 'SAVE_CUSTOMER', 'Unsupported operation.');
     var name = String(cmd.name || '').trim(), phone = String(cmd.phone || '').trim(), notes = String(cmd.notes || '').trim();
     check(name.length > 0 && name.length <= 80, 'Enter the customer name.');
     check(phone.length <= 30 && notes.length <= 300, 'Invalid customer details.');
@@ -3300,7 +3325,7 @@ var ArenaViews = (function () {
   function exportRows(state, dataset, fromMs, toMs) {
     var tabs = index(state.Tabs), bills = index(state.Bills), details = index(state.BillDetails), accounts = index(state.CreditAccounts);
     if (dataset === 'customers') return { name: 'customers', columns: ['Name', 'Mobile', 'Visits', 'First seen', 'Last seen', 'Notes'],
-      rows: (state.Customers || []).map(function (c) { return [c.name, c.phone, c.visits, when(c.createdMs), when(c.lastSeenMs), c.notes]; }) };
+      rows: (state.Customers || []).filter(function (c) { return String(c.name || '').trim(); }).map(function (c) { return [c.name, c.phone, c.visits, when(c.createdMs), when(c.lastSeenMs), c.notes]; }) };
     if (dataset === 'reservations') return { name: 'reservations', columns: ['Customer', 'Mobile', 'Category', 'Unit', 'Arrival', 'Status', 'Notes'],
       rows: (state.Reservations || []).filter(function (r) { return inRange(r.arrivalMs, fromMs, toMs); }).map(function (r) { return [r.customer, r.phone, r.category, r.unitId || 'Any', when(r.arrivalMs), r.status, r.notes]; }) };
     if (dataset === 'sessions') return { name: 'gaming-sessions', columns: ['Unit', 'Controller', 'Player', 'Visit', 'Start', 'End', 'Billed minutes', 'Charge', 'Status'],
@@ -7298,6 +7323,7 @@ const ICONS = {
   play: ['M6 3l14 9-14 9V3z'],
   stop: ['r:5,5,14,14,2.5'],
   plus: ['M5 12h14', 'M12 5v14'],
+  box: ['M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z', 'M12 22V12', 'M3.29 7L12 12l8.71-5', 'M7.5 4.27l9 5.15'],
   arrowUp: ['M12 19V5', 'M5 12l7-7 7 7'],
   arrowDown: ['M12 5v14', 'M19 12l-7 7-7-7'],
   minus: ['M5 12h14'],
@@ -7549,7 +7575,8 @@ function customerFields(initialName = '', initialPhone = '', phoneRequired = fal
     suggestions.replaceChildren();
     if (text.length < 2 && digits.length < 4) return;
     // People on the credit list are suggested too, even before their first visit.
-    const customers = state.Customers || [];
+    // A deleted customer's row is emptied and left out.
+    const customers = (state.Customers || []).filter(c => c.name);
     const creditOnly = (state.CreditAccounts || []).filter(a => !customers.some(c => c.name.toLowerCase() === a.name.toLowerCase()))
       .map(a => ({ name: a.name, phone: ((state.CreditDetails || []).find(d => d.id === a.id) || {}).phone || '' }));
     const found = customers.concat(creditOnly).filter(c =>(text.length >= 2 && c.name.toLowerCase().includes(text)) || (digits.length >= 4 && String(c.phone).replace(/\D/g, '').includes(digits)))
@@ -8523,7 +8550,7 @@ function productPicker(onchange) {
         h('button', { type: 'button', 'aria-label': 'One more ' + p.name, onclick: e => { e.stopPropagation(); change(p.id, quantity + 1); } }, icon('plus'))) : h('span', 'tile-add', icon('plus'), 'Add');
       grid.append(h('div', { class: 'tile' + (quantity ? ' on' : ''), role: 'button', tabindex: '0', data: { product: p.id },
         onclick: () => change(p.id, quantity + 1), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); change(p.id, quantity + 1); } } },
-      h('span', 'tile-head', glyph(p.category === 'Snacks' ? 'snack' : 'drink', quantity ? 'jade' : ''), h('span', 'tile-text', h('span', { class: 'tile-name', text: p.name }), h('span', { class: 'tile-price', text: money(p.pricePaise) }), stockNote(p, quantity))), stepper));
+      h('span', 'tile-head', glyph(productIcon(p.category), quantity ? 'jade' : ''), h('span', 'tile-text', h('span', { class: 'tile-name', text: p.name }), h('span', { class: 'tile-price', text: money(p.pricePaise) }), stockNote(p, quantity))), stepper));
     }
   }
   draw();
@@ -10459,11 +10486,13 @@ function reservationCard(r) {
 let salePicker = null, saleProducts = '', saleCustomer = null, salePay = { method: 'cash' }, salePaint = () => {};
 // New items one after another: name, Enter, price, Enter, and the next. The kind stays chosen and the items just added
 // are listed; Done (or ✕) closes. An existing item is edited on its own.
-function productSheet(p, kind, added = []) {
+// want 'stock' puts the cursor in Stock (Enable stock on a menu card).
+function productSheet(p, kind, added = [], want = '') {
   let name, category, price, available, stock;
   openSheet({
     title: p ? 'Edit item' : 'Add item',
     icon: 'menu',
+    focus: want === 'stock' ? '[data-field=product-stock]' : undefined,
     build(ui) {
       name = name || textInput({ value: p ? p.name : '', 'aria-label': 'Item name', data: { field: 'product-name' } });
       price = price || h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: p ? String(p.pricePaise / 100) : '', 'aria-label': 'Price', data: { field: 'product-price' } });
@@ -10539,83 +10568,44 @@ function reconcileSheet(p, back) {
   });
   qty.focus();
 }
-// Count stock (owner, 30 October): every item kept in stock in one list, under its kind; type what is on the shelf (left empty,
-// it stays as it is); only the ones that differ are saved, each a Stock count line.
-function countSheet() {
-  const typed = new Map();
-  openSheet({
-    title: 'Count stock',
-    icon: 'menu',
-    focus: false,
-    build(ui) {
-      const kept = state.Products.filter(p => p.available !== 'removed' && stockLeft(p) !== null);
-      const differs = () => [...typed].filter(([id, v]) => Number(v) !== stockLeft(kept.find(p => p.id === id))).length;
-      // Typing changes only its own line and the button, so the cursor stays in the box.
-      const paint = () => {
-        const changed = differs(), button = current.primaryButton;
-        button.textContent = changed ? 'Save count · ' + changed + (changed === 1 ? ' change' : ' changes') : 'Save count';
-        button.disabled = !changed;
-      };
-      let first = null;
-      for (const [kind, label, glyphName] of PRODUCT_KINDS) {
-        const mine = kept.filter(p => p.category === kind).sort((a, b) => a.name.localeCompare(b.name));
-        if (!mine.length) continue;
-        ui.body.append(h('div', 'group-title', icon(glyphName), label), h('div', { class: 'lines', data: { field: 'count-' + kind } }, mine.map(p => {
-          const diff = h('span', { class: 'count-diff' });
-          const box = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', value: typed.has(p.id) ? typed.get(p.id) : '', 'aria-label': 'Counted ' + p.name, data: { count: p.id } });
-          const show = () => {
-            const d = box.value === '' ? 0 : Number(box.value) - stockLeft(p);
-            diff.className = 'count-diff' + (d > 0 ? ' plus' : d < 0 ? ' minus' : '');
-            diff.textContent = d > 0 ? '+' + d : d < 0 ? '−' + -d : '';
-          };
-          box.oninput = () => {
-            if (box.value === '') typed.delete(p.id);
-            else typed.set(p.id, box.value);
-            show();
-            paint();
-          };
-          show();
-          first = first || box;
-          return h('div', { class: 'line count-line', data: { countItem: p.id } },
-            h('div', 'line-main', h('b', { text: p.name }), h('span', { class: 'small muted', text: 'App says ' + stockLeft(p) })),
-            diff, h('div', 'count-box', box));
-        })));
-      }
-      ui.primary('Save count', true);
-      paint();
-      if (first) first.focus();
-    },
-    command() {
-      const counts = [...typed].map(([productId, v]) => ({ productId, count: Number(v) }));
-      if (counts.some(x => !Number.isInteger(x.count) || x.count < 0)) throw new Error('Enter whole numbers.');
-      return { type: 'STOCK_COUNT', counts: counts.filter(x => x.count !== stockLeft(state.Products.find(p => p.id === x.productId))) };
-    },
-    then(result) {
-      closeSheet();
-      render();
-      return { text: result.message };
-    }
-  });
-}
+// As the owner's picture (31 October), without pictures (1 November: "forget pictures. just make sure the card looks neat and
+// premium"): its kind's icon in a tinted tile, its name and price, ⋮ at the top right, and a stock bar across
+// the foot: In stock (green), Low stock at 10 or fewer (amber), Out of stock (red), or Stock not tracked, with Reconcile or
+// Enable stock at its end. The card opens the item.
 function menuCard(p) {
-  const kept = stockLeft(p) !== null, off = p.available !== 'yes';
-  return h('div', { class: 'menu-card' + (off ? ' off' : ''), role: 'button', tabindex: '0', data: { product: p.id }, onclick: () => productSheet(p), onkeydown: e => { if (e.key === 'Enter') productSheet(p); } },
-    h('div', 'menu-card-top', glyph(productIcon(p.category), '', 'sm'), h('b', { class: 'menu-card-name', text: p.name }), off ? h('span', { class: 'badge', text: 'Not available' }) : null),
-    h('div', { class: 'menu-card-price num', text: money(p.pricePaise) }),
-    h('div', 'menu-card-stock',
-      kept ? stockNote(p) : h('span', { class: 'muted small', text: 'No stock kept' }),
-      kept
-        ? btn('Reconcile', e => { e.stopPropagation(); reconcileSheet(p, null); }, 'quiet', { data: { action: 'reconcile' } })
-        : btn('Keep stock', e => { e.stopPropagation(); productSheet(p); }, 'quiet', { data: { action: 'keep-stock' } })));
+  const left = stockLeft(p), off = p.available !== 'yes';
+  const tone = left === null ? 'none' : left <= 0 ? 'out' : left <= STOCK_LOW ? 'low' : 'in';
+  const words = { in: 'In stock: ' + left, low: 'Low stock: ' + left, out: 'Out of stock', none: 'Stock not tracked' }[tone];
+  // Reconcile (or Enable stock) is on the card itself, at the end of the stock bar, never only in the ⋮ (owner, 1 November).
+  const more = menu([
+    ['Edit item', () => productSheet(p), false, 'pencil'],
+    ['Remove item', () => removeProductAsk(p, more.querySelector('.icon-btn')), true, 'trash']
+  ], 'More for ' + p.name);
+  const pill = h('div', { class: 'stock-pill ' + tone, data: { stockPill: p.id } }, icon('box'), h('span', { text: words }),
+    left === null
+      ? btn('Enable stock', e => { e.stopPropagation(); productSheet(p, null, [], 'stock'); }, 'quiet', { data: { action: 'keep-stock' } })
+      : btn('Reconcile', e => { e.stopPropagation(); reconcileSheet(p, null); }, 'quiet', { data: { action: 'reconcile' } }));
+  return h('div', { class: 'menu-card' + (off ? ' off' : ''), role: 'button', tabindex: '0', data: { product: p.id }, onclick: () => productSheet(p), onkeydown: e => { if (e.key === 'Enter' && e.target === e.currentTarget) productSheet(p); } },
+    h('div', 'menu-card-top',
+      h('span', { class: 'menu-card-icon ' + productIcon(p.category) }, icon(productIcon(p.category))),
+      h('div', 'menu-card-text', h('b', { class: 'menu-card-name', text: p.name }), h('span', { class: 'menu-card-price num', text: money(p.pricePaise) }), off ? h('span', { class: 'badge', text: 'Not available' }) : null),
+      h('div', { class: 'menu-card-more', onclick: e => e.stopPropagation() }, more)),
+    pill);
+}
+// Remove from the ⋮, asked there and then. Old bills keep the item's name and price.
+function removeProductAsk(p, anchor) {
+  popover(anchor, h('b', { class: 'popover-title', text: 'Remove ' + p.name + '?' }), h('span', { class: 'muted', text: 'Old bills keep its name and price.' }),
+    h('div', 'popover-foot',
+      btn([icon('trash'), 'Remove'], () => { closePopover(); runCommand({ type: 'REMOVE_PRODUCT', id: p.id, revision: p.revision }, () => render()); }, 'danger', { data: { action: 'remove-product-yes' } }),
+      btn('No', closePopover, 'quiet', { data: { action: 'remove-product-no' } })));
 }
 // The menu is edited under Settings.
 const menuPage = {
   bar(bar) {
     bar.append(btn([icon('plus'), 'Add item'], () => productSheet(null), 'primary', { data: { action: 'add-product' } }));
-    if (state.Products.some(p => p.available !== 'removed' && stockLeft(p) !== null)) bar.append(btn([icon('check'), 'Count stock'], countSheet, 'outline', { data: { action: 'count-stock' } }));
   },
-  // Under Snacks, Beverages and Ice cream, a card for each item (owner, 30 October: "make beautiful cards for each item"):
-  // its name and price, how many are left with Reconcile beside it, or Keep stock; the card opens the item.
+  // Under Snacks, Beverages and Ice cream, each with its icon and how many items, a card for each item (owner, 30 October:
+  // "make beautiful cards for each item").
   render(target) {
     const items = state.Products.filter(p => p.available !== 'removed');
     if (!items.length) {
@@ -10626,7 +10616,7 @@ const menuPage = {
       const mine = items.filter(p => p.category === kind).sort((a, b) => a.name.localeCompare(b.name));
       if (!mine.length) continue;
       target.append(h('section', { class: 'menu-group', data: { menuKind: kind } },
-        h('div', 'group-title', icon(glyphName), label, h('span', { class: 'group-sum', text: mine.length + (mine.length === 1 ? ' item' : ' items') })),
+        h('div', 'group-title', glyph(glyphName), label, h('span', { class: 'group-sum', text: mine.length + (mine.length === 1 ? ' item' : ' items') })),
         h('div', 'menu-cards', mine.map(menuCard))));
     }
   }
@@ -11189,13 +11179,20 @@ function customerSheet(c) {
       notes = notes || textInput({ value: c ? c.notes : '', 'aria-label': 'Notes' });
       ui.body.append(field('Name', name), field('Mobile (optional)', phone), field('Notes (optional)', notes));
       ui.primary('Save');
-      if (c) ui.foot.append(h('div', 'foot-links', btn([icon('bills'), 'See their bills'], () => { closeSheet(); billQuery.text = c.phone || c.name; billQuery.range = 'all'; billQuery.status = 'all'; go('history'); }, 'quiet')));
+      if (c) ui.foot.append(h('div', 'foot-links', btn([icon('trash'), 'Delete customer'], e => deleteCustomerAsk(c, e.currentTarget), 'quiet danger-text', { data: { action: 'delete-customer' } }), btn([icon('bills'), 'See their bills'], () => { closeSheet(); billQuery.text = c.phone || c.name; billQuery.range = 'all'; billQuery.status = 'all'; go('history'); }, 'quiet')));
     },
     command() {
       if (!name.value.trim()) throw new Error('Enter the customer name.');
       return { type: 'SAVE_CUSTOMER', id: c && c.id, revision: c && c.revision, name: name.value.trim(), phone: phone.value.trim(), notes: notes.value.trim() };
     }
   });
+}
+// Delete, asked there and then: their bills keep the name; only the customer list loses them.
+function deleteCustomerAsk(c, anchor) {
+  popover(anchor, h('b', { class: 'popover-title', text: 'Delete ' + c.name + '?' }), h('span', { class: 'muted', text: 'Their bills keep the name.' }),
+    h('div', 'popover-foot',
+      btn([icon('trash'), 'Delete'], () => { closePopover(); runCommand({ type: 'DELETE_CUSTOMER', id: c.id, revision: c.revision }, result => { closeSheet(); render(); return { text: result.message }; }); }, 'danger', { data: { action: 'delete-customer-yes' } }),
+      btn('No', closePopover, 'quiet', { data: { action: 'delete-customer-no' } })));
 }
 const customersPage = {
   title: 'Customers',
@@ -11205,13 +11202,17 @@ const customersPage = {
   },
   render(page) {
     const text = customerSearch.trim().toLowerCase(), digits = text.replace(/\D/g, '');
-    const list = (state.Customers || []).filter(c => !text || c.name.toLowerCase().includes(text) || (digits && String(c.phone).replace(/\D/g, '').includes(digits)))
+    const list = (state.Customers || []).filter(c => c.name && (!text || c.name.toLowerCase().includes(text) || (digits && String(c.phone).replace(/\D/g, '').includes(digits))))
       .sort((a, b) => Number(b.lastSeenMs || 0) - Number(a.lastSeenMs || 0)).slice(0, 200);
     page.append(table(
-      [{ label: 'Name' }, { label: 'Mobile' }, { label: 'Visits', class: 'r hide-s' }, { label: 'Last seen', class: 'hide-s' }],
+      [{ label: 'Name' }, { label: 'Mobile' }, { label: 'Visits', class: 'r hide-s' }, { label: 'Last seen', class: 'hide-s' }, { label: '', class: 'r' }],
       list.map(c => h('tr', { class: 'click', data: { customer: c.id }, onclick: () => customerSheet(c) },
         h('td', null, person(c.name, c.notes)),
-        h('td', { class: 'muted', text: c.phone || '—' }), h('td', { class: 'r num hide-s', text: String(c.visits || 0) }), h('td', { class: 'hide-s muted', text: c.lastSeenMs ? when(Number(c.lastSeenMs)) : '—' }))),
+        h('td', { class: 'muted', text: c.phone || '—' }), h('td', { class: 'r num hide-s', text: String(c.visits || 0) }), h('td', { class: 'hide-s muted', text: c.lastSeenMs ? when(Number(c.lastSeenMs)) : '—' }),
+        // Edit and Delete on every row (owner, 31 October).
+        h('td', { class: 'r' }, h('div', 'row-tools',
+          iconButton('pencil', 'Edit ' + c.name, e => { e.stopPropagation(); customerSheet(c); }, { data: { action: 'edit-customer' } }),
+          iconButton('trash', 'Delete ' + c.name, e => { e.stopPropagation(); deleteCustomerAsk(c, e.currentTarget); }, { class: 'danger', data: { action: 'delete-customer' } }))))),
       'No customers yet. They are added when a visit starts.', 'customers'));
   }
 };
