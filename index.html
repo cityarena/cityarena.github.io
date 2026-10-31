@@ -814,6 +814,46 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .tile-text { min-width: 0; display: grid; line-height: 1.3; }
 .tile-name { font-weight: 600; overflow-wrap: anywhere; }
 .tile-price { color: var(--ink-2); font-size: 14px; white-space: nowrap; }
+/* Stock (owner, 30 October): "21 left" quietly; Out of stock in red, which never stops a sale. */
+.stock-note { color: var(--ink-3); font-size: 13px; white-space: nowrap; }
+.stock-note.out { color: var(--danger); font-weight: 600; }
+.stock-note.low { color: var(--warn); font-weight: 600; }
+/* The Count stock list. */
+.count-line .count-box { width: 96px; flex: none; }
+.count-line .count-box input { width: 100%; text-align: right; }
+.count-diff { min-width: 40px; text-align: right; font-weight: 700; }
+.count-diff.plus { color: var(--accent); }
+.count-diff.minus { color: var(--danger); }
+/* Reports → Stock (owner, 31 October): each heading with its icon in its colour; the calculation under the table. */
+.stock-table th { white-space: normal; vertical-align: bottom; }
+.stock-head { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 110px; text-align: right; line-height: 1.25; }
+.stock-chip { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--hover); color: var(--ink-2); }
+.stock-chip svg { width: 14px; height: 14px; }
+.stock-chip.added { background: var(--primary-soft); color: var(--primary); }
+.stock-chip.found { background: var(--accent-soft); color: var(--accent); }
+.stock-chip.missing { background: var(--danger-soft); color: var(--danger); }
+.stock-chip.sold { background: var(--busy-soft); color: var(--busy); }
+.stock-chip.closing { background: var(--gold-soft); color: var(--gold); }
+.stock-num.found:not(.none) { color: var(--accent); }
+.stock-num.missing:not(.none) { color: var(--danger); }
+.stock-num.none { color: var(--ink-3); }
+.stock-sum { margin: 12px 2px 0; color: var(--ink-2); font-size: 14px; }
+.stock-table td:first-child { white-space: nowrap; }
+.stock-row { display: flex; align-items: center; gap: 8px; }
+/* The menu (owner, 30 October): a card for each item under its kind. */
+.menu-group { margin-bottom: 22px; }
+.menu-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.menu-card { display: grid; gap: 8px; padding: 14px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--card); box-shadow: var(--shadow); cursor: pointer; transition: border-color var(--ease), box-shadow var(--ease); }
+.menu-card:hover { border-color: var(--primary-line); }
+.menu-card.off { opacity: 0.6; }
+.menu-card-top { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.menu-card-name { flex: 1; min-width: 0; font-size: 15px; overflow-wrap: anywhere; }
+.menu-card-price { font-size: 20px; font-weight: 700; }
+.menu-card-stock { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; padding-top: 8px; border-top: 1px solid var(--line); }
+.menu-card-stock .stock-note { font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.menu-card-stock .stock-note.out { color: var(--danger); }
+.menu-card-stock .stock-note.low { color: var(--warn); }
+.stock-after { margin: 4px 0 0; color: var(--ink-2); }
 .tile-add { display: flex; align-items: center; justify-content: center; gap: 6px; height: 34px; border: 1px dashed var(--line-strong); border-radius: 8px; color: var(--ink-3); font-size: 13px; font-weight: 600; transition: color var(--ease), border-color var(--ease); }
 .tile-add svg { width: 14px; height: 14px; }
 .tile:hover .tile-add { color: var(--ink); border-color: var(--line-bold); }
@@ -2559,6 +2599,57 @@ var ArenaSales=(function(){
  function tab(s,id){var t=row(s.Tabs,id);check(t.status==='open','This tab is finalized. Use a financial reversal to correct it.');return t;}
  function amount(v){check(Number.isSafeInteger(v)&&v>=0&&v<=100000000,'Invalid price.');return v;}
  function quantity(v){check(Number.isInteger(v)&&v>=1&&v<=999,'Invalid quantity.');return v;}
+
+ /* Stock (owner, 30 October), kept only for an item given a count. The count is a Setting, stock-<item>, {count, since}: no
+    Sheet column changes. What was done by hand (set, new stock, plus, minus, off) and a sale found beyond the count are lines
+    of kind 'stock' in Corrections (targetId the item, field the move, old and new count, the reason). A sale is not a line:
+    the bills say what was sold, so the report reads them. The count never goes below 0: a sale beyond it is recorded as
+    found (owner: "when i add to the bill, it can automatically add to the stock"). */
+ var STOCK_MOVES=['set','new','plus','minus','off'];
+ function stockOf(s,pid){var r=(s.Settings||[]).find(function(x){return x.id==='stock-'+pid;});if(!r||r.value==='')return null;try{var v=JSON.parse(r.value);return v&&Number.isInteger(v.count)?v:null;}catch(e){return null;}}
+ function setStock(s,pid,v){s.Settings=s.Settings||[];var r=s.Settings.find(function(x){return x.id==='stock-'+pid;}),keep={count:v&&v.count,since:v&&v.since};var value=v?JSON.stringify(keep):'';if(r)r.value=value;else s.Settings.push({id:'stock-'+pid,value:value});}
+ function stockLine(s,id,pid,move,before,after,why,actor,now){s.Corrections=s.Corrections||[];s.Corrections.push({id:id,kind:'stock',targetId:pid,field:move,oldValue:before===null?'':String(before),newValue:after===null?'':String(after),reason:why||'',actor:actor&&actor.username||'',createdMs:now});}
+ // Sold: taken from the count; beyond it, the rest is recorded as found first.
+ function takeStock(s,pid,q,actor,now,id){var st=stockOf(s,pid);if(!st||q<=0)return;if(st.count<q){stockLine(s,id+'-found',pid,'found',st.count,q,'',actor,now);st.count=q;}st.count-=q;setStock(s,pid,st);}
+ // Off a bill again (− or the bin): back on the shelf, unless it went on the bill before the count was kept.
+ function returnStock(s,pid,q,addedMs){var st=stockOf(s,pid);if(!st||q<=0||Number(addedMs)<Number(st.since))return;st.count+=q;setStock(s,pid,st);}
+ function stockMove(s,c,actor,now,id){
+  var p=row(s.Products,c.productId);check(p.available!=='removed','This item was removed from the menu.');check(STOCK_MOVES.indexOf(c.move)>=0,'Choose New stock, Plus or Minus.');
+  var why=c.reason==null?'':String(c.reason).trim();check(why.length<=200,'The reason is too long.');
+  var st=stockOf(s,p.id);
+  if(c.move==='off'){check(!!st,'Stock is not kept for this item.');stockLine(s,id,p.id,'off',st.count,null,why,actor,now);setStock(s,p.id,null);return {productId:p.id,message:'Stock no longer kept for '+p.name+'.'};}
+  var n=c.quantity;check(Number.isInteger(n)&&n>=(c.move==='set'?0:1)&&n<=100000,'Enter how many.');
+  if(c.move!=='set')check(!!st,'Give '+p.name+' a stock count first.');
+  var before=st?st.count:null,after=c.move==='set'?n:c.move==='minus'?before-n:before+n;check(after>=0,'Only '+before+' in stock.');
+  stockLine(s,id,p.id,c.move,before,after,why,actor,now);setStock(s,p.id,{count:after,since:st?st.since:now});
+  return {productId:p.id,count:after,message:p.name+': '+after+' in stock.'};
+ }
+ // What happened to each item's stock between two moments: at the start, added (counts set and new stock), sold (from the
+ // bills), corrected (plus, minus, found, off) and at the end, with every line by date (sales one line a day).
+ function stockReport(s,fromMs,toMs){
+  var lines={};(s.Corrections||[]).forEach(function(c){if(c.kind==='stock')(lines[c.targetId]=lines[c.targetId]||[]).push(c);});
+  var tracked=(s.Products||[]).filter(function(p){return stockOf(s,p.id)||lines[p.id];});
+  var dayOf=function(ms){return new Date(Number(ms)+19800000).toISOString().slice(0,10);};
+  return tracked.map(function(p){
+   var own=(lines[p.id]||[]).slice().sort(function(a,b){return a.createdMs-b.createdMs;}),periods=[],open=null;
+   own.forEach(function(c){if(c.field==='set'&&c.oldValue===''&&open===null)open=Number(c.createdMs);if(c.field==='off'&&open!==null){periods.push([open,Number(c.createdMs)]);open=null;}});
+   if(open!==null)periods.push([open,Infinity]);
+   var inside=function(ms){return periods.some(function(r){return ms>=r[0]&&ms<r[1];});};
+   var events=own.map(function(c){var was=c.oldValue===''?0:Number(c.oldValue),now2=c.newValue===''?0:Number(c.newValue);return {at:Number(c.createdMs),move:c.field,delta:now2-was,reason:c.reason,before:c.oldValue,after:c.newValue};});
+   (s.Orders||[]).forEach(function(o){if(o.productId===p.id&&o.status!=='void'&&inside(Number(o.createdMs)))events.push({at:Number(o.createdMs),move:'sold',delta:-Number(o.quantity)});});
+   var st=stockOf(s,p.id),end=st?st.count:0;
+   events.forEach(function(e){if(e.at>=toMs)end-=e.delta;});
+   // Numbers that add across (owner, 30-31 October): closing = opening + added + found - missing - sold. Opening is what was
+   // there when the dates start (the last closing), and the first count given to an item is its opening stock (owner: "what
+   // point is the purpose of opening stock"); added is new stock; found: Plus, found when sold, a count above; missing: Minus.
+   var range=events.filter(function(e){return e.at>=fromMs&&e.at<toMs;}),start=end,added=0,sold=0,plus=0,minus=0,days={},out=[];
+   range.forEach(function(e){if(e.move==='set'&&e.before==='')return;start-=e.delta;if(e.move==='sold'){sold-=e.delta;var k=dayOf(e.at);days[k]=(days[k]||0)-e.delta;}else if(e.move==='new')added+=e.delta;else if(e.delta>0)plus+=e.delta;else minus-=e.delta;});
+   range.forEach(function(e){if(e.move!=='sold')out.push({at:e.at,move:e.move==='set'&&e.before===''?'start':e.move,quantity:e.delta,count:e.after===''?null:Number(e.after),reason:e.reason||''});});
+   Object.keys(days).forEach(function(k){out.push({at:Date.parse(k+'T23:59:00+05:30'),move:'sold',quantity:-days[k],day:k});});
+   out.sort(function(a,b){return a.at-b.at;});
+   return {productId:p.id,name:p.name,category:p.category,tracked:!!st,start:start,added:added,plus:plus,sold:sold,minus:minus,end:end,lines:out};
+  });
+ }
  function execute(s,c,actor,now,id){
   check(actor&&actor.role==='owner','Access denied.');
   if(c.type==='ADD_ITEMS'){
@@ -2576,12 +2667,24 @@ var ArenaSales=(function(){
   if(c.type==='SAVE_PRODUCT'){
    check(['Snacks','Beverages','Ice cream'].indexOf(c.category)>=0,'Invalid product category.');check(typeof c.available==='boolean','Invalid availability.');
    var old=c.id?row(s.Products,c.id):null;if(old)check(c.revision===old.revision,'This product changed on another device. Refresh before editing.');if(old)check(old.available!=='removed','This item was removed from the menu.');
-   var product={id:old?old.id:id,name:text(c.name,80),category:c.category,pricePaise:amount(c.pricePaise),available:c.available?'yes':'no',revision:old?old.revision+1:1};if(old)Object.assign(old,product);else s.Products.push(product);return {productId:product.id,message:'Product saved.'};
+   var product={id:old?old.id:id,name:text(c.name,80),category:c.category,pricePaise:amount(c.pricePaise),available:c.available?'yes':'no',revision:old?old.revision+1:1};if(old)Object.assign(old,product);else s.Products.push(product);
+   // A stock count given with the item (optional) starts its stock.
+   if(c.stock!=null&&c.stock!==''&&!stockOf(s,product.id))stockMove(s,{productId:product.id,move:'set',quantity:c.stock},actor,now,id+'-stock');
+   return {productId:product.id,message:'Product saved.'};
   }
   // Off the menu for good: the row stays (old bills keep their own name and price), marked removed, so it is never sold again.
   if(c.type==='REMOVE_PRODUCT'){
    var gone=row(s.Products,c.id);check(gone.available!=='removed','This item was already removed.');check(c.revision===gone.revision,'This product changed on another device. Refresh before editing.');
    gone.available='removed';gone.revision++;return {productId:gone.id,message:gone.name+' removed from the menu.'};
+  }
+  if(c.type==='STOCK')return stockMove(s,c,actor,now,id);
+  // Count stock (owner, 30 October): what is really on the shelf, for any items at once; each that differs is a line.
+  if(c.type==='STOCK_COUNT'){
+   check(Array.isArray(c.counts)&&c.counts.length>=1&&c.counts.length<=200&&new Set(c.counts.map(function(x){return x&&x.productId;})).size===c.counts.length,'Enter what you counted.');
+   var changed=0;
+   c.counts.forEach(function(x,i){var p=row(s.Products,x.productId),st=stockOf(s,p.id);check(!!st,'Stock is not kept for '+p.name+'.');check(Number.isInteger(x.count)&&x.count>=0&&x.count<=100000,'Enter what you counted for '+p.name+'.');
+    if(x.count===st.count)return;stockLine(s,id+'-'+i,p.id,'count',st.count,x.count,'',actor,now);st.count=x.count;setStock(s,p.id,st);changed++;});
+   return {changed:changed,message:changed?'Stock counted: '+changed+(changed===1?' item':' items')+' changed.':'Stock counted: everything matched.'};
   }
   if(c.type==='QUICK_TAB'){var t={id:id,customer:text(c.customer||'Walk-in',80),phone:c.phone?text(c.phone,30):'',status:'open',createdMs:now,kind:'quick_sale'};s.Tabs.push(t);if(typeof ArenaCustomers!=='undefined'&&(t.phone||t.customer.toLowerCase()!=='walk-in'))ArenaCustomers.touch(s,t.customer,t.phone,now,id+'-customer');
    // The counter flow sends the basket with the tab, so one save opens the sale and adds every item.
@@ -2601,12 +2704,16 @@ var ArenaSales=(function(){
    // the same thing"): one line, its count raised. Not an item bought for one player (OrderOwners), nor a line with a reason.
    var buyer=c.purchaser?text(c.purchaser,80):target.customer,owned=(s.OrderOwners||[]).map(function(w){return w.id;});
    var same=c.merge===true&&product?(s.Orders||[]).find(function(o){return o.tabId===target.id&&o.status==='active'&&o.productId===product.id&&Number(o.unitPricePaise)===price&&o.purchaser===buyer&&!o.reason&&owned.indexOf(o.id)<0;}):null;
+   if(product)takeStock(s,product.id,q,actor,now,id);
    if(same){var more=Number(same.quantity)+q;check(price*more<=100000000,'Charge exceeds supported amount.');same.quantity=more;same.totalPaise=price*more;same.revision=Number(same.revision)+1;return {orderId:same.id,message:'Charge added to '+target.customer+'.'};}
    s.Orders.push({id:id,tabId:target.id,productId:product?product.id:'',label:label,category:category,quantity:q,unitPricePaise:price,totalPaise:total,createdMs:now,status:'active',purchaser:c.purchaser?text(c.purchaser,80):target.customer,durationMinutes:duration,ratesJson:rates,reason:c.reason?text(c.reason,300):'',revision:1});return {orderId:id,message:'Charge added to '+target.customer+'.'};
   }
   if(c.type==='UPDATE_ORDER'){
    var order=row(s.Orders,c.id);tab(s,order.tabId);check(order.category!=='Turf'&&order.category!=='Carried','The turf charge follows the booking. Change the booking instead.');check(c.revision===order.revision,'This order changed on another device. Refresh before editing.');check(order.status==='active','This order was already voided.');text(c.reason,300);
-   check(c.quantity===0||quantity(c.quantity),'Invalid quantity.');check(order.unitPricePaise*c.quantity<=100000000,'Charge exceeds supported amount.');order.quantity=c.quantity;order.totalPaise=order.unitPricePaise*c.quantity;order.status=c.quantity?'active':'void';order.revision++;order.reason=c.reason;return {orderId:order.id,message:'Order corrected. Original price retained.'};
+   check(c.quantity===0||quantity(c.quantity),'Invalid quantity.');check(order.unitPricePaise*c.quantity<=100000000,'Charge exceeds supported amount.');
+   // One more takes from the stock, one fewer or the bin puts it back.
+   if(order.productId){var change=c.quantity-Number(order.quantity);if(change>0)takeStock(s,order.productId,change,actor,now,id);else returnStock(s,order.productId,-change,order.createdMs);}
+   order.quantity=c.quantity;order.totalPaise=order.unitPricePaise*c.quantity;order.status=c.quantity?'active':'void';order.revision++;order.reason=c.reason;return {orderId:order.id,message:'Order corrected. Original price retained.'};
   }
   // Some of a group's snacks and drinks go with the players paying now: a whole line moves; part of a line is split in two.
   if(c.type==='TAKE_ITEMS'){
@@ -2627,7 +2734,7 @@ var ArenaSales=(function(){
   var source=tab(s,c.sourceTabId),destination=tab(s,c.tabId);check(source.id!==destination.id,'Invalid consolidation target.');check(!s.Segments.some(function(g){return g.tabId===source.id&&g.status==='active';}),'This source tab still has active players.');
   var moved=0;s.Segments.concat(s.Orders).forEach(function(x){if(x.tabId===source.id){x.tabId=destination.id;moved++;}});(s.Advances||[]).forEach(function(a){if(a.tabId===source.id&&a.status==='held')a.tabId=destination.id;});check(moved>0,'This source tab has no charges.');source.status='merged';return {tabId:destination.id,message:'Added to '+destination.customer+'’s bill.'};
  }
- return {handles:function(t){return ['SAVE_PRODUCT','REMOVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS'].indexOf(t)>=0;},execute:execute};
+ return {handles:function(t){return ['SAVE_PRODUCT','REMOVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS','STOCK','STOCK_COUNT'].indexOf(t)>=0;},execute:execute,stockOf:stockOf,stockReport:stockReport};
 })();
 
 
@@ -7191,6 +7298,8 @@ const ICONS = {
   play: ['M6 3l14 9-14 9V3z'],
   stop: ['r:5,5,14,14,2.5'],
   plus: ['M5 12h14', 'M12 5v14'],
+  arrowUp: ['M12 19V5', 'M5 12l7-7 7 7'],
+  arrowDown: ['M12 5v14', 'M19 12l-7 7-7-7'],
   minus: ['M5 12h14'],
   plusCircle: ['c:12,12,10', 'M8 12h8', 'M12 8v8'],
   // Money
@@ -8378,6 +8487,18 @@ function addControllersSheet(unit, picked) {
   });
 }
 
+// An item's stock (owner, 30 October): its count, or null when none is kept; shown as "21 left", or Out of stock in red,
+// which never stops it being added (a sale beyond the count is recorded as found).
+const stockLeft = p => { const kept = ArenaSales.stockOf(state, p.id); return kept ? kept.count : null; };
+// Low at 10 or fewer, for every item (owner, 31 October: "any item when stock is 10 or below turn to amber low warning").
+const STOCK_LOW = 10;
+// wanting: how many are being chosen now; more than are left turns it red, "Only 2 left" (owner, 30 October).
+function stockNote(p, wanting = 0) {
+  const n = stockLeft(p);
+  if (n === null) return null;
+  const short = n <= 0 || wanting > n, low = !short && n <= STOCK_LOW;
+  return h('span', { class: 'stock-note' + (short ? ' out' : low ? ' low' : ''), data: { stock: p.id }, text: n <= 0 ? 'Out of stock' : wanting > n ? 'Only ' + n + ' left' : low ? 'Low · ' + n + ' left' : n + ' left' });
+}
 // ---------- Menu picker: tap a tile to add one; the stepper appears on the tile ----------
 function productPicker(onchange) {
   const products = state.Products.filter(p => p.available === 'yes'), cart = new Map();
@@ -8402,7 +8523,7 @@ function productPicker(onchange) {
         h('button', { type: 'button', 'aria-label': 'One more ' + p.name, onclick: e => { e.stopPropagation(); change(p.id, quantity + 1); } }, icon('plus'))) : h('span', 'tile-add', icon('plus'), 'Add');
       grid.append(h('div', { class: 'tile' + (quantity ? ' on' : ''), role: 'button', tabindex: '0', data: { product: p.id },
         onclick: () => change(p.id, quantity + 1), onkeydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); change(p.id, quantity + 1); } } },
-      h('span', 'tile-head', glyph(p.category === 'Snacks' ? 'snack' : 'drink', quantity ? 'jade' : ''), h('span', 'tile-text', h('span', { class: 'tile-name', text: p.name }), h('span', { class: 'tile-price', text: money(p.pricePaise) }))), stepper));
+      h('span', 'tile-head', glyph(p.category === 'Snacks' ? 'snack' : 'drink', quantity ? 'jade' : ''), h('span', 'tile-text', h('span', { class: 'tile-name', text: p.name }), h('span', { class: 'tile-price', text: money(p.pricePaise) }), stockNote(p, quantity))), stepper));
     }
   }
   draw();
@@ -10339,7 +10460,7 @@ let salePicker = null, saleProducts = '', saleCustomer = null, salePay = { metho
 // New items one after another: name, Enter, price, Enter, and the next. The kind stays chosen and the items just added
 // are listed; Done (or ✕) closes. An existing item is edited on its own.
 function productSheet(p, kind, added = []) {
-  let name, category, price, available;
+  let name, category, price, available, stock;
   openSheet({
     title: p ? 'Edit item' : 'Add item',
     icon: 'menu',
@@ -10351,6 +10472,10 @@ function productSheet(p, kind, added = []) {
       category = category || segmented(PRODUCT_KINDS, p ? p.category : kind || 'Snacks', () => { if (!p) name.focus(); });
       available = available || segmented([['yes', 'Available'], ['no', 'Not available']], p ? p.available : 'yes');
       ui.body.append(field('Name', name), field('Price (₹)', price), h('div', 'field', h('span', { text: 'Category' }), category.node));
+      // Stock (owner, 30 October), optional: a count starts it; once kept, Reconcile changes it.
+      stock = stock || h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', 'aria-label': 'Stock', data: { field: 'product-stock' } });
+      if (!p || stockLeft(p) === null) ui.body.append(field('Stock (optional)', stock));
+      else ui.body.append(h('div', 'field', h('span', { text: 'Stock' }), h('div', 'stock-row', stockNote(p), btn('Reconcile', () => reconcileSheet(p, () => productSheet(p)), 'quiet', { data: { action: 'reconcile' } }))));
       if (p) ui.body.append(h('div', 'field', h('span', { text: 'Status' }), available.node));
       if (added.length) ui.body.append(h('div', 'field', h('span', { text: 'Added' }), h('div', { class: 'chips', data: { added: 'products' } }, added.map(x => h('span', { class: 'chip', text: x })))));
       ui.primary(p ? 'Save item' : 'Add item');
@@ -10368,7 +10493,9 @@ function productSheet(p, kind, added = []) {
     command() {
       if (!name.value.trim()) throw new Error('Enter the item name.');
       if (price.value === '' || !(Number(price.value) >= 0)) throw new Error('Enter the price.');
-      return { type: 'SAVE_PRODUCT', id: p && p.id, revision: p && p.revision, name: name.value.trim(), category: category.value(), pricePaise: toPaise(price.value), available: available.value() === 'yes' };
+      const count = stock.value === '' ? undefined : Number(stock.value);
+      if (count !== undefined && !(Number.isInteger(count) && count >= 0)) throw new Error('Enter the stock as a whole number.');
+      return { type: 'SAVE_PRODUCT', id: p && p.id, revision: p && p.revision, name: name.value.trim(), category: category.value(), pricePaise: toPaise(price.value), available: available.value() === 'yes', stock: count };
     },
     then(result, command) {
       if (p) return closeSheet();
@@ -10376,18 +10503,132 @@ function productSheet(p, kind, added = []) {
     }
   });
 }
+// Reconcile (owner, 30 October: "either new stock, minus or plus"): how many, an optional reason, and the count it will be.
+function reconcileSheet(p, back) {
+  let move = 'new';
+  const qty = h('input', { type: 'number', min: '1', step: '1', inputmode: 'numeric', 'aria-label': 'How many', data: { field: 'stock-qty' } });
+  const reason = textInput({ 'aria-label': 'Reason', data: { field: 'stock-reason' } });
+  openSheet({
+    title: 'Reconcile · ' + p.name,
+    icon: 'menu',
+    focus: false,
+    onClose: back || undefined,
+    build(ui) {
+      const now = stockLeft(p) || 0, n = Number(qty.value) || 0, after = move === 'minus' ? now - n : now + n;
+      const entry = segmented([['new', 'New stock', 'plus'], ['plus', 'Plus', 'plus'], ['minus', 'Minus', 'minus']], move, value => { move = value; ui.redraw(); qty.focus(); });
+      entry.node.dataset.field = 'stock-move';
+      qty.oninput = () => ui.redraw();
+      ui.body.append(h('div', 'field', h('span', { text: 'Entry' }), entry.node), field('How many', qty), field('Reason (optional)', reason),
+        h('p', { class: 'stock-after', data: { field: 'stock-after' }, text: 'In stock: ' + now + (n ? ' → ' + after : '') }));
+      ui.primary(n ? 'Save · ' + after + ' in stock' : 'Save', !n || after < 0);
+    },
+    command() {
+      const n = Number(qty.value);
+      if (!Number.isInteger(n) || n < 1) throw new Error('Enter how many.');
+      return { type: 'STOCK', productId: p.id, move, quantity: n, reason: reason.value.trim() };
+    },
+    then(result) {
+      render();
+      if (back) {
+        back();
+        return null;
+      }
+      closeSheet();
+      return { text: result.message };
+    }
+  });
+  qty.focus();
+}
+// Count stock (owner, 30 October): every item kept in stock in one list, under its kind; type what is on the shelf (left empty,
+// it stays as it is); only the ones that differ are saved, each a Stock count line.
+function countSheet() {
+  const typed = new Map();
+  openSheet({
+    title: 'Count stock',
+    icon: 'menu',
+    focus: false,
+    build(ui) {
+      const kept = state.Products.filter(p => p.available !== 'removed' && stockLeft(p) !== null);
+      const differs = () => [...typed].filter(([id, v]) => Number(v) !== stockLeft(kept.find(p => p.id === id))).length;
+      // Typing changes only its own line and the button, so the cursor stays in the box.
+      const paint = () => {
+        const changed = differs(), button = current.primaryButton;
+        button.textContent = changed ? 'Save count · ' + changed + (changed === 1 ? ' change' : ' changes') : 'Save count';
+        button.disabled = !changed;
+      };
+      let first = null;
+      for (const [kind, label, glyphName] of PRODUCT_KINDS) {
+        const mine = kept.filter(p => p.category === kind).sort((a, b) => a.name.localeCompare(b.name));
+        if (!mine.length) continue;
+        ui.body.append(h('div', 'group-title', icon(glyphName), label), h('div', { class: 'lines', data: { field: 'count-' + kind } }, mine.map(p => {
+          const diff = h('span', { class: 'count-diff' });
+          const box = h('input', { type: 'number', min: '0', step: '1', inputmode: 'numeric', value: typed.has(p.id) ? typed.get(p.id) : '', 'aria-label': 'Counted ' + p.name, data: { count: p.id } });
+          const show = () => {
+            const d = box.value === '' ? 0 : Number(box.value) - stockLeft(p);
+            diff.className = 'count-diff' + (d > 0 ? ' plus' : d < 0 ? ' minus' : '');
+            diff.textContent = d > 0 ? '+' + d : d < 0 ? '−' + -d : '';
+          };
+          box.oninput = () => {
+            if (box.value === '') typed.delete(p.id);
+            else typed.set(p.id, box.value);
+            show();
+            paint();
+          };
+          show();
+          first = first || box;
+          return h('div', { class: 'line count-line', data: { countItem: p.id } },
+            h('div', 'line-main', h('b', { text: p.name }), h('span', { class: 'small muted', text: 'App says ' + stockLeft(p) })),
+            diff, h('div', 'count-box', box));
+        })));
+      }
+      ui.primary('Save count', true);
+      paint();
+      if (first) first.focus();
+    },
+    command() {
+      const counts = [...typed].map(([productId, v]) => ({ productId, count: Number(v) }));
+      if (counts.some(x => !Number.isInteger(x.count) || x.count < 0)) throw new Error('Enter whole numbers.');
+      return { type: 'STOCK_COUNT', counts: counts.filter(x => x.count !== stockLeft(state.Products.find(p => p.id === x.productId))) };
+    },
+    then(result) {
+      closeSheet();
+      render();
+      return { text: result.message };
+    }
+  });
+}
+function menuCard(p) {
+  const kept = stockLeft(p) !== null, off = p.available !== 'yes';
+  return h('div', { class: 'menu-card' + (off ? ' off' : ''), role: 'button', tabindex: '0', data: { product: p.id }, onclick: () => productSheet(p), onkeydown: e => { if (e.key === 'Enter') productSheet(p); } },
+    h('div', 'menu-card-top', glyph(productIcon(p.category), '', 'sm'), h('b', { class: 'menu-card-name', text: p.name }), off ? h('span', { class: 'badge', text: 'Not available' }) : null),
+    h('div', { class: 'menu-card-price num', text: money(p.pricePaise) }),
+    h('div', 'menu-card-stock',
+      kept ? stockNote(p) : h('span', { class: 'muted small', text: 'No stock kept' }),
+      kept
+        ? btn('Reconcile', e => { e.stopPropagation(); reconcileSheet(p, null); }, 'quiet', { data: { action: 'reconcile' } })
+        : btn('Keep stock', e => { e.stopPropagation(); productSheet(p); }, 'quiet', { data: { action: 'keep-stock' } })));
+}
 // The menu is edited under Settings.
 const menuPage = {
-  bar(bar) { bar.append(btn([icon('plus'), 'Add item'], () => productSheet(null), 'primary', { data: { action: 'add-product' } })); },
+  bar(bar) {
+    bar.append(btn([icon('plus'), 'Add item'], () => productSheet(null), 'primary', { data: { action: 'add-product' } }));
+    if (state.Products.some(p => p.available !== 'removed' && stockLeft(p) !== null)) bar.append(btn([icon('check'), 'Count stock'], countSheet, 'outline', { data: { action: 'count-stock' } }));
+  },
+  // Under Snacks, Beverages and Ice cream, a card for each item (owner, 30 October: "make beautiful cards for each item"):
+  // its name and price, how many are left with Reconcile beside it, or Keep stock; the card opens the item.
   render(target) {
-    target.append(table(
-      [{ label: 'Item' }, { label: 'Category', class: 'hide-s' }, { label: 'Price', class: 'r' }, { label: 'Status' }],
-      state.Products.filter(p => p.available !== 'removed').sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name)).map(p => h('tr', { class: 'click', data: { product: p.id }, onclick: () => productSheet(p) },
-        h('td', null, h('div', 'cell', glyph(productIcon(p.category), '', 'sm'), h('b', { text: p.name }))),
-        h('td', { class: 'hide-s muted', text: p.category }),
-        h('td', { class: 'r num', text: money(p.pricePaise) }),
-        h('td', null, h('span', { class: 'badge' + (p.available === 'yes' ? ' good' : ''), text: p.available === 'yes' ? 'Available' : 'Not available' })))),
-      'The menu is empty. Add your first item.', 'menu'));
+    const items = state.Products.filter(p => p.available !== 'removed');
+    if (!items.length) {
+      target.append(emptyState('menu', 'The menu is empty. Add your first item.'));
+      return;
+    }
+    for (const [kind, label, glyphName] of PRODUCT_KINDS) {
+      const mine = items.filter(p => p.category === kind).sort((a, b) => a.name.localeCompare(b.name));
+      if (!mine.length) continue;
+      target.append(h('section', { class: 'menu-group', data: { menuKind: kind } },
+        h('div', 'group-title', icon(glyphName), label, h('span', { class: 'group-sum', text: mine.length + (mine.length === 1 ? ' item' : ' items') })),
+        h('div', 'menu-cards', mine.map(menuCard))));
+    }
   }
 };
 // Put the counter basket on a credit account.
@@ -11197,13 +11438,45 @@ const reportsPage = {
         btn([icon('lock'), 'Close day'], () => closeDaySheet(s), 'outline', { data: { action: 'close-day' } }));
     }
 
+    // Stock (owner, 30 October): each item kept in stock, from the start of the range to its end; a row opens its lines.
+    // As the owner laid it out (31 October): what you started with, what came in, the corrections, what was sold, what
+    // remains; each heading with its icon and colour, and the calculation written under the table.
+    const stockRows = reportCache.data.stock || [];
+    const STOCK_COLUMNS = [['start', 'Opening Stock', 'inbox', 'open'], ['added', 'New Stock Added', 'plus', 'added'], ['plus', 'Extra Stock Found', 'arrowUp', 'found'], ['minus', 'Missing Stock', 'arrowDown', 'missing'], ['sold', 'Total Sold', 'sales', 'sold'], ['end', 'Closing Stock', 'checkCircle', 'closing']];
+    const stockPanel = stockRows.length ? h('section', { class: 'rep-card', data: { panel: 'stock' } },
+      h('div', 'rep-head', glyph('menu'), h('h2', { text: 'Stock' }), h('span', { class: 'rep-note', text: period })),
+      h('div', 'table-wrap', h('table', 'list stock-table',
+        h('thead', null, h('tr', null, h('th', { text: 'Item' }), STOCK_COLUMNS.map(([key, label, glyphName, tone]) => h('th', { class: 'r', data: { column: key } }, h('span', 'stock-head', h('i', { class: 'stock-chip ' + tone }, icon(glyphName)), h('span', { text: label })))))),
+        h('tbody', null, stockRows.map(r => h('tr', { class: 'click', data: { stockItem: r.productId }, onclick: () => stockLinesSheet(r, period) },
+          h('td', null, h('b', { text: r.name })),
+          STOCK_COLUMNS.map(([key, , , tone]) => h('td', { class: 'r num stock-num ' + tone + (r[key] ? '' : ' none') }, key === 'end' ? h('b', { text: String(r[key]) }) : String(r[key])))))))),
+      h('p', { class: 'stock-sum', text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' })) : null;
     page.append(
       h('div', 'rep-top', lead, received, creditCard),
       h('div', 'rep-main', floorPanel, counterPanel),
       h('div', 'rep-charts', donut('Floor usage', floorParts, played, 'played', 'By time played', 'reports'), donut('Earnings mix', earnParts, best.label, best.value ? 'earns most' : 'nothing yet', 'Without turf', 'cash')),
+      stockPanel,
       closeBox);
   }
 };
+
+// One item's stock lines in the range, by date: the count set, new stock, plus and minus with their reasons, found when
+// sold, and the sales of each day.
+const STOCK_WORDS = { count: 'Stock count', start: 'Opening stock', new: 'New stock added', plus: 'Extra stock found', minus: 'Missing stock', found: 'Extra stock found · when sold', off: 'Stock stopped', set: 'Count set', sold: 'Sold' };
+function stockLinesSheet(r, period) {
+  openSheet({
+    title: r.name + ' · stock',
+    sub: period,
+    icon: 'menu',
+    focus: false,
+    build(ui) {
+      const signed = n => (n > 0 ? '+' + n : '−' + -n);
+      ui.body.append(h('div', { class: 'lines', data: { field: 'stock-lines' } }, r.lines.length ? r.lines.map(l => h('div', { class: 'line', data: { stockMove: l.move } },
+        h('div', 'line-main', h('b', { text: STOCK_WORDS[l.move] || l.move }), h('span', { class: 'small muted', text: [l.move === 'sold' ? day(l.at) : day(l.at) + ', ' + clock(l.at), l.reason].filter(Boolean).join(' · ') })),
+        h('span', { class: 'line-amount num', text: signed(l.quantity) }))) : h('p', { class: 'muted', text: 'Nothing in these dates.' })));
+    }
+  });
+}
 
 // ---------- Settings ----------
 async function saveAll(commands, done) {
