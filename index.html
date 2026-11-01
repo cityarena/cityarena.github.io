@@ -3775,6 +3775,8 @@ var ArenaTurf = (function () {
   // Books the plan's days from one date to another, leaving out hours taken or over. Returns what was made and skipped.
   function bookPlan(state, plan, from, until, now, id, sid) {
     var made = [], skipped = [], club = plan.academyId ? academy(state, plan.academyId) : null;
+    // An academy's weeks are booked with its account's mobile as it is now, so a number changed since reaches the new weeks.
+    var phone = (club && ((state.CreditDetails || []).find(function (d) { return d.id === club.accountId; }) || {}).phone) || plan.phone;
     for (var key = from; key <= until; key = addDays(key, 1)) {
       var weekday = new Date(key + 'T00:00:00Z').getUTCDay(), together = [];
       plan.days.forEach(function (d, k) {
@@ -3782,7 +3784,7 @@ var ArenaTurf = (function () {
         d.courts.forEach(function (court, m) {
           var draft = { dateKey: key, startHour: d.startHour, hours: d.hours };
           if (endOf(draft) <= now || clash(state, key, court, d.startHour, d.hours, '')) { skipped.push(key + ' · ' + court); return; }
-          var fresh = { id: id + '-' + key + '-' + k + '-' + m, dateKey: key, startHour: d.startHour, hours: d.hours, court: court, sport: plan.sport, customer: plan.customer, phone: plan.phone, status: 'booked', confirmSent: plan.onHold || '', reason: sid ? 'series:' + sid : '', createdMs: now, updatedMs: now, revision: 1, ratePaise: club ? coachRate(state, club, court) : rateFor(state, court), tabId: '', split: '', discountPaise: 0 };
+          var fresh = { id: id + '-' + key + '-' + k + '-' + m, dateKey: key, startHour: d.startHour, hours: d.hours, court: court, sport: plan.sport, customer: plan.customer, phone: phone, status: 'booked', confirmSent: plan.onHold || '', reason: sid ? 'series:' + sid : '', createdMs: now, updatedMs: now, revision: 1, ratePaise: club ? coachRate(state, club, court) : rateFor(state, court), tabId: '', split: '', discountPaise: 0 };
           state.TurfBookings.push(fresh);
           if (club) markAccount(state, fresh.id, { accountId: club.accountId, mode: 'coaching' }, now, fresh.id + '-account');
           together.push(fresh);
@@ -3790,7 +3792,7 @@ var ArenaTurf = (function () {
         });
       });
       if (together.length > 1) {
-        var dayBill = { id: together[0].id + '-tab', customer: plan.customer, phone: plan.phone, status: 'open', createdMs: now, kind: 'turf' };
+        var dayBill = { id: together[0].id + '-tab', customer: plan.customer, phone: phone, status: 'open', createdMs: now, kind: 'turf' };
         state.Tabs.push(dayBill);
         together.forEach(function (b) { b.tabId = dayBill.id; });
       }
@@ -11981,7 +11983,7 @@ const turfAdvanceNote = b => 'Turf advance · ' + turfDayName(b.dateKey) + ' ' +
 // (owner, 25 October: "make sure the qr code copies over there only").
 function turfHoldSend(b) {
   if (payQrOn()) copyPaymentQr(turfHoldOf(b), turfAdvanceNote(b)).then(copied => { if (copied) ($('sheet').open ? sheetStatus : notify)('success', 'QR copied. Paste it in the chat (Ctrl+V) and send.'); });
-  whatsapp(b.phone, turfHoldMessage(b));
+  whatsapp(turfPhone(b), turfHoldMessage(b));
 }
 // A hold's box, from its tag or WhatsApp on the board and the Message on its strip (owner, 27 October: "an option where i can
 // edit the advance needed and send changed QR"). Hold (Pay): the advance needed, changeable and saved, then Send on WhatsApp
@@ -12166,7 +12168,7 @@ function whatsappPreview(text, key) {
 // sheet asks first whether to add the wishes, with the message to be sent shown below.
 function turfSendConfirmation(b, then) {
   const send = wishes => {
-    whatsapp(b.phone, turfMessage(b, false, wishes));
+    whatsapp(turfPhone(b), turfMessage(b, false, wishes));
     if (b.confirmSent !== 'yes') runCommand({ type: 'TURF_SENT', id: b.id, revision: b.revision }, then);
   };
   const festivals = festivalsToday();
@@ -12234,7 +12236,7 @@ function turfBookingSheet(existing, preset) {
     tone: 'jade',
     focus: false,
     build(ui) {
-      who = who || customerFields(existing ? existing.customer : '', existing ? existing.phone : '', true);
+      who = who || customerFields(existing ? existing.customer : '', existing ? turfPhone(existing) : '', true);
       sport = sport || segmented([['Football', 'Football', 'football'], ['Cricket', 'Cricket', 'cricket']], existing ? existing.sport : null);
       date = date || h('input', { type: 'date', value: dateKey, min: dayKey(nowMs()), 'aria-label': 'Date', data: { field: 'turf-date' }, onchange: () => { if (date.value) { dateKey = date.value; editing = true; ui.redraw(); } } });
       $('sheetSub').textContent = turfDayName(dateKey);
@@ -12311,7 +12313,7 @@ function turfBookingSheet(existing, preset) {
       if (command.holdPaise) return { text, action: { label: 'Send hold message', run: () => turfHoldSend(turfBookingOf(result.bookingId)) } };
       if (command.maybe) return { text };
       // Send confirmation opens WhatsApp for the first week; each later week is confirmed from its own booking.
-      return { text, action: { label: 'Send confirmation', run: () => { const b = turfBookingOf(result.bookingId); whatsapp(b.phone, turfMessage(b, false)); runCommand({ type: 'TURF_SENT', id: b.id, revision: b.revision }, () => null); } } };
+      return { text, action: { label: 'Send confirmation', run: () => { const b = turfBookingOf(result.bookingId); whatsapp(turfPhone(b), turfMessage(b, false)); runCommand({ type: 'TURF_SENT', id: b.id, revision: b.revision }, () => null); } } };
     }
   });
   // A new booking starts with the customer's name.
@@ -12350,6 +12352,12 @@ function turfAccountOf(refId) {
   const note = (state.Notes || []).find(n => n.kind === 'TURF_ACCOUNT' && n.refsJson === JSON.stringify([refId]));
   if (!note) return null;
   try { const mark = JSON.parse(note.text); return turfAcademies().find(a => a.accountId === mark.accountId) || { accountId: mark.accountId, name: 'Academy' }; } catch (e) { return null; }
+}
+// The mobile a booking is reached on: an academy's is its account's number as it is now (owner, 1 November: "i changed the
+// number of titans academy in settings. its not reflecting on the dates booked"); anyone else's, the one booked with.
+function turfPhone(b) {
+  const club = turfAccountOf(b.id);
+  return (club && creditPhone(club.accountId)) || b.phone;
 }
 const turfItemsOf = tabId => ordersOf(tabId).filter(o => o.category !== 'Turf');
 // How one bill of the booking stands, in a word, with its colour.
@@ -12462,7 +12470,7 @@ function turfDetailSheet(id) {
   openSheet({
     turfId: id,
     title: b.customer,
-    sub: b.phone,
+    sub: turfPhone(b),
     icon: sportIcon(b.sport),
     tone: 'jade',
     focus: false,
@@ -12500,7 +12508,7 @@ function turfDetailSheet(id) {
           onchange: () => runCommand({ type: 'TURF_DISCOUNT', id: b.id, revision: b.revision, discountPaise: toPaise(box.value || 0) }, () => turfAfter(b.id)) });
         quick.append(h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), box));
       }
-      if (status.state === 'pending' && b.phone) quick.append(btn([icon('whatsapp'), 'Remind on WhatsApp'], () => whatsapp(b.phone, pendingReminderText(b.customer, status.owedPaise, turfPendingWhat(b))), 'quiet', { data: { action: 'turf-remind' } }));
+      if (status.state === 'pending' && turfPhone(b)) quick.append(btn([icon('whatsapp'), 'Remind on WhatsApp'], () => whatsapp(turfPhone(b), pendingReminderText(b.customer, status.owedPaise, turfPendingWhat(b))), 'quiet', { data: { action: 'turf-remind' } }));
       if (quick.childElementCount) ui.body.append(quick);
       if (split) turfSplitBody(ui, b, status);
       else turfOnePayerBody(ui, b, status, main, mainOpen, mainPart);
@@ -13244,7 +13252,7 @@ function turfCancelSheet(b, back) {
         else cancelled.push({ ...b, startHour: hour, hours: 1 });
       }
       const gone = cancelled.length ? cancelled : all ? together : [b];
-      if (message) message.send(b.phone, turfMessage(gone[0], true, null, gone.length > 1 ? gone : null));
+      if (message) message.send(turfPhone(b), turfMessage(gone[0], true, null, gone.length > 1 ? gone : null));
       closeSheet();
       const several = new Set(gone.map(x => x.dateKey)).size > 1;
       return { text: 'Cancelled · ' + b.customer + ' · ' + (several ? gone.length + ' bookings' : gone.map(turfRange).join(', ')) + (cancelled.length && !several ? ' · the rest stays booked' : '') + (message ? '. The cancellation is ready in WhatsApp.' : '.') };
@@ -13414,7 +13422,7 @@ function turfUpcoming(target) {
     [{ label: 'When' }, { label: 'Customer' }, { label: 'Court', class: 'hide-s' }, { label: '' }],
     list.map(b => h('tr', { class: 'click', data: { booking: b.id }, onclick: () => turfOpenBooking(b.id) },
       h('td', null, h('div', 'cell-text', h('b', { text: turfDayWord(b.dateKey) }), h('span', { class: 'small muted num', text: turfRange(b) }))),
-      h('td', null, person(b.customer, b.phone)),
+      h('td', null, person(b.customer, turfPhone(b))),
       h('td', { class: 'hide-s' }, h('span', 'cell', icon(sportIcon(b.sport)), h('span', { text: courtLabel(b.court) + ' · ' + b.sport }))),
       h('td', { class: 'r' }, turfHeld(b) ? h('span', { class: 'badge hold', text: turfMaybe(b) ? 'Hold' : 'Hold (Pay)' }) : h('span', { class: 'badge ' + (b.confirmSent === 'yes' ? 'good' : 'warn'), text: b.confirmSent === 'yes' ? 'Sent' : 'Not sent' })))),
     'No bookings to come.', 'turf'));
