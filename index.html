@@ -12756,6 +12756,35 @@ function turfDetailSheet(id) {
         }
         ui.body.append(h('div', 'group-title', icon('sales'), split ? 'Shared items' : 'Snacks & beverages'), card);
       }
+      // Its bill closed (owner, 1 November: "that paid bill, let it show even the drinks and all like total bill. clicking view
+      // bill and all takes time"): the items here, each once with its count, and, once paid in full, what the bill came to with
+      // each payment. Part paid, the Turf card above already lists the payments and what is left.
+      const closedBill = !split && main && main.status !== 'open' && !turfAccountOf(b.id) && mainPart && mainPart.billId ? state.Bills.find(x => x.id === mainPart.billId) : null;
+      if (closedBill) {
+        const bought = new Map();
+        for (const o of goodsOf(ordersOf(main.id)).filter(x => !turfCarried(x))) {
+          const key = (o.productId || o.label) + ':' + o.unitPricePaise;
+          const row = bought.get(key) || { label: o.label, unit: o.unitPricePaise, quantity: 0, total: 0 };
+          row.quantity += Number(o.quantity);
+          row.total += Number(o.totalPaise);
+          bought.set(key, row);
+        }
+        if (bought.size) ui.body.append(h('div', 'group-title', icon('sales'), 'Snacks & beverages'), h('div', { class: 'lines', data: { paidItems: '1' } }, [...bought.values()].map(row => h('div', 'line',
+          h('div', 'line-main', h('b', { text: row.label + (row.quantity > 1 ? ' × ' + row.quantity : '') }), h('span', { class: 'small muted', text: money(row.unit) + ' each' })),
+          h('span', { class: 'line-amount', text: money(row.total) })))));
+        if (status.state === 'settled') {
+          const detail = (state.BillDetails || []).find(d => d.id === closedBill.id), pays = (state.Payments || []).filter(x => x.billId === closedBill.id);
+          const undoOf = x => (state.Corrections || []).find(c => c.kind === 'payment_reversal' && c.targetId === x.id), undone = new Set(pays.map(undoOf).filter(Boolean).map(c => c.id));
+          const summary = h('div', { class: 'summary', data: { paidBill: '1' } });
+          if (detail && Number(detail.discountPaise)) summary.append(h('div', 'kv', h('span', { text: 'Discount' }), h('b', { text: '−' + money(Number(detail.discountPaise)) })));
+          summary.append(h('div', 'kv total', h('span', { text: 'Total bill' }), h('b', { data: { paidTotal: '1' }, text: money(closedBill.totalPaise) })));
+          for (const x of pays.filter(y => !undone.has(y.id))) {
+            const undo = undoOf(x);
+            summary.append(h('div', { class: 'kv' + (undo ? ' reversed' : ' good') }, h('span', { text: 'Paid · ' + methodText(x.method) + ' · ' + when(x.createdMs) + (undo ? ' · reversed' : '') }), h('b', { class: undo ? 'struck' : '', text: money(x.amountPaise) })));
+          }
+          ui.body.append(h('div', 'group-title', icon('bills'), 'Bill'), summary);
+        }
+      }
       // What goes to an academy's account (owner, 21–22 October): its own slot, or an academy playing as a team in a split
       // booking. The items counted to be paid at the counter now come off it as they are counted (3 of 4 to Cash, the
       // ₹1,080 must change).
@@ -14019,7 +14048,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "c61bddb29e14";
+const APP_BUILD = "212fe58f3b21";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
