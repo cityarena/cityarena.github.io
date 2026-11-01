@@ -3219,9 +3219,17 @@ var ArenaViews = (function () {
   function snapshot(state, now) {
     var details = index(state.BillDetails), tabs = {}, billIds = {}, paymentIds = {}, refIds = {};
     (state.Tabs || []).forEach(function (t) { if (t.status === 'open') tabs[t.id] = true; });
+    // The bills of the turf bookings the screen shows come too, however old (owner, 1 November: a booking paid days before
+    // flicked to Pending while the screen worked its colour out without its bill, then back to Paid).
+    var turfTabs = {};
+    if (typeof ArenaTurf !== 'undefined') {
+      var shown = {};
+      ArenaTurf.live(state, now, null).forEach(function (b) { shown[b.id] = true; if (b.tabId) turfTabs[b.tabId] = true; });
+      (state.TurfPlayers || []).forEach(function (p) { if (shown[p.bookingId] && p.tabId) turfTabs[p.tabId] = true; });
+    }
     var bills = (state.Bills || []).filter(function (b) {
       var d = details[b.id];
-      return b.totalPaise > b.paidPaise || (d && d.createdMs >= now - RECENT_BILL_MS);
+      return b.totalPaise > b.paidPaise || (d && (d.createdMs >= now - RECENT_BILL_MS || has(turfTabs, d.tabId)));
     });
     bills.forEach(function (b) { billIds[b.id] = true; refIds[b.id] = true; if (details[b.id]) tabs[details[b.id].tabId] = true; });
     (state.CreditTransfers || []).forEach(function (t) { refIds[t.billId] = true; });
@@ -4483,6 +4491,13 @@ var ArenaTurf = (function () {
       }
       var added = ArenaSales.execute(state, { type: 'ADD_ITEMS', tabId: target.id, items: cmd.items, purchaser: cmd.playerId ? row(state.TurfPlayers, cmd.playerId).name : booking.customer }, actor, now, id + '-items');
       return { bookingId: booking.id, tabId: target.id, orderIds: added.orderIds, message: 'Items added.' };
+    }
+    // An academy's coaching slot goes to its account, never paid at the counter (owner, 1 November: eight of Titans' Sundays
+    // were taken in cash from a screen running an old copy of the app); its items are paid with Pay Items.
+    var coachingHere = booking.split !== 'yes' ? accountOf(state, booking.id) : null;
+    if (coachingHere && (cmd.type === 'TURF_CHECKOUT' || cmd.type === 'TURF_PAY_ALL')) {
+      var club3 = academies(state).find(function (a) { return a.accountId === coachingHere.accountId; });
+      check(false, 'This slot goes to ' + (club3 ? club3.name : 'the academy') + '’s account. Pay its items with Pay Items.');
     }
     if (cmd.type === 'TURF_CHECKOUT') {
       check(booking.split !== 'yes', 'This booking is split among players. Settle each player.');
@@ -9075,9 +9090,11 @@ function tableCollectSheet(unit, tab, game) {
   const number = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs).findIndex(g => g.id === game.id) + 1;
   // The items and moved time paid with this game, counted: at first the items added during it; the rest stays on the table.
   // The − and + here choose how many are paid now; they never take anything off the bill.
-  const picks = new Map();
-  for (const o of gameOwed(tab.id, game).items) picks.set(o.id, Number(o.quantity));
-  let picker = null, extras = [];
+  // The same item at the same price is one row with its whole count, however many times it was bought (owner, 1 November:
+  // "why is diet coke written multiple times?? did we not discuss it to come in 1? no matter when they buy"); at first it
+  // counts the ones added during this game.
+  const picks = new Map(), firstCount = new Map(gameOwed(tab.id, game).items.map(o => [o.id, Number(o.quantity)]));
+  let picker = null, extras = [], counted = false;
   // The table's time unticked: only the items counted are paid now, in full, and the game stays to be paid (owner, 24 October).
   let tableOff = false;
   const itemsDue = () => extras.filter(row => row.order).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
@@ -9095,8 +9112,11 @@ function tableCollectSheet(unit, tab, game) {
       // Each item says which game it was added during, or that it is for the table.
       const games = closedGames(tab.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active')).sort((x, y) => x.startMs - y.startMs);
       const during = o => { const w = (state.OrderOwners || []).find(x => x.id === o.id), at = w ? games.findIndex(g => g.id === w.segmentId) : -1; return w && w.segmentId === game.id ? 'this game' : at >= 0 ? 'game ' + (at + 1) : 'the table'; };
-      extras = pickRows(tableExtras(tab, game)).map(row => (row.order ? { ...row, price: row.price + ' · ' + during(row.order) } : row));
-      if (extras.length) ui.body.append(h('div', 'group-title', icon('wallet'), 'Paid with this game'), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(extras, picks, () => ui.redraw(), o => removeOne(o, () => { picks.set(o.id, Math.min(picks.get(o.id) || 0, Number(o.quantity) - 1)); ui.redraw(); return null; }))));
+      extras = pickRows(tableExtras(tab, game), true).map(row => (row.order ? { ...row, price: row.price + ' · ' + [...new Set((row.orders || [row.order]).map(during))].join(', ') } : row));
+      if (!counted) for (const row of extras) if (row.order) picks.set(row.key, (row.orders || [row.order]).reduce((n, o) => n + (firstCount.get(o.id) || 0), 0));
+      counted = true;
+      for (const row of extras) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
+      if (extras.length) ui.body.append(h('div', 'group-title', icon('wallet'), 'Paid with this game'), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(extras, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
       const owed = due();
       const received = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.edited ? draft.received : String(owed / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
       const restBox = h('div');
@@ -13948,6 +13968,18 @@ function watchArrivals() {
     h('span', 'arrival-text', h('b', { text: 'New booking' }), h('span', { text: item.text })),
     iconButton('close', 'Close this notice', () => { item.ids.forEach(id => seen.ids.add(id)); keepSeen(); watchArrivals(); }, { data: { action: 'arrival-close' } }))));
 }
+// A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
+// saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
+// to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
+const APP_BUILD = "b82ec774f574";
+function reloadIfOld(build) {
+  if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
+  let tried = '';
+  try { tried = sessionStorage.getItem('arenaReloadedFor') || ''; } catch (e) { return; }
+  if (tried === build) return;
+  try { sessionStorage.setItem('arenaReloadedFor', build); } catch (e) { return; }
+  location.reload();
+}
 function applySnapshot(data) {
   clockOffset = data.serverMs - Date.now();
   lastGood = data.serverMs;
@@ -13961,6 +13993,7 @@ function applySnapshot(data) {
   showSync(true, data.serverMs);
   if (!data.unchanged || first) render();
   watchArrivals();
+  reloadIfOld(data.build);
   postAcademyDue();
   extendSeries();
   // A save left unconfirmed: the notice with Check again. Never retried by itself (owner, 25 October: the retry every minute
