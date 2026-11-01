@@ -105,6 +105,10 @@
   --part-pool: #7b6be0;
   --part-snooker: #e0694a;
   --part-other: #8a9499;
+  /* Money recorded under its own name in Reports (owner, 1 November). */
+  --part-advance: #3d6878;
+  --part-pending: #c27b2e;
+  --part-credit: #946519;
   --part-turf: #2e9d63;
   --part-snacks: #2aa58a;
   --part-beverages: #d9577a;
@@ -767,6 +771,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .report-lock .check { margin-bottom: 16px; }
 .rep-top { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; margin-bottom: 16px; }
 .rep-main { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 16px; margin-bottom: 16px; align-items: start; }
+.rep-side { display: grid; gap: 16px; align-content: start; min-width: 0; }
 .rep-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 16px; }
 .rep-card { padding: 20px 22px; min-width: 0; }
 .rep-kicker { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; font-size: var(--text-sm); font-weight: 600; color: var(--ink-2); }
@@ -1226,6 +1231,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .summary .kv.due b { font-size: var(--text-title); letter-spacing: -0.02em; }
 .summary .kv.due.clear b { color: var(--accent); }
 .summary .kv.due.owing b { color: var(--warn); }
+/* A payment that was reversed: its amount struck through, the line quiet (owner, 1 November). */
+.pay-line.reversed .pay-main b { color: var(--ink-2); }
+.pay-line .struck, .kv .struck { color: var(--ink-3); text-decoration: line-through; }
+.kv.reversed span { color: var(--ink-2); }
 .pay-line { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); min-height: 54px; }
 .pay-line:first-child { border-top: 0; }
 .pay-line .glyph { width: 34px; height: 34px; border-radius: var(--r-sm); }
@@ -3332,7 +3341,9 @@ var ArenaViews = (function () {
         var advance = (state.Advances || []).find(function (a) { return p.id === a.id || p.id.indexOf(a.id + '-used-') === 0; });
         var source = advance ? (state.Tabs || []).find(function (t) { return t.id === advance.sourceTabId; }) : null;
         // Paid by someone else of the group: their name. Paid up front by this customer: marked as paid in advance.
-        var own = !!(advance && !/-advance$/.test(advance.id)), games = !!(advance && /-games(-|$)/.test(advance.id));
+        // Paid from this same bill (a turf booking's advance, owner, 1 November: it read "paid by Rohan" on Rohan's own booking
+        // and could not be reversed), or an advance not left by another player.
+        var own = !!(advance && (advance.sourceTabId === advance.tabId || !/-advance$/.test(advance.id))), games = !!(advance && /-games(-|$)/.test(advance.id));
         // Paid for closed games while a pool or snooker table played on (TABLE_COLLECT).
         return { id: p.id, number: number(state, advance ? advance.id : p.id), amountPaise: p.amountPaise, method: p.method, createdMs: p.createdMs, paidBy: source && !own ? source.customer : '', advance: own && !games, games: games };
       }),
@@ -3404,6 +3415,13 @@ var ArenaViews = (function () {
       return { name: 'credit-ledger', columns: ['Date', 'Account', 'Type', 'Description', 'Bought by', 'Amount', 'Reason'], rows: rows };
     }
     if (dataset === 'turf') return ArenaTurf.exportRows(state, fromMs, toMs);
+    // Every payment the report counts, on the day it was taken, and what it was recorded as (owner, 1 November).
+    if (dataset === 'received') {
+      var NAMES = { advance: 'Advance', pending: 'Pending collected', credit: 'Credit collected', reversed: 'Reversed', Manual: 'Other gaming', RC: 'RC Gaming' };
+      var named = function (as) { return as.split(' + ').map(function (k) { return NAMES[k] || k; }).join(' + '); };
+      return { name: 'received', columns: ['Receipt', 'Taken on', 'Customer', 'Bill', 'Method', 'Recorded as', 'Amount'],
+        rows: ArenaReports.summary(state, fromMs, toMs, Date.now(), true).paymentRows.map(function (r) { return [number(state, r.paymentId), when(r.at), r.customer, r.billId ? number(state, r.billId) : '', r.method, named(r.as), rupees(r.amountPaise)]; }) };
+    }
     ArenaCore.check(false, 'Unsupported export.');
   }
 
@@ -3503,9 +3521,10 @@ var ArenaReports = (function () {
     out.credit = { openingPaise: closing - given - other + collected, givenPaise: given, otherPaise: other, collectedPaise: collected, closingPaise: closing };
   }
 
-  function summary(state, fromMs, toMs, now) {
+  // withRows: also list each payment and what it was recorded as (the export), so every figure can be checked line by line.
+  function summary(state, fromMs, toMs, now, withRows) {
     check(Number.isSafeInteger(fromMs) && Number.isSafeInteger(toMs) && toMs > fromMs, 'Invalid report range.');
-    var tabs = {}, details = {}, voided = {}, units = {}, billed = {};
+    var tabs = {}, details = {}, voided = {}, units = {}, billed = {}, partsOf = {};
     (state.Tabs || []).forEach(function (t) { tabs[t.id] = t; });
     (state.Equipment || []).forEach(function (u) { units[u.id] = u.category; });
     (state.BillDetails || []).forEach(function (d) { details[d.id] = d; });
@@ -3553,6 +3572,14 @@ var ArenaReports = (function () {
       spread(gamingBy, gamingShare, out.earnings);
       spread(productBy, discount - gamingShare - turfShare, out.earnings);
       out.earnings.Turf += turf - turfOff - turfShare;
+      // What the bill is made of, after its discount, for sharing out the money paid for it the same day; a balance brought
+      // from an earlier bill is pending collected.
+      var parts = {};
+      spread(gamingBy, gamingShare, parts);
+      spread(productBy, discount - gamingShare - turfShare, parts);
+      if (turf - turfOff - turfShare) parts.Turf = turf - turfOff - turfShare;
+      if (brought) parts.pending = brought;
+      partsOf[bill.id] = parts;
       // A balance brought from an earlier bill was already charged there.
       out.billedPaise += bill.totalPaise - brought;
       out.broughtForwardPaise += brought;
@@ -3573,6 +3600,64 @@ var ArenaReports = (function () {
       // Taken towards a group's bill that is not finalized yet. It becomes a bill receipt, on this same date, once that bill is made.
       else if ((state.Advances || []).some(function (a) { return a.id === p.id; })) out.advancesHeldPaise += p.amountPaise;
       else out.creditRepaymentsPaise += p.amountPaise;
+    });
+
+    // What the money of the range was for (owner, 1 November: "it should record what is paid on that specific day"; "advance
+    // pending and credit record seperately. like keep a name for it and record there"). Each payment counts once, on the day
+    // it was taken: Advance (paid ahead of the day its bill was made: a booking's advance, a group's money held), Pending
+    // (towards a bill of an earlier day), Credit (into a credit account), Reversed (taken back); the rest was paid for that
+    // day's bill and is shared out over what the bill is made of. Together they are the money received. A bill put on credit
+    // or left pending counts nothing until it is paid.
+    out.paid = {};
+    EARNINGS.forEach(function (k) { out.paid[k] = 0; });
+    out.collected = { advance: 0, pending: 0, credit: 0, reversed: 0 };
+    out.paymentRows = withRows ? [] : undefined;
+    var payDetail = function (billId) { return details[billId] || null; };
+    // What a payment was for: a name (advance, pending, credit, reversed), or the parts of that day's bill it paid for.
+    var classify = function (p) {
+      var day = dateKeyOf(state, p.createdMs), customer = '', detail = p.billId ? payDetail(p.billId) : null;
+      // An advance's payment, its handing back, or the part of it used on a bill (App.gs '-used-').
+      var advance = (state.Advances || []).find(function (a) { return p.id === a.id || p.id === a.id + '-refund' || p.id.indexOf(a.id + '-used-') === 0; });
+      var receipt = !advance && (state.CreditReceipts || []).find(function (r) { return r.id === p.id; });
+      if (detail) customer = detail.customer || (tabs[detail.tabId] || {}).customer || '';
+      if (advance) {
+        // Paid ahead, unless its bill was made the same day: then it paid for that day's bill.
+        var own = (state.BillDetails || []).filter(function (d) { return d.tabId === advance.tabId && !voided[d.id]; }).pop();
+        customer = (tabs[advance.tabId] || {}).customer || '';
+        return own && dateKeyOf(state, own.createdMs) === day && partsOf[own.id] ? { parts: partsOf[own.id], customer: customer } : { as: 'advance', customer: customer };
+      }
+      if (receipt) return { as: 'credit', customer: ((state.CreditAccounts || []).find(function (a) { return a.id === receipt.accountId; }) || {}).name || '' };
+      if (p.amountPaise < 0) {
+        // Taken back the same day as it was paid: it undoes that payment where it was counted; a payment of an earlier day
+        // taken back now is Reversed.
+        var undo = (state.Corrections || []).find(function (c) { return c.kind === 'payment_reversal' && c.id === p.id; });
+        var original = undo && (state.Payments || []).find(function (x) { return x.id === undo.targetId; });
+        if (original && dateKeyOf(state, original.createdMs) === day) return classify(original);
+        return { as: 'reversed', customer: customer };
+      }
+      if (detail && dateKeyOf(state, detail.createdMs) < day) return { as: 'pending', customer: customer };
+      if (detail && partsOf[detail.id]) return { parts: partsOf[detail.id], customer: customer };
+      return { as: detail ? 'pending' : 'advance', customer: customer };
+    };
+    (state.Payments || []).forEach(function (p) {
+      if (!inRange(p.createdMs, fromMs, toMs)) return;
+      var found = classify(p), as = found.as || '', amount = p.amountPaise;
+      if (as === 'reversed') out.collected.reversed += -amount;
+      else if (as) out.collected[as] += amount;
+      else {
+        // Shared out over the bill's parts in proportion, to the paisa (a reversal the same way, taken off); a balance the
+        // bill brought is pending collected.
+        var parts = found.parts, sign = amount < 0 ? -1 : 1, size = Math.abs(amount);
+        var keys = Object.keys(parts).filter(function (k) { return parts[k] > 0; }), whole = 0, given = 0;
+        keys.forEach(function (k) { whole += parts[k]; });
+        var bits = keys.map(function (k) { var exact = whole > 0 ? size * parts[k] / whole : 0, floor = Math.floor(exact); given += floor; return { key: k, paise: floor, rest: exact - floor }; });
+        bits.sort(function (a, b) { return b.rest - a.rest || a.key.localeCompare(b.key); });
+        for (var i = 0; given < size && i < bits.length; i++, given++) bits[i].paise++;
+        if (!bits.length) out.collected.pending += amount;
+        bits.forEach(function (b) { if (b.key === 'pending') out.collected.pending += sign * b.paise; else out.paid[b.key] = (out.paid[b.key] || 0) + sign * b.paise; });
+        as = bits.map(function (b) { return b.key; }).join(' + ') || 'pending';
+      }
+      if (withRows) out.paymentRows.push({ paymentId: p.id, billId: p.billId || '', at: p.createdMs, method: p.method, as: as, customer: found.customer, amountPaise: amount });
     });
 
     // Credit movements. None of these is money received.
@@ -10060,12 +10145,18 @@ async function receiptSheet(billId, back) {
       // 2. Each payment made towards this bill, with its receipt number.
       if (data.payments.length) {
         const list = h('div', 'summary');
-        for (const p of data.payments) {
-          const reversed = data.corrections.some(c => c.kind === 'payment_reversal' && c.targetId === p.id), taken = p.amountPaise < 0, upi = isUpi(p.method);
-          list.append(h('div', { class: 'pay-line', data: { payment: p.id } }, glyph(taken ? 'undo' : upi ? 'upi' : 'cash', taken || reversed ? '' : 'jade'),
-            h('div', 'pay-main', h('b', { text: (taken ? 'Reversal ' : '') + p.number + ' · ' + methodText(p.method) }), h('span', { class: 'small muted', text: when(p.createdMs) + (p.advance ? ' · paid in advance' : '') + (p.games ? ' · for closed games' : '') + (p.paidBy ? ' · paid by ' + p.paidBy : '') + (reversed ? ' · reversed' : '') })),
-            h('b', { text: money(p.amountPaise) }),
-            p.amountPaise > 0 && !reversed && !data.transfer && !p.advance && !p.games && !p.paidBy ? menu([['Reverse payment', () => reasonSheet({ title: 'Reverse ' + p.number, sub: money(p.amountPaise) + ' becomes outstanding again', action: 'Reverse payment', icon: 'undo', tone: 'warn', command: reason => ({ type: 'REVERSE_PAYMENT', paymentId: p.id, reason }), then: () => receiptSheet(billId, back) }), true, 'undo']], 'Payment actions') : null));
+        // A reversal is shown on the payment it took back (owner, 1 November: "confusing, very"): one line, its amount struck
+        // through, when it was paid and when it was reversed; never a line of its own with an internal number. The amounts
+        // left standing add up to what was paid.
+        const reversalOf = p => data.corrections.find(c => c.kind === 'payment_reversal' && c.targetId === p.id);
+        const folded = new Set(data.payments.filter(p => reversalOf(p)).map(p => reversalOf(p).id));
+        for (const p of data.payments.filter(x => !folded.has(x.id))) {
+          const undo = reversalOf(p), reversed = !!undo, taken = p.amountPaise < 0, upi = isUpi(p.method);
+          const back = undo ? data.payments.find(x => x.id === undo.id) : null;
+          list.append(h('div', { class: 'pay-line' + (reversed ? ' reversed' : ''), data: { payment: p.id } }, glyph(taken || reversed ? 'undo' : upi ? 'upi' : 'cash', taken || reversed ? '' : 'jade'),
+            h('div', 'pay-main', h('b', { text: (taken ? 'Reversal ' : '') + p.number + ' · ' + methodText(p.method) + (reversed ? ' · Reversed' : '') }), h('span', { class: 'small muted', text: when(p.createdMs) + (p.advance ? ' · paid in advance' : '') + (p.games ? ' · for closed games' : '') + (p.paidBy ? ' · paid by ' + p.paidBy : '') + (reversed ? ' · reversed ' + when(back ? back.createdMs : undo.createdMs) + (undo.reason ? ' · ' + undo.reason : '') : '') })),
+            h('b', { class: reversed ? 'struck' : '', text: money(p.amountPaise) }),
+            p.amountPaise > 0 && !reversed && !data.transfer && !p.games && !p.paidBy ? menu([['Reverse payment', () => reasonSheet({ title: 'Reverse ' + p.number, sub: money(p.amountPaise) + ' becomes outstanding again', action: 'Reverse payment', icon: 'undo', tone: 'warn', command: reason => ({ type: 'REVERSE_PAYMENT', paymentId: p.id, reason }), then: () => receiptSheet(billId, back) }), true, 'undo']], 'Payment actions') : null));
         }
         // More was paid up front than the bill came to: what was handed back.
         for (const r of data.returned || []) list.append(h('div', { class: 'pay-line', data: { returned: r.id } }, glyph('undo', 'warn'),
@@ -10192,7 +10283,8 @@ function reminderSheet(unit) {
 // Money paid in advance (or left by another player) was really received, so it stays as it is.
 function correctBillPaymentSheet(data, back) {
   const bill = data.bill, customer = data.detail ? data.detail.customer : '';
-  const ahead = data.payments.filter(p => p.advance || p.games || p.paidBy).reduce((sum, p) => sum + p.amountPaise, 0);
+  // An advance taken back (owner, 1 November: it can be reversed like any payment) is not money held any more.
+  const ahead = data.payments.filter(p => (p.advance || p.games || p.paidBy) && !data.corrections.some(c => c.kind === 'payment_reversal' && c.targetId === p.id)).reduce((sum, p) => sum + p.amountPaise, 0);
   const atCounter = bill.paidPaise - ahead, owed = bill.totalPaise - ahead, store = newAccountStore();
   const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String(atCounter / 100), 'aria-label': 'Actually received', data: { field: 'correct-received' } });
   const method = methodChoice((data.payments.find(p => !p.advance && !p.games && !p.paidBy) || {}).method || 'cash');
@@ -10320,19 +10412,19 @@ function tableSheet(name, columns, rows, moneyColumns) {
 async function exportReport() {
   const data = reportCache.data;
   if (!data) return;
-  const s = data.summary, r = reportRange(), single = reportFrom === reportTo;
+  const s = data.summary, r = reportRange(), single = reportFrom === reportTo, collected = s.collected || { advance: 0, pending: 0, credit: 0, reversed: 0 };
   const period = single ? turfDayName(reportFrom) + ' ' + reportFrom.slice(0, 4) : turfDayName(reportFrom) + ' – ' + turfDayName(reportTo) + ' ' + reportTo.slice(0, 4);
   let bills;
-  try { bills = await rpc('rpcExport', token, 'bills', r.fromMs, r.toMs); }
+  try { bills = await rpc('rpcExport', token, 'received', r.fromMs, r.toMs, reportPass); }
   catch (e) { notify('error', e.message); return; }
-  const earned = s.earnings || {}, use = s.usage || {}, turf = s.turfUsage || { bookings: 0, hours: 0 }, credit = s.credit || {};
+  const earned = s.paid || {}, use = s.usage || {}, turf = s.turfUsage || { bookings: 0, hours: 0 }, credit = s.credit || {};
   const gaming = [...CATEGORIES, 'Manual'].reduce((n, k) => n + (earned[k] || 0), 0), products = PRODUCT_KINDS.reduce((n, k) => n + (earned[k[0]] || 0), 0);
   const head = (a, b) => [{ v: a, s: 'head' }, { v: b || '', s: 'head' }];
   const summary = { name: 'Summary', widths: [36, 18], rows: [
     [{ v: 'City Arena — Report', s: 'title' }], [{ v: period, s: 'muted' }], [],
-    head('Earned', 'Amount'), ['Gaming floor', xMoney(gaming)], ['Turf', xMoney(earned.Turf)], ['Snacks & drinks', xMoney(products)], [{ v: 'Total earned', s: 'bold' }, { v: toRupees(s.billedPaise), s: 'total' }], [],
-    head('Received', 'Amount'), ['Cash', xMoney(s.cashPaise)], ['UPI', xMoney(s.upiPaise - caPaise(s))], ['CA UPI', xMoney(caPaise(s))], [{ v: 'Total received', s: 'bold' }, { v: toRupees(s.receivedPaise), s: 'total' }], [],
-    head('Credit', 'Amount'), ['Opening balance', xMoney(credit.openingPaise)], ['Credit given (part of earned)', xMoney(credit.givenPaise)],
+    head('Received', 'Amount'), ['Gaming floor', xMoney(gaming)], ['Turf', xMoney(earned.Turf)], ['Snacks & drinks', xMoney(products)], ['Advance', xMoney(collected.advance)], ['Pending collected', xMoney(collected.pending)], ['Credit collected', xMoney(collected.credit)], ...(collected.reversed ? [['Reversed', xMoney(-collected.reversed)]] : []), [{ v: 'Total received', s: 'bold' }, { v: toRupees(s.receivedPaise), s: 'total' }], [],
+    head('Cash & UPI', 'Amount'), ['Cash', xMoney(s.cashPaise)], ['UPI', xMoney(s.upiPaise - caPaise(s))], ['CA UPI', xMoney(caPaise(s))], [],
+    head('Credit', 'Amount'), ['Opening balance', xMoney(credit.openingPaise)], ['Credit given', xMoney(credit.givenPaise)],
     ...(credit.otherPaise ? [['Other credit charges', xMoney(credit.otherPaise)]] : []), ['Collected', xMoney(credit.collectedPaise)],
     [{ v: 'Closing balance', s: 'bold' }, { v: toRupees(credit.closingPaise), s: 'total' }]] };
   const hours = minutes => Math.round((minutes || 0) / 6) / 10;
@@ -10342,9 +10434,8 @@ async function exportReport() {
   };
   const parts = [...CATEGORIES.map(row), ...(earned.Manual ? [['Other gaming', toRupees(earned.Manual), '', '']] : []), ['Turf', toRupees(earned.Turf), turf.bookings, turf.hours],
     ...PRODUCT_KINDS.map(([k, label]) => [label, toRupees(earned[k]), '', ''])];
-  const byPart = tableSheet('Earned by category', ['Category', 'Earned', 'Sessions / games / bookings', 'Hours played'], parts, ['Earned']);
-  byPart.rows.push([{ v: 'Total', s: 'bold' }, { v: toRupees(s.billedPaise), s: 'total' }]);
-  const billSheet = tableSheet('Bills', bills.columns, bills.rows, ['Subtotal', 'Discount', 'Total', 'Paid', 'Outstanding']);
+  const byPart = tableSheet('Received by category', ['Category', 'Received', 'Sessions / games / bookings', 'Hours played'], parts, ['Received']);
+  const billSheet = tableSheet('Payments', bills.columns, bills.rows, ['Amount']);
   downloadBlob(xlsxFile('report', [summary, byPart, billSheet]), 'city-arena-report-' + (single ? reportFrom : reportFrom + '-to-' + reportTo) + '.xlsx');
 }
 async function exportCredit() {
@@ -11309,6 +11400,19 @@ function keepReportPass(pass, remember) {
     else if (storage) storage.removeItem(REPORT_PASS_KEY);
   } catch (e) { /* only a convenience */ }
 }
+// Leaving Reports locks them again (owner, 1 November: "i go to gaming and then come back to settings, the reports will be
+// open without needing a pin"), unless this device was told to remember the PIN; Lock on Reports forgets that too.
+function leaveReports() {
+  const remembered = (() => { try { return !!(storage && storage.getItem(REPORT_PASS_KEY)); } catch (e) { return false; } })();
+  if (remembered || !reportPass) return;
+  lockReports();
+}
+function lockReports() {
+  keepReportPass('', false);
+  reportLocked = 'Reports PIN needed.';
+  reportCache = { key: '', data: null };
+  stockCache = { key: '', rows: null };
+}
 async function askReportPass(pin, remember) {
   let reply;
   try { reply = await fetch(REPORT_PASS_URL, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ pin, remember }) }); }
@@ -11447,39 +11551,43 @@ const reportsPage = {
     to.onchange = pick;
     bar.append(h('div', 'rep-range', presets.node, h('div', 'rep-dates', from, h('span', { class: 'muted', text: 'to' }), to)),
       h('div', 'rep-export desk-only',
-        btn([icon('download'), 'Export'], exportReport, 'quiet', { data: { action: 'export-report' } })));
+        btn([icon('download'), 'Export'], exportReport, 'quiet', { data: { action: 'export-report' } })),
+      btn([icon('lock'), 'Lock'], () => { lockReports(); render(); }, 'quiet', { data: { action: 'report-lock' } }));
   },
   render(page) {
     if (reportLocked) { reportLock(page); return; }
     const key = reportKey();
     if (reportCache.key !== key) { loadReport(key); if (!reportCache.data) { page.append(loadingRows(4)); return; } }
-    const s = reportCache.data.summary, single = reportFrom === reportTo, earned = s.earnings || {}, use = s.usage || {}, turfUse = s.turfUsage || { bookings: 0, hours: 0 };
+    // Money on the day it was paid (owner, 1 November): each part is what was paid for that day's bills; Advance, Pending and
+    // Credit are named apart; together they are the money received.
+    const s = reportCache.data.summary, single = reportFrom === reportTo, earned = s.paid || {}, use = s.usage || {}, turfUse = s.turfUsage || { bookings: 0, hours: 0 };
     const credit = s.credit || { openingPaise: 0, givenPaise: 0, otherPaise: 0, collectedPaise: 0, closingPaise: 0 };
+    const collected = s.collected || { advance: 0, pending: 0, credit: 0, reversed: 0 };
     const amount = k => earned[k] || 0;
     const period = single ? (reportFrom === businessToday() ? 'Today' : turfDayName(reportFrom)) : turfDayName(reportFrom) + ' – ' + turfDayName(reportTo);
     const gamingKeys = [...CATEGORIES, ...(amount('Manual') ? ['Manual'] : [])], productKeys = PRODUCT_KINDS.map(k => k[0]);
-    const gaming = gamingKeys.reduce((sum, k) => sum + amount(k), 0), products = productKeys.reduce((sum, k) => sum + amount(k), 0), total = s.billedPaise;
+    const gaming = gamingKeys.reduce((sum, k) => sum + amount(k), 0), products = productKeys.reduce((sum, k) => sum + amount(k), 0), total = s.receivedPaise;
     const head = (title, glyphName) => h('div', 'rep-head', glyph(glyphName), h('h2', { text: title }));
     const line = (label, value, cls = '') => h('div', ('rep-line ' + cls).trim(), h('span', { text: label }), h('b', { class: 'num', text: value }));
 
-    // Earned: the one large figure, and how it divides between the floor, the turf and the counter.
-    const mix = [['Gaming floor', gaming, 'pc'], ['Turf', amount('Turf'), 'turf'], ['Snacks & drinks', products, 'snacks']];
-    const lead = h('section', { class: 'rep-card rep-lead', data: { figure: 'earned' } },
-      h('div', 'rep-kicker', h('span', { text: 'Earned' }), h('span', { class: 'rep-when', text: period })),
+    // Received: the one large figure, the money taken in the dates, and what it was for: the floor, the turf and the counter
+    // for that day's bills, then Advance, Pending and Credit, each under its own name.
+    const mix = [['Gaming floor', gaming, 'pc'], ['Turf', amount('Turf'), 'turf'], ['Snacks & drinks', products, 'snacks'], ['Advance', collected.advance, 'advance'], ['Pending', collected.pending, 'pending'], ['Credit', collected.credit, 'credit']];
+    const lead = h('section', { class: 'rep-card rep-lead', data: { figure: 'received' } },
+      h('div', 'rep-kicker', h('span', { text: 'Received' }), h('span', { class: 'rep-when', text: period })),
       h('div', { class: 'rep-big num', text: money(total) }),
       h('div', 'rep-stack' + (total > 0 ? '' : ' none'), mix.filter(m => m[1] > 0).map(m => h('i', { style: 'flex:' + m[1] + ';background:var(--part-' + m[2] + ')' }))),
-      h('ul', 'rep-legend inline', mix.map(([label, value, tone]) => h('li', null, h('i', { style: 'background:var(--part-' + tone + ')' }), h('span', { text: label }), h('b', { class: 'num', text: percent(value, total) })))));
-    // Money in the drawer and by UPI.
-    const received = h('section', { class: 'rep-card', data: { figure: 'received' } },
-      h('div', 'rep-kicker', h('span', { text: 'Received' })),
-      h('div', { class: 'rep-mid num', text: money(s.receivedPaise) }),
-      // Plain UPI and UPI to the CA scanner, apart (owner, 20 October).
+      h('ul', 'rep-legend inline', mix.filter(m => m[1] || m[2] === 'pc' || m[2] === 'turf' || m[2] === 'snacks').map(([label, value, tone]) => h('li', { data: { mix: tone } }, h('i', { style: 'background:var(--part-' + tone + ')' }), h('span', { text: label }), h('b', { class: 'num', text: money(value) })))),
+      collected.reversed ? h('p', { class: 'small muted', data: { reversed: '1' }, text: 'Reversed ' + money(collected.reversed) + ' (taken back)' }) : null);
+    // How the money came in: the drawer and UPI. Plain UPI and UPI to the CA scanner, apart (owner, 20 October).
+    const received = h('section', { class: 'rep-card', data: { figure: 'cash-upi' } },
+      h('div', 'rep-kicker', h('span', { text: 'Cash & UPI' })),
       line('Cash', money(s.cashPaise)), line('UPI', money(s.upiPaise - caPaise(s))), ...(caPaise(s) ? [line('CA UPI', money(caPaise(s)))] : []));
-    // Credit: owed at the start, what went on credit (already in the earnings), what was collected, owed at the end.
+    // Credit: owed at the start, what went on credit (nothing received until it is paid), what was collected, owed at the end.
     const creditCard = h('section', { class: 'rep-card rep-credit', data: { figure: 'credit' } },
       h('div', 'rep-kicker', h('span', { text: 'Credit' })),
       line('Opening balance', money(credit.openingPaise)),
-      line('Credit given · in earnings', '+ ' + money(credit.givenPaise), 'gold'),
+      line('Credit given', '+ ' + money(credit.givenPaise), 'gold'),
       credit.otherPaise ? line('Other credit charges', '+ ' + money(credit.otherPaise)) : null,
       line('Collected', '− ' + money(credit.collectedPaise), 'good'),
       line('Closing balance', money(credit.closingPaise), 'total'));
@@ -11505,6 +11613,14 @@ const reportsPage = {
     };
     const floorPanel = h('section', { class: 'rep-card', data: { panel: 'floor' } }, head('Gaming floor & turf', 'PS5'), rows([...gamingKeys, 'Turf'], usageText));
     const counterPanel = h('section', { class: 'rep-card', data: { panel: 'counter' } }, head('Snacks & drinks', 'drink'), rows(productKeys, null));
+    // Advance, Pending and Credit, each under its own name (owner, 1 November): paid ahead of a booking or a game, paid for a
+    // bill of an earlier day, paid into a credit account.
+    const otherLines = [['advance', 'Advance', 'clock'], ['pending', 'Pending collected', 'bills'], ['credit', 'Credit collected', 'credits']];
+    const otherPanel = h('section', { class: 'rep-card', data: { panel: 'collected' } }, head('Advance, pending & credit', 'wallet'),
+      h('div', 'rep-rows', otherLines.map(([key, label, glyphName]) => h('div', { class: 'rep-row', data: { collected: key } },
+        h('span', { class: 'rep-icon', style: 'color:var(--part-' + key + ')' }, icon(glyphName)),
+        h('div', 'rep-row-main', h('b', { text: label })),
+        h('b', { class: 'rep-amount num', text: money(collected[key]) })))));
 
     // Which part of the floor is used most (time played), and where the earnings come from (the turf left out).
     const floorParts = CATEGORIES.map(k => ({ key: k, label: REPORT_PARTS[k].label, tone: REPORT_PARTS[k].tone, value: (use[k] || {}).minutes || 0 }));
@@ -11539,7 +11655,7 @@ const reportsPage = {
       h('p', 'stock-sum', icon('info'), h('span', { text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' }))) : null;
     page.append(
       h('div', 'rep-top', lead, received, creditCard),
-      h('div', 'rep-main', floorPanel, counterPanel),
+      h('div', 'rep-main', floorPanel, h('div', 'rep-side', counterPanel, otherPanel)),
       h('div', 'rep-charts', donut('Floor usage', floorParts, played, 'played', 'By time played', 'reports'), donut('Earnings mix', earnParts, best.label, best.value ? 'earns most' : 'nothing yet', 'Without turf', 'cash')),
       stockPanel);
   }
@@ -11853,7 +11969,7 @@ const SETTINGS_PARTS = { setup: setupPage, reports: reportsPage, customers: cust
 const settingsPage = {
   title: 'Settings',
   bar(bar) {
-    bar.append(h('div', 'bar-row', segmented([['setup', 'Rates & setup', 'setup'], ['reports', 'Reports', 'reports'], ['customers', 'Customers', 'customers'], ['menu', 'Menu', 'menu']], settingsMode, v => { settingsMode = v; render(); }).node));
+    bar.append(h('div', 'bar-row', segmented([['setup', 'Rates & setup', 'setup'], ['reports', 'Reports', 'reports'], ['customers', 'Customers', 'customers'], ['menu', 'Menu', 'menu']], settingsMode, v => { if (settingsMode === 'reports' && v !== 'reports') leaveReports(); settingsMode = v; render(); }).node));
     const part = SETTINGS_PARTS[settingsMode];
     if (part.bar) part.bar(bar);
   },
@@ -12721,7 +12837,16 @@ function turfOnePayerBody(ui, b, status, main, mainOpen, mainPart) {
     const turfShown = turfFee(b) - Number(b.discountPaise || 0) + turfLinkedOf(b).reduce((sum, x) => sum + turfFee(x), 0);
     if (bill.totalPaise !== turfShown) summary.append(h('div', 'kv', h('span', { text: bill.totalPaise > turfShown ? 'Items' : 'Discount' }), h('b', { text: (bill.totalPaise > turfShown ? '' : '−') + money(Math.abs(bill.totalPaise - turfShown)) })));
     const paid = (state.Payments || []).filter(p => p.billId === bill.id), listed = paid.reduce((sum, p) => sum + p.amountPaise, 0);
-    if (paid.length && listed === Number(bill.paidPaise)) paid.forEach(p => summary.append(h('div', { class: 'kv good', data: { turfPaidLine: '1' } }, h('span', { text: 'Paid · ' + methodText(p.method) + ' · ' + when(p.createdMs) }), h('b', { text: '−' + money(p.amountPaise) }))));
+    // A payment taken back is one line, its amount struck through, with when it was taken back; the taking back has no line
+    // of its own (owner, 1 November: a reversal read "Paid · UPI −−₹700").
+    const undoOf = p => (state.Corrections || []).find(c => c.kind === 'payment_reversal' && c.targetId === p.id);
+    const undone = new Set(paid.map(undoOf).filter(Boolean).map(c => c.id));
+    if (paid.length && listed === Number(bill.paidPaise)) paid.filter(p => !undone.has(p.id)).forEach(p => {
+      const undo = undoOf(p), back = undo ? paid.find(x => x.id === undo.id) : null;
+      summary.append(h('div', { class: 'kv' + (undo ? ' reversed' : ' good'), data: { turfPaidLine: '1' } },
+        h('span', { text: 'Paid · ' + methodText(p.method) + ' · ' + when(p.createdMs) + (undo ? ' · reversed ' + when(back ? back.createdMs : undo.createdMs) : '') }),
+        h('b', { class: undo ? 'struck' : '', text: '−' + money(p.amountPaise) })));
+    });
     else if (Number(bill.paidPaise)) summary.append(h('div', { class: 'kv good', data: { turfPaidLine: '1' } }, h('span', { text: 'Paid' }), h('b', { text: '−' + money(Number(bill.paidPaise)) })));
     summary.append(h('div', { class: 'kv total', data: { turfLeft: '1' } }, h('span', { text: 'Left to pay' }), h('b', { text: money(mainPart.owedPaise) })));
   }
@@ -13681,8 +13806,9 @@ function drawNav() {
   $('tabbar').replaceChildren(...PHONE_NAV.map(([id, label]) => h('button', { type: 'button', class: phonePage === id ? 'on' : '', data: { page: id, ...(id === 'floor' ? nextReminder() : {}) }, onclick: () => openFromNav(id) }, icon(id), h('span', { text: label }))));
 }
 function go(next) {
-  const shortcut = SHORTCUTS[next];
+  const onReports = page === 'settings' && settingsMode === 'reports', shortcut = SHORTCUTS[next];
   if (shortcut) { shortcut[1](); next = shortcut[0]; }
+  if (onReports && !(next === 'settings' && settingsMode === 'reports')) leaveReports();
   page = next;
   render();
   $('main').scrollTop = 0;
