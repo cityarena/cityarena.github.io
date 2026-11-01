@@ -1210,6 +1210,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .breakdown .bill-group > .lines > .line { min-height: 58px; }
 .menu { position: relative; }
 .menu-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 220px; display: grid; gap: 2px; padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: #fdfbf7; box-shadow: var(--shadow-pop); animation: pop 140ms cubic-bezier(0.2, 0.7, 0.2, 1); transform-origin: top right; }
+.menu-list.up { top: auto; bottom: calc(100% + 6px); transform-origin: bottom right; }
 .menu-list button { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border: 0; border-radius: var(--r-xs); background: transparent; text-align: left; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background var(--ease); }
 .menu-list button svg { width: 16px; height: 16px; color: var(--ink-3); }
 .menu-list button:hover { background: rgba(80, 62, 30, 0.063); }
@@ -2574,6 +2575,9 @@ var ArenaLifecycle=(function(){
   }
   if(c.type==='SETTLE_REVIEW'){
    check(c.settlement==='pay'||c.settlement==='credit','Invalid settlement choice.');
+   // An academy's coaching slot is never paid at the counter (owner, 1 November); it goes to its account, by To account or by itself.
+   var coaching=typeof ArenaTurf!=='undefined'?ArenaTurf.coachingTab(s,target.id):null;
+   if(coaching)check(c.settlement==='credit'&&!c.pending&&!(c.amountPaise>0),'This slot goes to '+coaching.name+'’s account. Use To account on the booking.');
    if(c.pending){
     // Pending (owner, 20 October): someone clears it in a day or two. The bill is kept under their name and mobile.
     check(c.settlement==='pay'&&typeof c.pending==='object','Invalid pending choice.');
@@ -2848,6 +2852,8 @@ var ArenaCredits=(function(){
   function execute(s,c,actor,now,id){
     check(actor&&actor.role==='owner','Access denied.');check(types.indexOf(c.type)>=0,'Unsupported operation.');
     if((c.type==='PAY'||c.type==='CREDIT')&&c.billId)check(!ArenaCore.carryOf(s,c.billId),'This balance was moved to a later booking. Collect it there.');
+    // An academy's coaching slot is never paid at the counter (owner, 1 November), whichever screen asks.
+    if(c.type==='PAY'&&c.billId&&typeof ArenaTurf!=='undefined'){var paidFor=(s.BillDetails||[]).find(function(d){return d.id===c.billId;}),coaching=paidFor?ArenaTurf.coachingTab(s,paidFor.tabId):null;check(!coaching,coaching?'This slot goes to '+coaching.name+'’s account. Use To account on the booking.':'');}
     if(c.type==='PAY'){check(!s.CreditTransfers.some(function(t){return t.billId===c.billId;}),'This bill is on credit. Record repayment from the credit account so FIFO is preserved.');
       // Paid partly one way and partly another (cash and UPI): one payment, with its receipt, per part.
       if(Array.isArray(c.payments)&&c.payments.length){var parts=ArenaCore.payParts(s,c),out=null,numbers=[];parts.forEach(function(p,i){var r=ArenaCore.execute(s,{type:'PAY',billId:c.billId,amountPaise:p.amountPaise,method:p.method},actor,now,id+(i?'-'+i:''));numbers.push(r.receiptNumber);out=out||r;out.outstandingPaise=r.outstandingPaise;});out.amountPaise=parts.reduce(function(n,p){return n+p.amountPaise;},0);out.method=parts.map(function(p){return p.method;}).join('+');out.receiptNumber=numbers.join(', ');return out;}
@@ -4832,8 +4838,17 @@ var ArenaTurf = (function () {
       rows: list.map(function (b) { return [b.dateKey, hourText(Number(b.startHour)), hourText(Number(b.startHour) + Number(b.hours)), Number(b.hours), b.court, b.sport, b.customer, b.phone, feeOf(b) / 100, b.split === 'yes' ? 'Players' : 'One payer', b.status, b.confirmSent === 'yes' ? 'Yes' : 'No']; }) };
   }
 
+  // The academy whose coaching slot this bill (tab) is, if it is one: its turf goes to the account, never paid at the counter.
+  function coachingTab(state, tabId) {
+    var booking = booked(state).concat((state.TurfBookings || []).filter(function (b) { return b.status !== 'booked'; })).find(function (b) { return b.tabId === tabId && b.split !== 'yes'; });
+    if (!booking) return null;
+    var mark = accountOf(state, booking.id);
+    if (!mark) return null;
+    var club = academies(state).find(function (a) { return a.accountId === mark.accountId; });
+    return { accountId: mark.accountId, name: club ? club.name : 'the academy' };
+  }
   return {
-    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
+    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, coachingTab: coachingTab, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
     clash: clash, linked: linked, holdOf: holdOf, maybeOf: maybeOf, dateKeyOf: dateKeyOf, feeOf: feeOf, rateFor: rateFor, locked: locked, meta: meta, COURTS: COURTS, SPORTS: SPORTS, OPEN_HOUR: OPEN_HOUR, CLOSE_HOUR: CLOSE_HOUR
   };
 })();
@@ -7714,7 +7729,15 @@ function menu(items, label = 'More') {
   const close = () => { list.hidden = true; toggle.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', outside, true); };
   const outside = e => { if (!wrap.contains(e.target)) close(); };
   for (const [text, run, danger, glyphName] of items) list.append(h('button', { type: 'button', class: danger ? 'danger' : '', onclick: () => { close(); run(); } }, glyphName ? icon(glyphName) : null, h('span', { text })));
-  const toggle = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, 'aria-haspopup': 'menu', onclick: () => { list.hidden = !list.hidden; toggle.setAttribute('aria-expanded', String(!list.hidden)); if (!list.hidden) document.addEventListener('click', outside, true); } }, icon('dots'));
+  // Opened upward when the room below, inside a sheet above its foot or in the window, is too small (owner, 1 November: Reverse
+  // payment sat hidden under a bill's foot).
+  const place = () => {
+    list.classList.remove('up');
+    const at = toggle.getBoundingClientRect(), foot = toggle.closest('dialog') ? document.getElementById('sheetFoot') : null;
+    const floor = foot && foot.offsetHeight ? foot.getBoundingClientRect().top : innerHeight;
+    if (at.bottom + 6 + list.offsetHeight > floor - 8 && at.top - 6 - list.offsetHeight > 8) list.classList.add('up');
+  };
+  const toggle = h('button', { type: 'button', class: 'icon-btn', 'aria-label': label, title: label, 'aria-haspopup': 'menu', onclick: () => { list.hidden = !list.hidden; toggle.setAttribute('aria-expanded', String(!list.hidden)); if (!list.hidden) { place(); document.addEventListener('click', outside, true); } } }, icon('dots'));
   const wrap = h('div', 'menu', toggle, list);
   return wrap;
 }
@@ -10182,7 +10205,13 @@ async function receiptSheet(billId, back) {
           ...(phone ? [['WhatsApp confirmation', () => whatsapp(phone, 'City Arena: bill ' + data.number + ' for ' + money(bill.totalPaise) + '. Received ' + money(paidHere) + (data.transfer ? '. On credit ' + money(data.transfer.amountPaise) : due ? '. Balance ' + money(due) : '') + '. Thank you.'), false, 'message']] : []),
           ...(data.archived ? [['Bring back to correct', () => restoreBill(billId), false, 'undo']] : []),
           ...(!data.archived && correctable(data) && data.payments.length ? [['Correct payment', () => correctBillPaymentSheet(data, back), false, 'pencil'], ['Correct charges', () => correctChargesSheet(data, back), false, 'bills']] : []),
-          ...(!data.archived && data.status !== 'void' && bill.paidPaise === 0 && !data.transfer ? [['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'The visit opens again so it can be corrected.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet()) }), true, 'ban']] : [])
+          ...(!data.archived && data.status !== 'void' && bill.paidPaise === 0 && !data.transfer ? [['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'The visit opens again so it can be corrected.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => {
+            // A turf booking's bill opens its booking again (owner, 1 November: an academy's slot voided went to Collect, where
+            // nothing is owed); any other visit opens to be corrected and settled.
+            const booking = result.tabId ? turfBookingForTab(result.tabId) : null;
+            if (booking) { closeSheet(); render(); return turfDetailSheet(booking.id); }
+            return result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet();
+          } }), true, 'ban']] : [])
         ], 'Bill actions'))));
       drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, editable: false, detail: true, pauses: data.pauses });
       const notes = notesBlock([billId, data.tab ? data.tab.id : '']);
@@ -12778,7 +12807,8 @@ function turfDetailSheet(id) {
       ui.foot.append(h('div', 'foot-row', h('div', 'foot-label', totalShown ? 'Outstanding ' : '', h('span', { class: 'badge ' + stateTone, data: { turfState: status.state }, text: stateText }), accountParts(owedNow - itemsLeft), accountLine),
         totalShown ? h('div', { class: 'foot-total' + (bigFigure ? '' : ' clear'), data: { turfOwed: '1' }, text: money(bigFigure) }) : null));
       // A one-payer bill closed with something left (part paid, pending): collected here, Cash, UPI or Cash + UPI.
-      const restHere = !split && !mainOpen && collect > 0;
+      // Never for an academy's slot (owner, 1 November): its turf goes to its account, not the counter.
+      const restHere = !split && !onAccount && !mainOpen && collect > 0;
       if (restHere) ui.foot.append(turfPayChoice(collect, 'turf-paid', (way, said) => runCommand({ type: 'TURF_PAY_ALL', id: b.id, ...way }, () => { turfPaying = ''; return turfAfter(b.id, 'Paid ' + money(collect) + ' · ' + said + ' · ' + b.customer + '’s booking settled.'); })));
       if (turfPaying === 'all' && collect > 0 && !restHere) {
         // Cash + UPI where one bill is owed (the server takes parts one bill at a time).
@@ -13989,7 +14019,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "880695661946";
+const APP_BUILD = "c61bddb29e14";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
