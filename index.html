@@ -662,7 +662,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .station-meta.booked svg { width: 14px; height: 14px; }
 /* Money paid up front, and a reminder, sit at the end of the customer strip. */
 .chip-paid, .remind { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: var(--text-xs); font-weight: 600; white-space: nowrap; flex: none; }
-.chip-paid { border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+.chip-paid { border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--accent); font-family: inherit; cursor: pointer; }
+/* So far with an advance: what was played and what was paid ahead, above what is left to pay. */
+.foot-minor { color: var(--ink-2); font-size: var(--text-sm); }
 .chip-paid svg, .remind svg { width: 14px; height: 14px; }
 .remind { border: 1px solid var(--gold-line); background: var(--gold-soft); color: var(--gold); cursor: pointer; transition: background var(--ease), color var(--ease); }
 .remind .up { display: none; }
@@ -3524,7 +3526,8 @@ var ArenaReports = (function () {
   // withRows: also list each payment and what it was recorded as (the export), so every figure can be checked line by line.
   function summary(state, fromMs, toMs, now, withRows) {
     check(Number.isSafeInteger(fromMs) && Number.isSafeInteger(toMs) && toMs > fromMs, 'Invalid report range.');
-    var tabs = {}, details = {}, voided = {}, units = {}, billed = {}, partsOf = {};
+    var tabs = {}, details = {}, voided = {}, units = {}, billed = {}, partsOf = {}, bookingDays = {};
+    (state.TurfBookings || []).forEach(function (b) { bookingDays[b.id] = b.dateKey; });
     (state.Tabs || []).forEach(function (t) { tabs[t.id] = t; });
     (state.Equipment || []).forEach(function (u) { units[u.id] = u.category; });
     (state.BillDetails || []).forEach(function (d) { details[d.id] = d; });
@@ -3546,7 +3549,7 @@ var ArenaReports = (function () {
     (state.Bills || []).forEach(function (bill) {
       var detail = details[bill.id];
       if (!detail || !inRange(detail.createdMs, fromMs, toMs) || voided[bill.id]) return;
-      var tab = tabs[detail.tabId] || {}, gaming = 0, products = 0, turf = 0, turfOff = 0, brought = 0, gamingBy = {}, productBy = {};
+      var tab = tabs[detail.tabId] || {}, gaming = 0, products = 0, turf = 0, turfOff = 0, brought = 0, gamingBy = {}, productBy = {}, turfBy = {};
       billed[detail.tabId] = true;
       var add = function (into, key, paise) { into[key] = (into[key] || 0) + paise; };
       (state.Segments || []).forEach(function (g) { if (g.tabId === detail.tabId && g.status !== 'void') { gaming += g.totalPaise; add(gamingBy, units[g.unitId] || 'Manual', g.totalPaise); } });
@@ -3557,6 +3560,8 @@ var ArenaReports = (function () {
           var part = ArenaTurf.meta(o), gross = part.part === 'share' ? Number(part.grossPaise) : o.totalPaise;
           turf += gross;
           turfOff += gross - o.totalPaise;
+          // By the day its slot is played, so money paid for it is named by that day (see below).
+          add(turfBy, 'turf@' + (bookingDays[part.bookingId] || dateKeyOf(state, detail.createdMs)), o.totalPaise);
         } else if (GAMING.indexOf(o.category) >= 0) { gaming += o.totalPaise; add(gamingBy, o.category, o.totalPaise); }
         else { products += o.totalPaise; add(productBy, o.category, o.totalPaise); }
       });
@@ -3577,7 +3582,7 @@ var ArenaReports = (function () {
       var parts = {};
       spread(gamingBy, gamingShare, parts);
       spread(productBy, discount - gamingShare - turfShare, parts);
-      if (turf - turfOff - turfShare) parts.Turf = turf - turfOff - turfShare;
+      spread(turfBy, turfShare, parts);
       if (brought) parts.pending = brought;
       partsOf[bill.id] = parts;
       // A balance brought from an earlier bill was already charged there.
@@ -3654,8 +3659,20 @@ var ArenaReports = (function () {
         bits.sort(function (a, b) { return b.rest - a.rest || a.key.localeCompare(b.key); });
         for (var i = 0; given < size && i < bits.length; i++, given++) bits[i].paise++;
         if (!bits.length) out.collected.pending += amount;
-        bits.forEach(function (b) { if (b.key === 'pending') out.collected.pending += sign * b.paise; else out.paid[b.key] = (out.paid[b.key] || 0) + sign * b.paise; });
-        as = bits.map(function (b) { return b.key; }).join(' + ') || 'pending';
+        // Turf is named by the day its slot is played (owner, 1 November): paid that day, Turf; paid before it, Advance (a slot
+        // paid in full days ahead); paid after it, Pending collected.
+        var payDay = dateKeyOf(state, p.createdMs), named = function (key) {
+          if (key.indexOf('turf@') !== 0) return key;
+          var slotDay = key.slice(5);
+          return slotDay === payDay ? 'Turf' : slotDay > payDay ? 'advance' : 'pending';
+        };
+        bits.forEach(function (b) {
+          var key = named(b.key);
+          if (key === 'pending' || key === 'advance') out.collected[key] += sign * b.paise;
+          else out.paid[key] = (out.paid[key] || 0) + sign * b.paise;
+          b.key = key;
+        });
+        as = bits.map(function (b) { return b.key; }).filter(function (k, i, all) { return all.indexOf(k) === i; }).join(' + ') || 'pending';
       }
       if (withRows) out.paymentRows.push({ paymentId: p.id, billId: p.billId || '', at: p.createdMs, method: p.method, as: as, customer: found.customer, amountPaise: amount });
     });
@@ -8192,7 +8209,8 @@ function billOn(unit) { const tabs = [...new Set(activeOn(unit.id).map(g => g.ta
 function stationExtras(unit) {
   const tabIds = [...new Set(activeOn(unit.id).map(g => g.tabId))], paid = heldFor(tabIds), reminder = reminderOf(unit.id);
   return [
-    paid ? h('span', { class: 'chip-paid', title: 'Paid in advance', data: { paid: unit.id } }, icon('wallet'), money(paid)) : null,
+    // In words, and it opens "so far", where it is taken off (owner, 1 November: "that green thingy 120?").
+    paid ? h('button', { type: 'button', class: 'chip-paid', title: 'Paid in advance', data: { paid: unit.id }, onclick: () => costSheet(unit) }, icon('wallet'), 'Paid ' + money(paid)) : null,
     // Before its time the chip says when; once due it says so, and one tap clears it.
     reminder ? h('button', { type: 'button', class: 'remind', title: 'Reminder', data: { due: String(reminder.dueMs), action: 'reminder' },
       onclick: () => (nowMs() >= reminder.dueMs ? runCommand({ type: 'CLEAR_REMINDER', unitId: unit.id }, () => {}) : reminderSheet(unit)) },
@@ -9658,7 +9676,8 @@ async function costSheet(unit) {
     title: unit.name + ' · so far',
     icon: unit.category,
     tone: 'jade',
-    sub: groupNames(players) + ' · at ' + clock(quote.atMs),
+    // Who is playing; the time the figure was worked out read as a visit time (owner, 1 November), so it is left out.
+    sub: groupNames(players),
     focus: false,
     build(ui) {
       for (const t of tabs) {
@@ -9668,8 +9687,11 @@ async function costSheet(unit) {
       }
       // The controllers chosen on the card, or, with none chosen, the whole console.
       const chosen = chosenOn(players).length ? chosenOn(players) : players;
+      // Paid in advance is taken off here, so so far says what is left to pay (owner, 1 November).
+      const ahead = heldFor(tabs.map(t => t.id)), left = Math.max(0, quote.totalPaise - ahead);
       ui.foot.append(
-        h('div', 'foot-row', h('div', { class: 'foot-label', text: 'So far' }), h('div', { class: 'foot-total', text: money(quote.totalPaise), data: { soFar: '1' } })),
+        ahead ? h('div', { class: 'foot-row foot-minor', data: { soFarAhead: '1' } }, h('span', { text: 'So far ' + money(quote.totalPaise) + ' · Paid in advance ' + money(ahead) })) : null,
+        h('div', 'foot-row', h('div', { class: 'foot-label', text: ahead ? 'Left to pay' : 'So far' }), h('div', { class: 'foot-total', text: money(ahead ? left : quote.totalPaise), data: { soFar: '1' } })),
         h('div', 'foot-row cost-actions',
           btn([icon('sales'), 'Add Items'], () => addItemsFor(unit), 'block', { data: { action: 'items' } }),
           // The items paid on their own while the time plays on (owner, 27 October), on every system.
