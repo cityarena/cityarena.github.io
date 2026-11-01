@@ -9298,30 +9298,48 @@ function drawLines(body, lines) {
   }
   if (goods.length) {
     const card = h('div', 'lines');
+    // The same item at the same price, for the same person, is one row with its whole count, however many times and during
+    // whichever game it was bought (owner, 1 November: "why is diet coke written multiple times?? ... no matter when they
+    // buy"). A table keeps each game's purchases apart underneath, so each game's Collect knows its own; here they are one.
+    // − takes one off the latest purchase, + adds one more to it, the bin takes the row off; paying for fewer when settling
+    // is spread over the purchases, oldest first.
+    const rows = new Map();
     for (const o of goods) {
-      const product = !!o.productId;
+      const key = o.productId ? o.productId + ':' + o.unitPricePaise + ':' + (o.purchaser || '') : 'line:' + o.id;
+      if (!rows.has(key)) rows.set(key, []);
+      rows.get(key).push(o);
+    }
+    for (const list of rows.values()) {
+      const o = list[list.length - 1], product = !!o.productId, qty = list.reduce((n, x) => n + Number(x.quantity), 0), total = list.reduce((n, x) => n + Number(x.totalPaise || 0), 0);
       // On a bill not yet closed every item can be one fewer, one more or removed, right on its line (owner, 20 October).
       const open = lines.after && (tabOf(o.tabId) || {}).status === 'open';
-      const change = n => runCommand({ type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: n, reason: n ? 'Quantity changed before billing' : 'Removed before billing' }, lines.after);
+      const update = (x, n, then) => runCommand({ type: 'UPDATE_ORDER', id: x.id, revision: x.revision, quantity: n, reason: n ? 'Quantity changed before billing' : 'Removed before billing' }, then);
+      // To n in all: more goes on the latest purchase; fewer comes off the latest; none takes every purchase of it off.
+      const change = n => {
+        if (n <= 0) return list.reduceRight((then, x) => () => update(x, 0, then), lines.after)();
+        return n > qty ? update(o, Number(o.quantity) + n - qty, lines.after) : removeOne(o, lines.after);
+      };
+      const forWhom = o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '';
       // A bill being settled (owner, 21 October): − pays for fewer now ("2 of 3"), the rest staying on the bill to move, put
       // on credit or keep pending; + pays for them again and, past what is on the bill, adds one more of the same item (3 to
       // 4). Nothing is taken off the bill except with the bin, for an item added by mistake.
       if (lines.ticks && open) {
-        const qty = Number(o.quantity), n = lines.ticks.count(o);
+        const n = list.reduce((sum, x) => sum + lines.ticks.count(x), 0);
+        const setTo = want => { let left = want; for (const x of list) { const k = Math.min(Number(x.quantity), Math.max(0, left)); lines.ticks.setCount(x, k); left -= k; } };
         card.append(h('div', { class: 'line with-tools', data: { order: o.id } },
-          h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
+          h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + forWhom })),
           h('span', { class: 'item-tools', data: { itemTools: o.label } }, h('span', 'step',
-            h('button', { type: 'button', 'aria-label': 'Pay for one fewer ' + o.label, disabled: n === 0, data: { action: 'pay-less' }, onclick: () => lines.ticks.setCount(o, n - 1) }, icon('minus')),
+            h('button', { type: 'button', 'aria-label': 'Pay for one fewer ' + o.label, disabled: n === 0, data: { action: 'pay-less' }, onclick: () => setTo(n - 1) }, icon('minus')),
             h('b', { class: 'qty-n', text: n < qty ? n + ' of ' + qty : String(qty) }),
-            h('button', { type: 'button', 'aria-label': n < qty ? 'Pay for one more ' + o.label : 'One more ' + o.label, disabled: n >= qty && (!product || qty >= 999), data: { action: 'pay-more' }, onclick: () => { if (n < qty) lines.ticks.setCount(o, n + 1); else { lines.ticks.full(o); change(qty + 1); } } }, icon('plus'))),
+            h('button', { type: 'button', 'aria-label': n < qty ? 'Pay for one more ' + o.label : 'One more ' + o.label, disabled: n >= qty && (!product || qty >= 999), data: { action: 'pay-more' }, onclick: () => { if (n < qty) setTo(n + 1); else { list.forEach(x => lines.ticks.full(x)); update(o, Number(o.quantity) + 1, lines.after); } } }, icon('plus'))),
             h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove one ' + o.label + ' from the bill', title: 'Remove one from the bill', data: { action: 'item-remove' }, onclick: () => removeOne(o, lines.after) }, icon('trash'))),
           h('span', { class: 'line-amount', text: money(o.unitPricePaise * n) })));
         continue;
       }
       card.append(h('div', { class: 'line' + (open ? ' with-tools' : ''), data: { order: o.id } },
-        h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && !open ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + (o.purchaser && o.purchaser !== customer ? ' · for ' + o.purchaser : '') })),
-        open ? itemTools(o.label, Number(o.quantity), change, product) : null,
-        h('span', { class: 'line-amount', text: money(o.totalPaise) })));
+        h('div', 'line-main', h('b', { text: o.label + (qty > 1 && !open ? ' × ' + qty : '') }), h('span', { class: 'small muted', text: (product ? money(o.unitPricePaise) + ' each' : o.reason || 'Charge') + forWhom })),
+        open ? itemTools(o.label, qty, change, product) : null,
+        h('span', { class: 'line-amount', text: money(total) })));
     }
     body.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size ? h('span', { class: 'group-sum', text: money(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) }) : null), card));
   }
@@ -13971,7 +13989,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "b82ec774f574";
+const APP_BUILD = "880695661946";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
