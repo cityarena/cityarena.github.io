@@ -1153,6 +1153,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .group-title .small { margin-left: auto; font-family: var(--text); font-weight: 500; }
 /* A section's own total, at the right of its heading. */
 .group-title .group-sum { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* The calendar beside Turf on Move: another day's bookings. */
+.group-title .move-turf-pick { margin-left: auto; }
+.group-title .move-turf-pick[aria-pressed=true] { color: var(--primary); background: var(--primary-soft); }
+.move-turf-day { margin-bottom: 10px; }
 /* "So far" with more than one bill on a station: each customer, their total and their Pay Items on one line. */
 .cost-who { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .bill-group { margin-bottom: 12px; padding: 12px; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: linear-gradient(180deg, rgba(80, 62, 30, 0.032) 0%, rgba(80, 62, 30, 0.013) 100%); box-shadow: var(--hi); }
@@ -3414,7 +3418,7 @@ var ArenaViews = (function () {
         return { id: a.id, number: number(state, a.id), amountPaise: given, method: a.method, createdMs: a.createdMs, towards: towards ? towards.customer : '' };
       }) : [],
       transfer: transfer ? { accountId: transfer.accountId, account: account ? account.name : '', amountPaise: transfer.amountPaise, createdMs: transfer.createdMs } : null,
-      carry: (function () { var c = ArenaCore.carryOf(state, billId), to = c ? (state.TurfBookings || []).find(function (b) { return b.id === c.bookingId; }) : null; return c ? { amountPaise: c.amountPaise, dateKey: to ? to.dateKey : '', createdMs: c.createdMs } : null; })(),
+      carry: (function () { var c = ArenaCore.carryOf(state, billId), to = c ? (state.TurfBookings || []).find(function (b) { return b.id === c.bookingId; }) : null; return c ? { amountPaise: c.amountPaise, dateKey: to ? to.dateKey : '', tabId: c.tabId, createdMs: c.createdMs } : null; })(),
       corrections: (state.Corrections || []).filter(function (c) { return has(ids, c.targetId); }),
       pauses: lines ? (state.Pauses || []).filter(function (p) { return (state.Segments || []).some(function (g) { return g.id === p.segmentId && g.tabId === tab.id; }); }) : []
     };
@@ -4078,6 +4082,19 @@ var ArenaTurf = (function () {
   function groupName(group) { return group === 'all' ? 'Everyone' : 'Team ' + group; }
   function held(state, tabId) { return (state.Advances || []).some(function (a) { return a.tabId === tabId && a.status === 'held'; }); }
   function playing(state, tabId) { return (state.Segments || []).some(function (g) { return g.tabId === tabId && g.status !== 'void'; }); }
+  // A bill already closed with money still owing (part paid at checkout, or pending): its balance can travel, once.
+  function dueBill(state, t) {
+    if (!t || t.status === 'open') return null;
+    var detail = (state.BillDetails || []).filter(function (d) { return d.tabId === t.id && !ArenaCore.isVoidedBill(state, d.id); }).pop(), bill = detail ? (state.Bills || []).find(function (x) { return x.id === detail.id; }) : null;
+    return bill && bill.totalPaise > bill.paidPaise && !ArenaCore.carryOf(state, bill.id) && !(state.CreditTransfers || []).some(function (c) { return c.billId === bill.id; }) ? bill : null;
+  }
+  // That balance as one line on another bill, and a record that it went there.
+  function carryBalance(state, bill, into, purchaser, prefix, dateKey, bookingId, now, lineId, carryId) {
+    var due = bill.totalPaise - bill.paidPaise, ref = (state.References || []).find(function (r) { return r.id === bill.id; });
+    setLine(state, null, { tabId: into.id, category: 'Carried', label: (prefix + 'Balance of bill ' + (ref ? ref.number : '')).slice(0, 100), quantity: 1, unitPricePaise: due, purchaser: purchaser, reason: 'Carried from ' + shortDate(dateKey), ratesJson: JSON.stringify({ carryOf: bill.id }) }, now, lineId);
+    state.Carries = state.Carries || [];
+    state.Carries.push({ id: carryId, billId: bill.id, bookingId: bookingId, tabId: into.id, orderId: lineId, amountPaise: due, createdMs: now });
+  }
   // Settled, moved or carried on to a system: from then on the turf amounts of this booking are not recalculated.
   function locked(state, booking) {
     if (booking.split === 'yes') {
@@ -4388,15 +4405,38 @@ var ArenaTurf = (function () {
       return { bookingId: owner.id, playerId: player.id, message: 'Player updated.' };
     }
     if (cmd.type === 'TURF_MOVE') {
-      // One player's whole bill (their share and their items) goes onto a bill already running on a system, chosen by name.
-      var mover = row(state.TurfPlayers, cmd.playerId), from = tabOf(state, mover.tabId), to = tabOf(state, cmd.tabId);
-      find(state, mover.bookingId);
-      check(mover.status === 'active' && !!from && from.status === 'open', 'This player’s bill is already settled.');
-      check(!!to && to.status === 'open' && to.id !== from.id, 'That bill is closed. Refresh and choose again.');
+      // What is owed goes onto a bill already running on a system, chosen by name: one player's, or a one-payer booking's
+      // (owner, 2 November: "full or outstanding needs to be moved to systems"). An open bill goes whole (the share or the
+      // turf, the items, any advance); a bill already closed with money owing sends its balance, as one line.
+      var mover = cmd.playerId ? row(state.TurfPlayers, cmd.playerId) : null, whose = find(state, mover ? mover.bookingId : cmd.id), to, from;
+      if (mover) {
+        from = tabOf(state, mover.tabId);
+        check(mover.status === 'active' && !mover.movedTo && !!from && (from.status === 'open' || !!dueBill(state, from)), 'This player’s bill is already settled.');
+      } else {
+        check(whose.split !== 'yes', 'Move each player from their card.');
+        check(!accountOf(state, whose.id), 'This slot goes to the academy’s account.');
+        check(!leadOf(state, whose), 'Move it from the slot it is paid with.');
+        from = tabOf(state, whose.tabId);
+        check(!from || from.status === 'open' || !!dueBill(state, from), 'This booking is already settled.');
+      }
+      if (cmd.unitId) {
+        // A free system (owner, 2 November: "where are free systems"): they start playing there, on a bill of its own,
+        // and what is owed goes onto it.
+        var opened = ArenaApp.execute(state, { type: 'OPEN_TAB', unitId: cmd.unitId, customer: mover ? mover.name : whose.customer, phone: mover ? '' : whose.phone, controllers: cmd.controllers || 1, startMs: cmd.startMs, confirmTime: cmd.confirmTime, acknowledge: cmd.acknowledge }, actor, now, id + '-open');
+        to = tabOf(state, opened.tabId);
+      } else to = tabOf(state, cmd.tabId);
+      check(!!to && to.status === 'open' && (!from || to.id !== from.id), 'That bill is closed. Refresh and choose again.');
       check((state.Segments || []).some(function (g) { return g.tabId === to.id && g.status === 'active'; }), 'Choose a bill on a system that is in use.');
-      ArenaSales.execute(state, { type: 'CONSOLIDATE_TABS', sourceTabId: from.id, tabId: to.id }, actor, now, id + '-move');
-      mover.movedTo = to.id; mover.revision++;
-      return { bookingId: mover.bookingId, tabId: to.id, message: mover.name + '’s amount moved to ' + to.customer + '’s bill.' };
+      var balance = from && from.status !== 'open' ? dueBill(state, from) : null;
+      if (balance) carryBalance(state, balance, to, mover ? mover.name : whose.customer, mover ? mover.name + ' · ' : 'Turf · ', whose.dateKey, '', now, id + '-balance', id + '-carry');
+      else {
+        // A one-payer booking with no bill yet: its bill is made, with the turf on it, and goes across whole.
+        if (!mover) { from = ensureMain(state, whose, now, id); sync(state, whose, now, id); }
+        check(!(state.Segments || []).some(function (g) { return g.tabId === from.id && g.status === 'active'; }), 'Stop the timers on this bill first.');
+        ArenaSales.execute(state, { type: 'CONSOLIDATE_TABS', sourceTabId: from.id, tabId: to.id }, actor, now, id + '-move');
+      }
+      if (mover) { mover.movedTo = to.id; mover.revision++; }
+      return { bookingId: whose.id, tabId: to.id, message: (mover ? mover.name + '’s amount' : whose.customer + '’s turf') + ' moved to ' + (cmd.unitId ? row(state.Equipment, cmd.unitId).name + ', started now' : to.customer + '’s bill') + '.' };
     }
     var booking = find(state, cmd.id, cmd.revision);
     if (cmd.type === 'TURF_TAKE') {
@@ -4685,12 +4725,7 @@ var ArenaTurf = (function () {
       var carrier = cmd.playerId ? row(state.TurfPlayers, cmd.playerId) : null, sources = [];
       var owing = function (t) { return !!t && t.status === 'open' && !playing(state, t.id) && (state.Orders || []).some(function (o) { return o.tabId === t.id && o.status === 'active'; }); };
       // A bill already closed with money still owing (part paid at checkout): its balance travels.
-      var dueBill = function (t) {
-        if (!t || t.status === 'open') return null;
-        var detail = (state.BillDetails || []).filter(function (d) { return d.tabId === t.id && !ArenaCore.isVoidedBill(state, d.id); }).pop(), bill = detail ? (state.Bills || []).find(function (x) { return x.id === detail.id; }) : null;
-        return bill && bill.totalPaise > bill.paidPaise && !ArenaCore.carryOf(state, bill.id) && !(state.CreditTransfers || []).some(function (c) { return c.billId === bill.id; }) ? bill : null;
-      };
-      var add = function (t, player) { var b = dueBill(t); if (b) sources.push({ bill: b, player: player }); else if (owing(t)) sources.push({ tab: t, player: player }); };
+      var add = function (t, player) { var b = dueBill(state, t); if (b) sources.push({ bill: b, player: player }); else if (owing(t)) sources.push({ tab: t, player: player }); };
       if (carrier) {
         check(carrier.bookingId === booking.id && carrier.status === 'active', 'This player is not on this booking.');
         add(tabOf(state, carrier.tabId), carrier);
@@ -4720,10 +4755,7 @@ var ArenaTurf = (function () {
       sources.forEach(function (src, i) {
         if (src.bill) {
           // A closed bill's balance: one line on the later bill, and a record that this bill's balance went there.
-          var due = src.bill.totalPaise - src.bill.paidPaise, ref = (state.References || []).find(function (r) { return r.id === src.bill.id; });
-          setLine(state, null, { tabId: into.id, category: 'Carried', label: ((src.player ? src.player.name + ' · ' : '') + 'Balance of bill ' + (ref ? ref.number : '')).slice(0, 100), quantity: 1, unitPricePaise: due, purchaser: src.player ? src.player.name : booking.customer, reason: 'Carried from ' + shortDate(booking.dateKey), ratesJson: JSON.stringify({ carryOf: src.bill.id }) }, now, id + '-balance-' + i);
-          state.Carries = state.Carries || [];
-          state.Carries.push({ id: id + '-carry-' + i, billId: src.bill.id, bookingId: later.id, tabId: into.id, orderId: id + '-balance-' + i, amountPaise: due, createdMs: now });
+          carryBalance(state, src.bill, into, src.player ? src.player.name : booking.customer, src.player ? src.player.name + ' · ' : '', booking.dateKey, later.id, now, id + '-balance-' + i, id + '-carry-' + i);
           if (src.player) { src.player.movedTo = into.id; src.player.revision++; }
           return;
         }
@@ -9593,7 +9625,7 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
         // Pending beside credit, wherever credit is offered (owner, 20 October): nothing received now, kept under a name.
         if (heldPaise() < totalPaise()) action('pending', 'clock', 'Pending', 'Keep it pending under a name, to be cleared later', () => { draft.edited = true; draft.received = '0'; draft.rest = 'pending'; ui.redraw(); focusRest(ui); });
         // One Move (owner, 21 October): onto a bill playing now, today's turf, or a free system to carry on playing.
-        if (segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player' || playingBills(tab).length || turfTakers(tab).length) action('move', 'transfer', 'Move', 'Add to a bill playing now, to today’s turf, or carry on playing on a free system', () => moveSheet(tab));
+        if (segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player' || playingBills(tab).length || turfTakers(tab).length) action('move', 'transfer', 'Move', 'Add to a bill playing now, to a turf booking, or carry on playing on a free system', () => moveSheet(tab));
         if (endings.length > 1 && !held.length) action('split', 'split', 'Split Bill', 'Each player pays their own', () => runCommand({ type: 'SPLIT_REVIEW', tabId: tab.id }, result => chooseTabSheet(result.tabIds, result.groupName)));
         ui.foot.append(actions);
       } else ui.foot.append(h('div', 'foot-links', btn([icon('back'), 'Back to payment'], () => { mode = 'pay'; draft.edited = false; ui.redraw(); }, 'quiet')));
@@ -9765,11 +9797,18 @@ function chooseTabSheet(tabIds, groupName) {
 
 // Today's turf bookings still to be paid, for a bill from the gaming floor: the group goes on to the turf and pays there,
 // once, with the booking.
-function turfTakers(tab) {
+// The turf bookings a bill can go onto: on one day, or with no day on any.
+function turfTakers(tab, day) {
   if (tab.kind === 'turf' || tab.kind === 'turf_player') return [];
-  return (state.TurfBookings || []).filter(b => b.status === 'booked' && b.dateKey === dayKey(nowMs()) && turfStatusOf(b.id).state !== 'settled' && !(b.tabId && tabOf(b.tabId) && tabOf(b.tabId).status !== 'open')).sort((a, b) => Number(a.startHour) - Number(b.startHour));
+  return (state.TurfBookings || []).filter(b => b.status === 'booked' && (!day || b.dateKey === day) && turfStatusOf(b.id).state !== 'settled' && !(b.tabId && tabOf(b.tabId) && tabOf(b.tabId).status !== 'open')).sort((a, b) => a.dateKey.localeCompare(b.dateKey) || Number(a.startHour) - Number(b.startHour));
 }
-const turfTakerText = b => b.customer + ' · ' + turfRange(b) + ' · ' + courtLabel(b.court);
+// The system a bill's balance was moved onto ("PS5 1"), or whose bill it is.
+function carriedToText(tabId) {
+  const t = tabOf(tabId), units = [...new Set(segmentsOf(tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))];
+  return units.length ? units.join(', ') : t ? t.customer + '’s bill' : 'another bill';
+}
+// With its day when it is not today.
+const turfTakerText = (b, withDay) => b.customer + ' · ' + (withDay && b.dateKey !== dayKey(nowMs()) ? turfDayName(b.dateKey) + ' · ' : '') + turfRange(b) + ' · ' + courtLabel(b.court);
 // Systems laid out by category, one row each (owner, 21 October: "organise properly"): the category on the left and its
 // systems as chips beside it (on a phone, under it). Each entry: { category, text, selected, data, onclick }.
 function systemRows(entries) {
@@ -9964,20 +10003,21 @@ function swapSheet(unit) {
   });
 }
 // One Move (owner, 21 October), three places: a system playing now (this bill goes onto theirs, nobody starts playing),
-// today's turf (paid with the booking), or a free system (they carry on playing there; pick two or more and a timer
-// starts on each, all on this bill).
+// today's turf (paid with the booking; the calendar beside it shows another day's, owner, 2 November: "tomorrow or any
+// other days turf booking"), or a free system (they carry on playing there; pick two or more and a timer starts on each,
+// all on this bill).
 function moveSheet(tab) {
   const freeSlots = unit => 4 - activeOn(unit.id).length;
   // A free system, or a PS5 in use that still has a free controller (to join friends there).
   const offered = unit => !inUse(unit) || (unit.category === 'PS5' && !legacyOn(unit.id) && freeSlots(unit) > 0);
   // Carrying on playing is for a bill that played; a turf player's share joins a system from the turf booking itself.
   const canPlayOn = segmentsOf(tab.id).some(g => g.status === 'ended') || tab.kind === 'turf' || tab.kind === 'turf_player';
-  const systems = tab.kind === 'turf_player' ? [] : playingBills(tab), turf = turfTakers(tab);
+  const systems = tab.kind === 'turf_player' ? [] : playingBills(tab), anyTurf = turfTakers(tab), today = dayKey(nowMs());
   const free = canPlayOn ? CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && offered(u))) : [];
   const chosen = new Set();
   // How many stopped on this bill; the usual number to start again, but fewer may play on.
   const movers = Math.max(1, state.Endings.filter(e => e.reviewTabId === tab.id && e.status === 'review' && e.segmentId).length);
-  let joinTab = '', time, controllers = 0, acked = false, turfTo = '', billTo = '';
+  let joinTab = '', time, controllers = 0, acked = false, turfTo = '', billTo = '', turfDay = today, dayBox = null;
   const comment = commentField();
   const onePs5 = () => { const only = chosen.size === 1 ? unitOf([...chosen][0]) : null; return only && only.category === 'PS5' ? only : null; };
   const seatCount = () => { const unit = onePs5(); return unit ? Math.min(controllers || movers, freeSlots(unit)) : 0; };
@@ -9989,15 +10029,29 @@ function moveSheet(tab) {
     focus: false,
     onClose: () => settleSheet(tab.id),
     build(ui) {
-      if (!systems.length && !turf.length && !free.length) { ui.body.append(h('p', { class: 'muted', text: 'No system is playing or free and no turf booking is open today.' })); return; }
+      if (!systems.length && !anyTurf.length && !free.length) { ui.body.append(h('p', { class: 'muted', text: 'No system is playing or free and no turf booking is open.' })); return; }
+      const turf = turfTakers(tab, turfDay);
       if (systems.length) ui.body.append(h('div', 'group-title', icon('users'), 'Playing now · add to their bill'), systemRows(systems.map(entry => ({ category: entry.category, text: entry.name, selected: billTo === entry.origin, data: { bill: entry.origin }, onclick: () => { clear(); billTo = entry.origin; ui.redraw(); } }))));
-      if (turf.length) ui.body.append(h('div', 'group-title', icon('turf'), 'Turf · pay with the booking'), h('div', 'chips move-turf', turf.map(b => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(turfTo === b.id), data: { turfTo: b.id }, onclick: () => { clear(); turfTo = b.id; ui.redraw(); } }, turfTakerText(b)))));
+      if (anyTurf.length) {
+        // Today's bookings; the calendar opens a day to choose (tomorrow at first), and tapped again goes back to today.
+        const pickDay = iconButton('reservations', turfDay === today ? 'Another day’s turf booking' : 'Today’s turf bookings', () => {
+          dayBox = dayBox || h('input', { type: 'date', value: shiftDay(today, 1), 'aria-label': 'Turf booking day', data: { field: 'move-turf-day' }, onchange: () => { turfDay = dayBox.value || today; turfTo = ''; ui.redraw(); } });
+          turfDay = turfDay === today ? dayBox.value : today;
+          turfTo = '';
+          ui.redraw();
+          if (turfDay !== today) dayBox.focus();
+        }, { class: 'move-turf-pick', 'aria-pressed': String(turfDay !== today), data: { action: 'move-turf-day' } });
+        ui.body.append(h('div', 'group-title', icon('turf'), 'Turf · pay with the booking', pickDay));
+        if (turfDay !== today) ui.body.append(h('label', 'field move-turf-day', h('span', { text: 'Day' }), dayBox));
+        ui.body.append(turf.length ? h('div', 'chips move-turf', turf.map(b => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(turfTo === b.id), data: { turfTo: b.id }, onclick: () => { clear(); turfTo = b.id; ui.redraw(); } }, turfTakerText(b))))
+          : h('p', { class: 'muted small', data: { field: 'move-turf-none' }, text: 'No turf booking open ' + (turfDay === today ? 'today' : 'on ' + turfDayName(turfDay)) + '.' }));
+      }
       if (free.length) ui.body.append(h('div', 'group-title', icon('play'), 'Free · carry on playing'), systemRows(free.map(u => ({ category: u.category, text: u.name + (inUse(u) ? ' · ' + freeSlots(u) + ' free' : ''), selected: chosen.has(u.id), data: { unit: u.id },
         onclick: () => { const had = chosen.has(u.id), kept = [...chosen]; clear(); kept.forEach(id => chosen.add(id)); if (had) chosen.delete(u.id); else chosen.add(u.id); ui.redraw(); } }))));
-      const target = systems.find(entry => entry.origin === billTo), booking = turf.find(b => b.id === turfTo);
+      const target = systems.find(entry => entry.origin === billTo), booking = anyTurf.find(b => b.id === turfTo);
       if (target || booking) {
         ui.body.append(h('div', { style: 'margin-top:16px' }, comment.node));
-        ui.primary('Add ' + money(tabTotal(tab.id)) + ' to ' + (target ? target.name : turfTakerText(booking)));
+        ui.primary('Add ' + money(tabTotal(tab.id)) + ' to ' + (target ? target.name : turfTakerText(booking, true)));
         return;
       }
       const units = [...chosen].map(unitOf), only = units.length === 1 ? units[0] : null;
@@ -10043,7 +10097,7 @@ function moveSheet(tab) {
       if (command.type === 'TURF_TAKE') {
         // Back where the receptionist was, with a note; the charges are on the booking, to be paid there.
         const b = turfBookingOf(command.id);
-        return { text: 'Moved to ' + turfTakerText(b) + '. Pay it with the booking.' };
+        return { text: 'Moved to ' + turfTakerText(b, true) + '. Pay it with the booking.' };
       }
       if (command.type !== 'MOVE_REVIEW') return null;
       floorCategory = unitOf(command.unitIds[0]).category;
@@ -10368,12 +10422,15 @@ async function receiptSheet(billId, back) {
         primary();
         // A turf bill can also go to the team's next booking: the turf chooser offers both.
         const turfOwner = data.tab ? turfBookingForTab(data.tab.id) : null, turfPlayer = turfOwner ? (state.TurfPlayers || []).find(x => x.tabId === data.tab.id) || null : null;
-        ui.foot.append(h('div', 'foot-links', btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, due, goodsOf(data.orders))), 'quiet', { data: { action: 'bill-credit' } }), btn('Close', dismissSheet, 'quiet')));
+        // A turf bill's balance can also go onto a bill running on a system (owner, 2 November: "where is it??").
+        const toSystem = turfOwner && !turfAccountOf(turfPlayer ? turfPlayer.id : turfOwner.id) && !(turfOwner.split === 'yes' && !turfPlayer) ? btn([icon('transfer'), 'Move to System'], () => turfMoveSheet(turfOwner, turfPlayer), 'quiet', { data: { action: 'bill-move-system' } }) : null;
+        ui.foot.append(h('div', 'foot-links', btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, due, goodsOf(data.orders))), 'quiet', { data: { action: 'bill-credit' } }), toSystem, btn('Close', dismissSheet, 'quiet')));
       } else {
         // Nothing left to collect: say so plainly, then offer the receipt.
         const done = data.status === 'paid' ? ['', 'checkCircle', 'Paid in full', money(bill.totalPaise) + ' settled' + (extras.length ? ' · ' + money(receivedAll) + ' received in all' : '')]
           : data.status === 'credit' ? ['gold', 'credits', 'On credit · ' + (data.transfer ? data.transfer.account : ''), money(data.transfer ? data.transfer.amountPaise : due) + ' moved to the account']
-            : data.status === 'carried' && data.carry ? ['gold', 'reservations', 'Moved to ' + turfDayName(data.carry.dateKey), money(data.carry.amountPaise) + ' to be paid with that booking']
+            : data.status === 'carried' && data.carry && data.carry.dateKey ? ['gold', 'reservations', 'Moved to ' + turfDayName(data.carry.dateKey), money(data.carry.amountPaise) + ' to be paid with that booking']
+              : data.status === 'carried' && data.carry ? ['gold', 'transfer', 'Moved to ' + carriedToText(data.carry.tabId), money(data.carry.amountPaise) + ' to be paid with that bill']
               : data.status === 'void' ? ['bad', 'ban', 'Voided', 'Nothing is owed on this bill'] : null;
         if (done) ui.foot.append(h('div', { class: ('settled ' + done[0]).trim(), data: { settled: data.status } }, icon(done[1]), h('div', null, h('b', { text: done[2] }), h('span', { class: 'small muted', text: done[3] }))));
         ui.foot.append(h('div', 'foot-row', btn([icon('printer'), 'Print Receipt'], () => printReceipt(data), 'block', { data: { action: 'print' } }), btn([icon('check'), 'Done'], dismissSheet, 'primary block', { data: { action: 'done' } })));
@@ -12959,6 +13016,8 @@ function turfDetailSheet(id) {
           if (b.tabId) turfCreditSheet(b, null, { owedPaise: status.owedPaise, billId: '' });
           else runCommand({ type: 'TURF_CHECKOUT', id: b.id }, () => turfCreditSheet(b, null, { owedPaise: turfStatusOf(b.id).owedPaise, billId: '' }));
         });
+        // Move to System (owner, 2 November): the whole booking while its bill is open, or what is left once it is closed.
+        if (!split && !onAccount && collect > 0 && !(mainPart && mainPart.state === 'playing') && !(status.leadId && status.leadId !== b.id)) link('turf-move', 'transfer', 'Move to System', 'Move ' + money(collect) + ' to a system playing now', () => turfMoveSheet(b, null));
         // A one-payer booking collects at the foot directly; its discount is typed at the top (owner, 22 October).
         if (collect > 0 && split) link('turf-paid', 'checkCircle', 'All pay now', 'Everyone still owing pays now, in full', () => { turfPaying = 'all'; ui.redraw(); });
         if (!split && !mainOpen && mainPart && mainPart.billId) link('turf-bill', 'bills', 'View bill', 'The bill, its payments and receipt', () => receiptSheet(mainPart.billId, back));
@@ -13067,7 +13126,11 @@ function turfOnePayerBody(ui, b, status, main, mainOpen, mainPart) {
   ui.body.append(h('div', 'group-title', icon('turf'), 'Turf'), summary);
   if (!mainOpen && mainPart && !bill) {
     const [text, tone] = TURF_PART[mainPart.state] || ['', ''];
-    ui.body.append(h('div', { class: 'turf-paid', style: 'margin-top:12px' }, h('span', { class: 'badge ' + tone, text }), mainPart.billId ? btn([icon('bills'), 'Bill'], () => receiptSheet(mainPart.billId, () => turfDetailSheet(b.id)), 'quiet') : null));
+    // Moved: where to, "Moved · PS5 2" (the bill it went to, or the balance's line there).
+    const carry = mainPart.billId ? (state.Carries || []).find(c => c.billId === mainPart.billId) : null;
+    const fee = state.Orders.find(o => turfMeta(o).bookingId === b.id && turfMeta(o).part === 'fee' && o.tabId !== b.tabId);
+    const where = mainPart.state === 'moved' ? turfSettledText({ movedTo: carry ? carry.tabId : fee ? fee.tabId : '' }, mainPart) : text;
+    ui.body.append(h('div', { class: 'turf-paid', style: 'margin-top:12px' }, h('span', { class: 'badge ' + tone, data: mainPart.state === 'moved' ? { turfMoved: '1' } : {}, text: where }), mainPart.billId ? btn([icon('bills'), 'Bill'], () => receiptSheet(mainPart.billId, () => turfDetailSheet(b.id)), 'quiet') : null));
   }
 }
 function turfSplitBody(ui, b, status) {
@@ -13192,7 +13255,7 @@ function turfPlayerRow(b, p, status) {
       tool('credits', 'Move ' + p.name + '’s amount to credit', 'player-credit', () => turfCreditSheet(b, p, part))] : []),
     // Pending: this player clears it in a day or two.
     ...(owing && open && part.state === 'open' ? [tool('clock', 'Keep ' + p.name + '’s amount pending', 'player-pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back))] : []),
-    ...(open && !turfAccountOf(p.id) ? [tool('transfer', 'Move ' + p.name + '’s amount to a system', 'player-move', () => turfMoveSheet(b, p))] : []),
+    ...((open || owing) && !turfAccountOf(p.id) ? [tool('transfer', 'Move ' + p.name + '’s amount to a system', 'player-move', () => turfMoveSheet(b, p))] : []),
     ...(part.billId && !owing ? [tool('bills', p.name + '’s bill', 'player-bill', () => receiptSheet(part.billId, back))] : []),
     menu([['Name or team', () => turfPlayerSheet(b, p, p.team), false, 'pencil'], ...(open && own ? [['Change items', () => settleSheet(p.tabId, 'pay'), false, 'sales']] : []), ...(!status.locked && open && !own ? [['Remove', () => runCommand({ type: 'TURF_PLAYER', playerId: p.id, revision: p.revision, name: p.name, team: p.team, remove: true }, back), true, 'trash']] : []),
       ...(open ? [['Part payment or discount', () => settleSheet(p.tabId, 'pay'), false, 'wallet']] : [])], 'Change ' + p.name)];
@@ -13247,7 +13310,7 @@ function turfPlayerActions(b, p) {
       if (open) action('player-items', 'sales', 'Add Items', () => turfItemsSheet(b, p));
       if (owing) action('player-credit', 'credits', 'Move to Credit', () => turfCreditSheet(b, p, part));
       if (owing && open && part.state === 'open') action('player-pending', 'clock', 'Pending', () => runCommand({ type: 'TURF_PENDING', id: b.id, playerId: p.id }, back));
-      if (open && !academy) action('player-move', 'transfer', 'Move', () => turfMoveSheet(b, p));
+      if ((open || owing) && !academy) action('player-move', 'transfer', 'Move', () => turfMoveSheet(b, p));
       if (open && !academy) action('player-discount', 'percent', 'Discount', () => settleSheet(p.tabId, 'discount'));
       if (part.billId && !owing) action('player-bill', 'bills', 'Bill', () => receiptSheet(part.billId, () => turfPlayerActions(b, p)));
       action('player-edit', 'pencil', 'Name or team', () => turfPlayerSheet(b, p, p.team));
@@ -13417,38 +13480,57 @@ function turfSeparateSheet(b) {
     then() { turfDetailSheet(b.id); }
   });
 }
-// A player's amount goes onto a bill already running on a system, named so it is never the wrong bill; or they start playing.
+// What is owed goes onto a bill already running on a system, named so it is never the wrong bill, or onto a free system,
+// where they start playing on a bill of its own (owner, 2 November: "where are free systems"). A player's amount, or with
+// no player a one-payer booking's (owner, 2 November: "full or outstanding needs to be moved to systems"): an open bill
+// whole, a bill already closed with money owing its balance.
 function turfMoveSheet(b, p) {
+  const status = turfStatusOf(b.id), part = status.parts.find(x => (p ? x.playerId === p.id : !x.playerId)) || { owedPaise: 0 };
+  const tabId = p ? p.tabId : b.tabId;
+  const owed = p ? part.owedPaise : status.owedPaise, comment = commentField(), seen = new Set(), running = [];
   // Each system playing now by its name alone, once (owner, 21 October): a console's controllers on separate bills are
   // one entry, its first bill.
-  const owed = tabTotal(p.tabId), comment = commentField(), seen = new Set(), running = [];
   for (const t of state.Tabs) {
-    if (t.status !== 'open' || t.id === p.tabId || !stillPlaying(t.id)) continue;
+    if (t.status !== 'open' || t.id === tabId || !stillPlaying(t.id)) continue;
     const name = [...new Set(state.Segments.filter(g => g.tabId === t.id && g.status === 'active').map(g => (unitOf(g.unitId) || {}).name || g.unitId))].join(', ');
     if (seen.has(name)) continue;
     seen.add(name);
     running.push({ t, name, category: (unitOf(state.Segments.find(g => g.tabId === t.id && g.status === 'active').unitId) || {}).category });
   }
   running.sort((x, y) => x.name.localeCompare(y.name, 'en', { numeric: true }));
-  let chosen = '';
+  const free = CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && !inUse(u)));
+  let chosen = '', unitTo = '', controllers = 1, acked = false, time;
+  const choose = (bill, unit) => { chosen = bill; unitTo = unit; acked = false; current.ack.reservation = false; };
   openSheet({
     title: 'Move to System',
-    sub: p.name + ' · ' + money(owed),
+    sub: (p ? p.name : b.customer) + ' · ' + money(owed),
     icon: 'transfer',
     focus: false,
     onClose: () => turfDetailSheet(b.id),
     build(ui) {
-      if (running.length) {
-        ui.body.append(h('div', 'group-title', icon('users'), 'Playing now'), systemRows(running.map(({ t, name, category }) => ({ category, text: name, selected: chosen === t.id, data: { bill: t.id }, onclick: () => { chosen = t.id; ui.redraw(); } }))));
-      } else ui.body.append(h('p', { class: 'muted', text: 'No system is in use.' }));
-      ui.body.append(h('div', { class: 'station-links', style: 'margin-top:14px' }, btn([icon('play'), 'Start playing on a free system'], () => moveSheet(tabOf(p.tabId)), 'quiet', { data: { action: 'turf-start-system' } })));
-      const target = running.find(x => x.t.id === chosen);
-      if (running.length) ui.body.append(h('div', { style: 'margin-top:14px' }, comment.node));
+      if (!running.length && !free.length) { ui.body.append(h('p', { class: 'muted', text: 'No system is playing or free.' })); return; }
+      if (running.length) ui.body.append(h('div', 'group-title', icon('users'), 'Playing now · add to their bill'), systemRows(running.map(({ t, name, category }) => ({ category, text: name, selected: chosen === t.id, data: { bill: t.id }, onclick: () => { choose(t.id, ''); ui.redraw(); } }))));
+      if (free.length) ui.body.append(h('div', 'group-title', icon('play'), 'Free · start playing'), systemRows(free.map(u => ({ category: u.category, text: u.name, selected: unitTo === u.id, data: { unit: u.id }, onclick: () => { choose('', u.id); ui.redraw(); } }))));
+      const target = running.find(x => x.t.id === chosen), unit = unitTo ? unitOf(unitTo) : null;
+      if (unit) {
+        // A free system: how many controllers on a PS5, when they start, and a booking someone has made on it soon.
+        if (unit.category === 'PS5') ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented([1, 2, 3, 4].map(n => [n, String(n)]), controllers, v => { controllers = Number(v); }).node));
+        const clashes = bookingClash(unit);
+        if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
+        time = time || timeChoice('Starts');
+        ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
+        ui.body.append(h('div', { style: 'margin-top:14px' }, comment.node));
+        ui.primary('Start ' + unit.name + ' · Move ' + money(owed), clashes.length > 0 && !acked);
+        return;
+      }
+      ui.body.append(h('div', { style: 'margin-top:14px' }, comment.node));
       ui.primary(target ? 'Move ' + money(owed) + ' to ' + target.name : 'Choose a system', !target);
     },
     command() {
-      if (!chosen) throw new Error('Choose a bill.');
-      return { type: 'TURF_MOVE', playerId: p.id, tabId: chosen, note: comment.value() };
+      if (!chosen && !unitTo) throw new Error('Choose a system.');
+      const who = p ? { playerId: p.id } : { id: b.id };
+      if (unitTo) return { type: 'TURF_MOVE', ...who, unitId: unitTo, controllers: unitOf(unitTo).category === 'PS5' ? controllers : 1, startMs: time.value(), note: comment.value() };
+      return { type: 'TURF_MOVE', ...who, tabId: chosen, note: comment.value() };
     },
     then() { return turfAfter(b.id); }
   });
@@ -14147,7 +14229,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "19ae1b0d4104";
+const APP_BUILD = "1f4f32744ad6";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
