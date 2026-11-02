@@ -10636,8 +10636,9 @@ function billRange() {
 async function loadBills(key) {
   try {
     const out = await rpc('rpcHistory', token, { text: billQuery.text, status: billQuery.status, ...billRange(), limit: 200 });
-    if (key !== billKey()) return;
-    billCache = { key, rows: out.rows, matched: out.matched };
+    // An answer asked for while a save was still being confirmed is not kept; the redraw below asks again (owner, 2 November:
+    // a bill reversed and voided from this list still read Paid ₹180 in it).
+    if (key === billKey()) billCache = { key, rows: out.rows, matched: out.matched };
   } catch (e) { billCache = { key, rows: [], matched: 0 }; notify('error', e.message); }
   if (page === 'bills' && billsMode === 'closed') redrawKeepingFocus();
 }
@@ -14107,7 +14108,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "4105f26f20ee";
+const APP_BUILD = "2cf026cde71c";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
