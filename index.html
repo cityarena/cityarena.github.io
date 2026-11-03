@@ -11476,7 +11476,8 @@ function accountSheet(accountId) {
         return [row, holder];
       };
 
-      // The account as a statement, oldest first. Every bill or charge stands at the amount that went on credit;
+      // The account as a statement, newest first (owner, 3 November: "that 9pm is todays and it is below nov 1 ka bill"). Every
+      // bill or charge stands at the amount that went on credit;
       // every payment is its own line that comes off the total. A payment is never shown as taken off one bill.
       const events = [];
       for (const e of state.CreditEntries.filter(e => e.accountId === account.id)) events.push({ at: e.createdMs, change: e.amountPaise, title: e.label + (e.reason && e.reason !== e.label ? ' · ' + e.reason : ''), who: e.purchaser && e.purchaser !== account.name ? 'for ' + e.purchaser : '', icon: e.amountPaise < 0 ? 'minus' : 'plusCircle' });
@@ -11506,7 +11507,7 @@ function accountSheet(accountId) {
         }
         return card;
       };
-      if (unsettled.length) ui.body.append(h('div', 'group-title', icon('bills'), 'Bills and payments'), statement(unsettled));
+      if (unsettled.length) ui.body.append(h('div', 'group-title', icon('bills'), 'Bills and payments'), statement(unsettled.slice().reverse()));
       if (earlier.length) {
         if (showEarlier || !unsettled.length) ui.body.append(h('div', 'group-title', icon('history'), 'Settled earlier'), statement(earlier.slice().reverse()));
         else ui.body.append(h('div', { class: 'station-links', style: 'margin-top:10px' }, btn([icon('history'), 'Show settled earlier'], () => { showEarlier = true; ui.redraw(); }, 'quiet', { data: { action: 'earlier' } })));
@@ -14409,7 +14410,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "675bb69aa434";
+const APP_BUILD = "070e65741f81";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
