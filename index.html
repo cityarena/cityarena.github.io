@@ -9882,14 +9882,14 @@ async function costSheet(unit) {
       const chosen = chosenOn(players).length ? chosenOn(players) : players;
       // Paid in advance is taken off here, so so far says what is left to pay (owner, 1 November).
       const ahead = heldFor(tabs.map(t => t.id)), left = Math.max(0, quote.totalPaise - ahead);
-      ui.foot.append(
+      ui.foot.append(...[
         ahead ? h('div', { class: 'foot-row foot-minor', data: { soFarAhead: '1' } }, h('span', { text: 'So far ' + money(quote.totalPaise) + ' · Paid in advance ' + money(ahead) })) : null,
         h('div', 'foot-row', h('div', { class: 'foot-label', text: ahead ? 'Left to pay' : 'So far' }), h('div', { class: 'foot-total', text: money(ahead ? left : quote.totalPaise), data: { soFar: '1' } })),
         h('div', 'foot-row cost-actions',
           btn([icon('sales'), 'Add Items'], () => addItemsFor(unit), 'block', { data: { action: 'items' } }),
           // The items paid on their own while the time plays on (owner, 27 October), on every system.
           payable.length === 1 ? btn([icon('wallet'), 'Pay Items'], () => payItemsSheet(payable[0], back), 'block', { data: { action: 'pay-items' } }) : null,
-          btn(unit.category === 'PS5' ? endLabel(chosen.length, players.length) : 'End Session', () => endSheet(unit.category === 'PS5' ? chosen : [players[0]]), 'primary block', { disabled: !chosen.length, data: { action: 'end' } })));
+          btn(unit.category === 'PS5' ? endLabel(chosen.length, players.length) : 'End Session', () => endSheet(unit.category === 'PS5' ? chosen : [players[0]]), 'primary block', { disabled: !chosen.length, data: { action: 'end' } }))].filter(Boolean));
     }
   });
 }
@@ -10814,7 +10814,7 @@ function reservationSheet(r) {
       unit.value = chosenUnit;
       // A PS5 asks how many controllers, beside the unit.
       pads = chosen === 'PS5' ? segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], pads ? pads.value() : (r && resControllers(r)) || 1) : null;
-      ui.body.append(who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null, field('Arriving', at), field('Notes (optional)', notes));
+      ui.body.append(...[who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null, field('Arriving', at), field('Notes (optional)', notes)].filter(Boolean));
       ui.primary('Save reservation');
     },
     command() {
@@ -11910,11 +11910,11 @@ const reportsPage = {
         h('button', { type: 'button', class: 'stock-when-button', data: { action: 'stock-dates' }, onclick: e => stockDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: stockWhenWords }))),
       stockTable,
       h('p', 'stock-sum', icon('info'), h('span', { text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' }))) : null;
-    page.append(
+    page.append(...[
       h('div', 'rep-top', lead, received, creditCard),
       h('div', 'rep-main', floorPanel, h('div', 'rep-side', counterPanel, otherPanel)),
       h('div', 'rep-charts', donut('Floor usage', floorParts, played, 'played', 'By time played', 'reports'), donut('Earnings mix', earnParts, best.label, best.value ? 'earns most' : 'nothing yet', 'Without turf', 'cash')),
-      stockPanel);
+      stockPanel].filter(Boolean));
   }
 };
 
@@ -13380,10 +13380,10 @@ function turfCreditSheet(b, p, part) {
         const courts = segmented(TURF_COURTS.map(c => [c, courtLabel(c), 'turf']), court, value => { court = value; ui.redraw(); });
         const startChips = h('div', { class: 'chips turf-starts', data: { field: 'carry-start' } }, starts.map(hour => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(hour === start), data: { startHour: String(hour) }, onclick: () => { start = hour; ui.redraw(); } }, turfChipText(hour))));
         const length = segmented([1, 2, 3, 4, 5, 6].filter(n => n <= longest).map(n => [n, n + (n === 1 ? ' hour' : ' hours')]), hours, value => { hours = value; ui.redraw(); });
-        ui.body.append(
+        ui.body.append(...[
           h('div', { class: 'field', data: { field: 'carry-court' } }, h('span', { text: 'Court' }), courts.node),
           h('div', 'field', h('span', { text: 'Starts' }), starts.length ? startChips : h('p', { class: 'muted', text: 'No free hours on this court that day.' })),
-          longest ? h('div', { class: 'field', data: { field: 'carry-hours' } }, h('span', { text: 'For' }), length.node) : null);
+          longest ? h('div', { class: 'field', data: { field: 'carry-hours' } }, h('span', { text: 'For' }), length.node) : null].filter(Boolean));
       }
       const target = later.find(x => x.id === chosen);
       // Everything still owed travels: open bills as they are, a bill already closed as its balance.
@@ -14228,7 +14228,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "d565e1cb333e";
+const APP_BUILD = "b0bd4aa89716";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
