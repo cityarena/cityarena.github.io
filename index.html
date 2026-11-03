@@ -1311,7 +1311,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* The board's colours (owner, 20 October): free cream, booked teal, paid green, pending or part paid orange, an hour gone by
    unbooked red. Nothing leaves the board. */
 .turf-block.paid { --edge: var(--edge-paid); background: linear-gradient(180deg, #e3efe2 0%, #d6e8d4 100%); }
-.turf-block.paid.account { --edge: var(--edge-account); }
+.turf-block.paid.on-account { --edge: var(--edge-account); }
 .turf-block.owing { --edge: var(--edge-owing); background: linear-gradient(180deg, #fbebd6 0%, #f6dfc0 100%); }
 .turf-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--text-xs); color: var(--ink-2); }
 /* The top of the Turf page at its earlier, compact size (owner, 3 November: "revert back to earlier size so i can see more
@@ -1453,7 +1453,8 @@ main[data-page=turf] .turf-board { overflow-x: clip; }
 }
 @media (min-width: 600px) {
   .turf-block.tall { padding: 8px 12px; }
-  .turf-block.tall .turf-block-top { padding-right: 34px; }
+  /* Room for the cross only where there is one, so a name beside a chip is not cut for nothing. */
+  .turf-block.tall:has(.turf-x) .turf-block-top { padding-right: 34px; }
   .turf-block.tall .turf-x { position: absolute; top: 8px; right: 8px; z-index: 1; }
 }
 /* A booking's slots on the same bill, and the extra slots on a new booking. */
@@ -13936,7 +13937,7 @@ function turfBlock(b, row, column, rows) {
   // Paid green and pending or over-and-unpaid orange come before the hold's plum.
   // Written as the owner's picture of 3 November: a person beside the name, the sport in its chip, then a clock and the
   // hours; a booking of two hours or more is larger.
-  return h('div', { class: 'turf-block' + tone + (onAccount ? ' account' : '') + (tone ? '' : maybe ? ' maybe' : hold ? ' hold' : '') + (rows > 1 ? ' tall' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
+  return h('div', { class: 'turf-block' + tone + (onAccount ? ' on-account' : '') + (tone ? '' : maybe ? ' maybe' : hold ? ' hold' : '') + (rows > 1 ? ' tall' : ''), style: 'grid-row:' + row + ' / span ' + rows + ';grid-column:' + column, data: { booking: b.id, settled }, onclick: () => turfOpenBooking(b.id) },
     h('span', 'turf-block-top', h('span', { class: 'turf-who', 'aria-hidden': 'true' }, icon('user')), h('button', { type: 'button', class: 'turf-name', 'aria-label': b.customer + ', ' + courtLabel(b.court) + ', ' + b.sport + ', ' + turfRange(b), text: b.customer }), onAccount ? null : send, paidChip, accountWords, onAccount ? null : mark, cancel),
     h('span', 'turf-block-sub', h('span', { class: 'turf-sport ' + sportIcon(b.sport) }, icon(sportIcon(b.sport)), b.sport), hold ? h('button', { type: 'button', class: 'turf-hold-tag', title: maybe ? 'Hold: message, confirm or cancel' : 'Hold (Pay): advance needed, message, confirm or cancel', 'aria-label': (maybe ? 'Hold' : 'Hold (Pay)') + ': ' + b.customer, data: { action: 'turf-hold-ask' }, onclick: e => { e.stopPropagation(); turfHoldAsk(b, e.currentTarget); } }, icon('clock'), h('span', { text: maybe ? 'Hold' : 'Hold (Pay)' })) : null, h('span', 'turf-time', icon('clock'), h('span', { text: turfRange(b) }))));
 }
@@ -14408,7 +14409,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "0d39dc0d2307";
+const APP_BUILD = "675bb69aa434";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
