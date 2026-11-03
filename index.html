@@ -3081,7 +3081,7 @@ var ArenaCustomers = (function () {
 /* Audited corrections. Nothing is deleted: each change keeps the original value, the new value, a reason and who made it. */
 var ArenaCorrections = (function () {
   'use strict';
-  var types = ['VOID_SEGMENT', 'EDIT_SEGMENT_TIME', 'REVERSE_PAYMENT', 'VOID_BILL', 'CORRECT_CREDIT_PAYMENT', 'CORRECT_BILL'];
+  var types = ['VOID_SEGMENT', 'EDIT_SEGMENT_TIME', 'REVERSE_PAYMENT', 'VOID_BILL', 'VOID_TAB', 'CORRECT_CREDIT_PAYMENT', 'CORRECT_BILL'];
 
   function check(ok, message) { ArenaCore.check(ok, message); }
   function row(rows, id) {
@@ -3167,6 +3167,31 @@ var ArenaCorrections = (function () {
   }
 
   // Cancel an unpaid bill and reopen the visit so it can be corrected and settled again.
+  // A bill still being settled, cancelled completely (owner, 4 November: "need an option to void the entire bill including
+  // drinks if needed"): every timer voided (one still running stopped now), every item taken off and back in stock, the visit
+  // closed, nothing charged, each with the reason. Money paid in advance is taken back first; a turf booking's bill is changed
+  // or cancelled on the turf.
+  function voidTab(state, cmd, actor, now, id) {
+    var tab = openTab(state, cmd.tabId, 'This bill is already closed. Void it from Bills.'), why = reason(cmd.reason);
+    check(!(state.Orders || []).some(function (o) { return o.tabId === tab.id && o.status === 'active' && o.category === 'Turf'; }), 'This is a turf booking’s bill. Change or cancel the booking on the turf.');
+    check(!(state.Advances || []).some(function (a) { return a.tabId === tab.id && a.status === 'held'; }), 'Money was paid in advance on this bill. Take it back first.');
+    var timers = (state.Segments || []).filter(function (g) { return g.tabId === tab.id && g.status !== 'void'; }), items = (state.Orders || []).filter(function (o) { return o.tabId === tab.id && o.status === 'active'; });
+    check(timers.length + items.length > 0, 'Nothing is on this bill.');
+    timers.forEach(function (segment, i) {
+      record(state, id + '-s' + i, 'segment_void', segment.id, 'status', JSON.stringify({ status: segment.status, startMs: segment.startMs, endMs: segment.endMs, totalPaise: segment.totalPaise }), 'void', why, actor, now);
+      if (segment.status === 'active') segment.endMs = now;
+      segment.status = 'void';
+      segment.totalPaise = 0;
+      segment.billableMinutes = 0;
+      (state.Endings || []).forEach(function (e) { if (e.segmentId === segment.id && e.status === 'review') e.status = 'void'; });
+    });
+    items.forEach(function (o, i) {
+      ArenaSales.execute(state, { type: 'UPDATE_ORDER', id: o.id, revision: o.revision, quantity: 0, reason: why }, actor, now, id + '-o' + i);
+    });
+    tab.status = 'void';
+    if (typeof ArenaReservations !== 'undefined') ArenaReservations.complete(state);
+    return { tabId: tab.id, closed: true, message: 'Bill voided. Nothing is charged.' };
+  }
   function voidBill(state, cmd, actor, now, id) {
     var bill = row(state.Bills, cmd.billId), why = reason(cmd.reason);
     check(!ArenaCore.carryOf(state, bill.id), 'This bill’s balance was moved to a later booking. It cannot be voided.');
@@ -3276,6 +3301,7 @@ var ArenaCorrections = (function () {
     if (cmd.type === 'EDIT_SEGMENT_TIME') return editTime(state, cmd, actor, now, id);
     if (cmd.type === 'REVERSE_PAYMENT') return reversePayment(state, cmd, actor, now, id);
     if (cmd.type === 'VOID_BILL') return voidBill(state, cmd, actor, now, id);
+    if (cmd.type === 'VOID_TAB') return voidTab(state, cmd, actor, now, id);
     if (cmd.type === 'CORRECT_CREDIT_PAYMENT') return correctCreditPayment(state, cmd, actor, now, id);
     check(false, 'Unsupported operation.');
   }
@@ -3434,9 +3460,21 @@ var ArenaViews = (function () {
     (state.Segments || []).forEach(function (g) { if (g.tabId === tabId && g.status !== 'void') seen[g.unitId] = true; });
     return Object.keys(seen);
   }
+  // When a bill was played: its first game, its first item, or its turf slot (owner, 4 November: turf bookings of earlier days
+  // kept pending at 11:53 PM read as that night's; "keep pending with own dates").
+  function playedMs(state, tabId) {
+    var starts = (state.Segments || []).filter(function (g) { return g.tabId === tabId; }).map(function (g) { return Number(g.startMs); })
+      .concat((state.Orders || []).filter(function (o) { return o.tabId === tabId && o.category !== 'Turf' && o.category !== 'Carried'; }).map(function (o) { return Number(o.createdMs); }));
+    var player = (state.TurfPlayers || []).find(function (p) { return p.tabId === tabId; });
+    var booking = (state.TurfBookings || []).find(function (b) { return player ? b.id === player.bookingId : b.tabId === tabId; });
+    if (booking) starts.push(Date.parse(booking.dateKey + 'T00:00:00+05:30') + Number(booking.startHour) * 3600000);
+    starts = starts.filter(function (n) { return n > 0; });
+    return starts.length ? Math.min.apply(null, starts) : 0;
+  }
   function summaryRow(state, bill, detail, tabs, accounts) {
     var tab = tabs[detail.tabId] || {}, transfer = transferFor(state, bill.id);
     return {
+      playedMs: playedMs(state, detail.tabId),
       id: bill.id, number: number(state, bill.id), customer: detail.customer, phone: tab.phone || '', kind: tab.kind || '',
       createdMs: detail.createdMs, subtotalPaise: detail.subtotalPaise, discountPaise: detail.discountPaise,
       totalPaise: bill.totalPaise, paidPaise: bill.paidPaise, outstandingPaise: Math.max(0, bill.totalPaise - bill.paidPaise),
@@ -9706,6 +9744,8 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
       if (!lines) { ui.body.append(h('p', { class: 'muted', style: 'margin-top:16px', text: 'Nothing to settle yet.' })); return; }
 
       if (!onTurf) top.append(discountRow);
+      // The whole bill cancelled, items too, after a reason (owner, 4 November), in the ⋮ at the end of the top row.
+      if (!onTurf) top.append(menu([['Void bill', () => reasonSheet({ title: 'Void bill', sub: 'Cancelled completely: nothing is charged, the items go back in stock.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_TAB', tabId: tab.id, reason }), then: () => { closeSheet(); return { text: 'Bill voided. Nothing is charged.' }; } }), true, 'ban']], 'Options for this bill'));
       let accountTitle = null;
       if (mode === 'credit') {
         picker = accountPicker(draft.account);
@@ -10441,7 +10481,9 @@ function printReceipt(data) {
 function billWhen(data, detail) {
   if (!detail) return '';
   const closed = day(detail.createdMs) + ', ' + clock(detail.createdMs);
-  const starts = (data.segments || []).map(g => Number(g.startMs)).concat((data.orders || []).filter(o => o.category !== 'Carried' && o.category !== 'Turf').map(o => Number(o.createdMs))).filter(Boolean);
+  // A turf booking's bill: its slot's day (owner, 4 November: "keep pending with own dates").
+  const booking = turfBookingForTab(detail.tabId), slot = booking ? hourStart(booking.dateKey, Number(booking.startHour)) : 0;
+  const starts = (data.segments || []).map(g => Number(g.startMs)).concat((data.orders || []).filter(o => o.category !== 'Carried' && o.category !== 'Turf').map(o => Number(o.createdMs)), [slot]).filter(Boolean);
   const first = starts.length ? Math.min(...starts) : 0;
   return first && dayKey(first) !== dayKey(detail.createdMs) ? 'Played ' + day(first) + ' · Closed ' + closed : closed;
 }
@@ -10832,7 +10874,8 @@ const tabsPage = {
     const open = state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length))
       .filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
     // The dates chosen, by the day each bill was opened.
-    const tabs = open.filter(t => !(fromMs && Number(t.createdMs) < fromMs) && !(toMs && Number(t.createdMs) >= toMs));
+    // Newest first (owner, 4 November: "all dates everywhere i hope it starts from recent").
+    const tabs = open.filter(t => !(fromMs && Number(t.createdMs) < fromMs) && !(toMs && Number(t.createdMs) >= toMs)).sort((a, b) => Number(b.createdMs) - Number(a.createdMs));
     page.append(table(
       [{ label: 'Customer' }, { label: 'Where', class: 'hide-s' }, { label: 'Status' }, { label: 'So far', class: 'r' }],
       tabs.map(t => {
@@ -10860,8 +10903,8 @@ function billRange() {
   if (billQuery.range === 'custom') return { fromMs: start(billQuery.from), toMs: start(billQuery.to) + 86400000 };
   return { fromMs: 0, toMs: 0 };
 }
-// What the Bills' date button says: Today, one date, from – to, or All dates.
-function billWhen() {
+// What the Bills' date button says: Today, one date, from – to, or All dates (billWhen in visit.js is a bill's own date).
+function billDatesWords() {
   if (billQuery.range === 'today') return 'Today';
   if (billQuery.range === 'all') return 'All dates';
   return billQuery.from === billQuery.to ? turfDayName(billQuery.from) : turfDayName(billQuery.from) + ' – ' + turfDayName(billQuery.to);
@@ -10880,7 +10923,7 @@ function billDatesAsk(anchor) {
     }
   });
 }
-const billDatesButton = () => h('button', { type: 'button', class: 'stock-when-button', data: { action: 'bill-dates' }, onclick: e => billDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: billWhen() }));
+const billDatesButton = () => h('button', { type: 'button', class: 'stock-when-button', data: { action: 'bill-dates' }, onclick: e => billDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: billDatesWords() }));
 async function loadBills(key) {
   try {
     const out = await rpc('rpcHistory', token, { text: billQuery.text, status: billQuery.status, ...billRange(), limit: 200 });
@@ -10909,7 +10952,8 @@ const billsPage = {
         // A bill paid (in part) by UPI to the CA scanner carries a small CA (owner, 20 October).
         h('td', { class: 'num' }, b.number, b.ca ? h('span', { class: 'tag-ca', text: 'CA' }) : null),
         // A bill of an earlier day paid in these dates: when it was paid, and the day it was made.
-        h('td', { class: 'hide-s muted', text: b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.createdMs) : when(b.createdMs) }),
+        // Played on an earlier day than it was closed: that day first ("Played 28 Oct · Closed 3 Nov, 11:53 PM").
+        h('td', { class: 'hide-s muted', text: b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.playedMs || b.createdMs) : b.playedMs && dayKey(b.playedMs) !== dayKey(b.createdMs) ? 'Played ' + day(b.playedMs) + ' · Closed ' + when(b.createdMs) : when(b.createdMs) }),
         h('td', null, h('b', { text: b.customer }), h('div', { class: 'small muted', text: [b.units.map(id => (unitOf(id) || {}).name || id).join(', '), b.account ? 'credit: ' + b.account : '', b.paidAtMs ? (b.paidThenPaise < 0 ? money(-b.paidThenPaise) + ' taken back' : money(b.paidThenPaise) + ' paid') : ''].filter(Boolean).join(' · ') })),
         h('td', { class: 'r num', text: money(b.totalPaise) }),
         h('td', { class: 'r num hide-s' + (b.outstandingPaise && !b.account ? ' owing' : ''), text: b.outstandingPaise && !b.account ? money(b.outstandingPaise) : '—' }),
@@ -11669,7 +11713,9 @@ function pendingRows() {
     }
     rows.push({ bill, detail: d, tab: tabOf(d.tabId), owed, at: d.createdMs });
   }
-  return [...rows, ...byBooking.values()].sort((a, b) => b.at - a.at);
+  // Newest first by the day each was played (a turf booking by its slot's day), then by when it was closed (owner, 4 November:
+  // "all dates everywhere i hope it starts from recent").
+  return [...rows, ...byBooking.values()].sort((a, b) => (pendingDay(a) < pendingDay(b) ? 1 : pendingDay(a) > pendingDay(b) ? -1 : b.at - a.at));
 }
 // A turf booking's pending money, said directly (owner, 20 October): the game, the day, the court and the time, then only the
 // people still owing, each with their own Collect. The whole booking is not opened again.
@@ -11763,8 +11809,36 @@ function pendingPersonSheet(group) {
     }
   });
 }
+// The Pending list's dates (owner, 4 November: "can we add dates here to filter???"): All dates at first, so nothing owed is
+// out of sight, then Today, one date or a date range, by the day each was played (a turf booking by its slot's day).
+const pendingQuery = { range: 'all', from: '', to: '' };
+function pendingInDates(r) {
+  const key = pendingDay(r);
+  if (pendingQuery.range === 'today') return key === dayKey(nowMs());
+  if (pendingQuery.range === 'custom') return key >= pendingQuery.from && key <= pendingQuery.to;
+  return true;
+}
+function pendingDatesWords() {
+  if (pendingQuery.range === 'today') return 'Today';
+  if (pendingQuery.range === 'all') return 'All dates';
+  return pendingQuery.from === pendingQuery.to ? turfDayName(pendingQuery.from) : turfDayName(pendingQuery.from) + ' – ' + turfDayName(pendingQuery.to);
+}
+function pendingDatesAsk(anchor) {
+  datesAsk(anchor, {
+    presets: [['all', 'All dates'], ['today', 'Today']],
+    chosen: pendingQuery.range,
+    from: pendingQuery.from,
+    to: pendingQuery.to,
+    oneDay: true,
+    choose(range, from, to) {
+      pendingQuery.range = range;
+      if (range === 'custom') [pendingQuery.from, pendingQuery.to] = [from, to];
+      render();
+    }
+  });
+}
 function pendingList(page) {
-  const text = creditSearch.trim().toLowerCase(), list = pendingRows().filter(r => !text || (r.booking ? r.booking.customer + ' ' + r.booking.phone : r.detail.customer + ' ' + ((r.tab || {}).phone || '')).toLowerCase().includes(text));
+  const text = creditSearch.trim().toLowerCase(), list = pendingRows().filter(pendingInDates).filter(r => !text || (r.booking ? r.booking.customer + ' ' + r.booking.phone : r.detail.customer + ' ' + ((r.tab || {}).phone || '')).toLowerCase().includes(text));
   page.append(table(
     [{ label: 'Who' }, { label: 'For', class: 'hide-s' }, { label: 'Pending' }, { label: 'Actions', class: 'r' }],
     pendingGroups(list).map(group => {
@@ -11772,7 +11846,7 @@ function pendingList(page) {
         const days = [...new Set(group.rows.map(pendingDay))].sort().reverse(), detail = days.map(key => '• ' + ordinalDate(key) + ' ' + money(group.rows.filter(r => pendingDay(r) === key).reduce((n, r) => n + r.owed, 0)));
         return h('tr', { class: 'click', data: { pendingPerson: group.key }, onclick: () => pendingPersonSheet(group) },
           h('td', null, person(group.name, group.phone)),
-          h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: plural(group.rows.length, 'bill', 'bills') }), h('span', { class: 'small muted', text: days.map(key => turfDayName(key)).join(' · ') }))),
+          h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: plural(group.rows.length, 'bill', 'bills') }))),
           h('td', { class: 'num owing', text: money(group.owed) }),
           h('td', { class: 'r' }, h('div', 'row-tools',
             group.phone ? iconButton('whatsapp', 'Remind ' + group.name + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(group.phone, pendingReminderText(group.name, group.owed, 'your visits', detail)); }, { data: { action: 'pending-remind' } }) : null,
@@ -11793,7 +11867,7 @@ function pendingList(page) {
       const what = 'your visit on *' + ordinalDate(dayKey(r.detail.createdMs)) + '*' + (where ? ' (' + where + ')' : '');
       return h('tr', { class: 'click', data: { pending: r.bill.id }, onclick: () => receiptSheet(r.bill.id) },
         h('td', null, person(r.detail.customer, phone)),
-        h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: when(r.detail.createdMs) + (numberOf(r.bill.id) ? ' · ' + numberOf(r.bill.id) : '') }))),
+        h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: when(r.detail.createdMs) + (where && numberOf(r.bill.id) ? ' · ' + numberOf(r.bill.id) : '') }))),
         h('td', { class: 'num owing', text: money(r.owed) }),
         h('td', { class: 'r' }, h('div', 'row-tools',
           phone ? iconButton('whatsapp', 'Remind ' + r.detail.customer + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(phone, pendingReminderText(r.detail.customer, r.owed, what)); }, { data: { action: 'pending-remind' } }) : null,
@@ -11808,6 +11882,7 @@ const creditsPage = {
   bar(bar) {
     const waiting = pendingGroups(pendingRows()).length;
     bar.append(segmented([['accounts', 'Credit', 'credits'], ['pending', 'Pending' + (waiting ? ' · ' + waiting : ''), 'clock']], creditMode, v => { creditMode = v; render(); }).node);
+    if (creditMode === 'pending') bar.append(h('button', { type: 'button', class: 'stock-when-button', data: { action: 'pending-dates' }, onclick: e => pendingDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: pendingDatesWords() })));
     bar.append(searchBox(creditSearch, creditMode === 'pending' ? 'Search pending' : 'Search accounts', v => { creditSearch = v; redrawKeepingFocus(); }));
     if (creditMode === 'accounts') bar.append(btn([icon('download'), 'Export'], exportCredit, '', { data: { action: 'export-credit' } }), btn([icon('plus'), 'New account'], newAccountSheet, 'primary', { data: { action: 'new-account' } }));
   },
@@ -14559,7 +14634,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "5053d4f7f036";
+const APP_BUILD = "bf03ff370f6b";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
