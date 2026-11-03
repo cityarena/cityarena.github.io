@@ -2588,6 +2588,8 @@ var ArenaLifecycle=(function(){
    // In part with the rest kept on the table, what was paid counts as paid towards that game and the game stays.
    var at2=tab(s,c.tabId),game=row(s.Segments,c.segmentId);
    check(game.tabId===at2.id&&game.status==='ended','This game is no longer waiting to be paid.');
+   // A game is a pool or snooker table's own; time moved onto its bill from a PS5 or PC is paid with a game (extra.ids).
+   check(table(row(s.Equipment,game.unitId)),'This is not a game on the table. Refresh and try again.');
    // Chosen at Collect (owner, 21 October): every item on the table can be paid with this game, by how many, whichever game
    // it was added during (a juice added in game 3 may be game 1's); extra.items lists exactly what this game pays and what
    // it does not take stays on the table. Time moved onto the table (extra.ids) is paid with it when ticked.
@@ -8596,8 +8598,10 @@ function controllerTiles(unit, players, paint) {
   }
   return h('div', 'pad-tiles', tiles);
 }
-// The games already closed on a pool or snooker table (Close & Open), and what is still to collect for them.
-const closedGames = tabId => state.Segments.filter(g => g.tabId === tabId && g.status === 'ended');
+// The games already closed on a pool or snooker table (Close & Open), and what is still to collect for them. Only the table's
+// own: time moved onto its bill from another system (a PS5's controllers) is paid with a game or at End Session, never listed
+// as a game of its own (owner, 3 November: "why is it showing ps5?").
+const closedGames = (tabId, unitId) => state.Segments.filter(g => g.tabId === tabId && g.unitId === unitId && g.status === 'ended');
 // One closed game: its time, the items bought during it (the same rule as the server), and what is still owed on it after
 // what was paid towards it with the rest kept on the table.
 function gameOwed(tabId, game) {
@@ -8609,7 +8613,7 @@ function gameOwed(tabId, game) {
 // Only the games (owner, 25 October, as on Manipal): no row for the items. They are counted in a game when it is paid, where
 // they can also be paid on their own by unticking the table's time.
 function closedGamesList(unit, tab) {
-  const games = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs);
+  const games = closedGames(tab.id, unit.id).sort((a, b) => a.startMs - b.startMs);
   if (!games.length) return null;
   // No amounts here (owner, 25 October: an item may not be that game's): the game and its time; a tap opens it to be paid,
   // where what it pays is counted.
@@ -8736,7 +8740,7 @@ function stationCardBody(unit) {
 
   const g = players[0], tab = tabOf(g.tabId), since = pauseState(g).since, table = isTable(unit);
   // A table counts its games: the one playing now follows those already closed with Close & Open.
-  const games = table && tab ? closedGames(tab.id).length : 0;
+  const games = table && tab ? closedGames(tab.id, unit.id).length : 0;
   const who = tab ? tab.customer : g.player;
   card.append(stationHead(unit, tone, null, statePill(held ? 'held' : 'live'), sessionMenu(g, [costItem, ...extraItems(unit)])), stationArt());
   // A small PC, a racing seat and a table (the owner's picture): who and how long, then Add Items beside End Session. A table
@@ -9306,7 +9310,7 @@ function spread(orders, n) {
 }
 function tableCollectSheet(unit, tab, game) {
   const draft = { received: '', edited: false, pay: {}, rest: '', pendingName: tab.customer === 'Walk-in' ? '' : tab.customer, pendingPhone: tab.phone || '', account: newAccountStore() };
-  const number = closedGames(tab.id).sort((a, b) => a.startMs - b.startMs).findIndex(g => g.id === game.id) + 1;
+  const number = closedGames(tab.id, unit.id).sort((a, b) => a.startMs - b.startMs).findIndex(g => g.id === game.id) + 1;
   // The items and moved time paid with this game, counted: at first the items added during it; the rest stays on the table.
   // The − and + here choose how many are paid now; they never take anything off the bill.
   // The same item at the same price is one row with its whole count, however many times it was bought (owner, 1 November:
@@ -9329,7 +9333,7 @@ function tableCollectSheet(unit, tab, game) {
       drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false, ticks: { off: new Set(tableOff ? [game.id] : []), toggle: () => { tableOff = !tableOff; draft.edited = false; ui.redraw(); }, count: () => 0, setCount: () => {} } });
       if (before) ui.body.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
       // Each item says which game it was added during, or that it is for the table.
-      const games = closedGames(tab.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active')).sort((x, y) => x.startMs - y.startMs);
+      const games = closedGames(tab.id, unit.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active' && g.unitId === unit.id)).sort((x, y) => x.startMs - y.startMs);
       const during = o => { const w = (state.OrderOwners || []).find(x => x.id === o.id), at = w ? games.findIndex(g => g.id === w.segmentId) : -1; return w && w.segmentId === game.id ? 'this game' : at >= 0 ? 'game ' + (at + 1) : 'the table'; };
       extras = pickRows(tableExtras(tab, game), true).map(row => (row.order ? { ...row, price: row.price + ' · ' + [...new Set((row.orders || [row.order]).map(during))].join(', ') } : row));
       if (!counted) for (const row of extras) if (row.order) picks.set(row.key, (row.orders || [row.order]).reduce((n, o) => n + (firstCount.get(o.id) || 0), 0));
@@ -14342,7 +14346,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "0d31e657fd48";
+const APP_BUILD = "50302aec815a";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
