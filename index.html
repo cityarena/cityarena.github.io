@@ -872,6 +872,9 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .stock-when-custom { display: grid; gap: 8px; margin-top: 4px; padding: 10px 12px 4px; border-top: 1px solid var(--line); }
 .stock-when-label { color: var(--ink-2); font-size: var(--text-xs); font-weight: 600; }
 .stock-when-dates { display: grid; gap: 8px; }
+.stock-when-day { display: flex; gap: 8px; }
+.stock-when-day input { flex: 1; min-width: 0; }
+.bills-elsewhere { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding: 0 4px; }
 .stock-when-dates input { width: 100%; min-width: 0; }
 .stock-when-dates .field { margin: 0; }
 .stock-box { overflow-x: auto; border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: #fefcf8; box-shadow: 0 1px 2px rgba(80, 62, 30, 0.05); }
@@ -10790,9 +10793,11 @@ const tabsPage = {
   title: 'Open tabs',
   bar(bar) { bar.append(searchBox(tabSearch, 'Search open bills', v => { tabSearch = v; redrawKeepingFocus(); })); },
   render(page) {
-    const text = tabSearch.trim().toLowerCase();
-    const tabs = state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length))
+    const text = tabSearch.trim().toLowerCase(), { fromMs, toMs } = billRange();
+    const open = state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length))
       .filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
+    // The dates chosen, by the day each bill was opened.
+    const tabs = open.filter(t => !(fromMs && Number(t.createdMs) < fromMs) && !(toMs && Number(t.createdMs) >= toMs));
     page.append(table(
       [{ label: 'Customer' }, { label: 'Where', class: 'hide-s' }, { label: 'Status' }, { label: 'So far', class: 'r' }],
       tabs.map(t => {
@@ -10803,19 +10808,44 @@ const tabsPage = {
           h('td', null, stillPlaying(t.id) ? h('span', { class: 'badge good', text: 'Playing' }) : h('span', { class: 'badge warn', text: 'Ready to settle' })),
           h('td', { class: 'r num', text: money(tabTotal(t.id)) }));
       }), 'No open bills.', 'bills'));
+    // Open bills of other days are still to be settled: said under the list, one tap to see them all.
+    const elsewhere = open.length - tabs.length;
+    if (elsewhere) page.append(h('div', 'bills-elsewhere', h('span', { class: 'small muted', text: plural(elsewhere, 'open bill', 'open bills') + ' from other dates' }), btn('Show all dates', () => { billQuery.range = 'all'; render(); }, 'quiet', { data: { action: 'bills-all-dates' } })));
   }
 };
 
 // ---------- Billing: searchable history, fetched from the server ----------
-const billQuery = { text: '', status: 'all', range: 'today' };
+// The Bills' dates, Open and Closed alike (owner, 3 November: "today is fine and then date wise either specific date or date
+// range"; "remove 7 and 30 days"): Today at first, one date, two dates, or all.
+const billQuery = { text: '', status: 'all', range: 'today', from: '', to: '' };
 let billCache = { key: '', rows: null, matched: 0 }, billTimer = 0;
 function billRange() {
-  const now = nowMs(), start = Date.parse(dayKey(now) + 'T00:00:00+05:30');
-  if (billQuery.range === 'today') return { fromMs: start, toMs: 0 };
-  if (billQuery.range === 'week') return { fromMs: start - 6 * 86400000, toMs: 0 };
-  if (billQuery.range === 'month') return { fromMs: start - 29 * 86400000, toMs: 0 };
+  const start = key => Date.parse(key + 'T00:00:00+05:30');
+  if (billQuery.range === 'today') return { fromMs: start(dayKey(nowMs())), toMs: 0 };
+  if (billQuery.range === 'custom') return { fromMs: start(billQuery.from), toMs: start(billQuery.to) + 86400000 };
   return { fromMs: 0, toMs: 0 };
 }
+// What the Bills' date button says: Today, one date, from – to, or All dates.
+function billWhen() {
+  if (billQuery.range === 'today') return 'Today';
+  if (billQuery.range === 'all') return 'All dates';
+  return billQuery.from === billQuery.to ? turfDayName(billQuery.from) : turfDayName(billQuery.from) + ' – ' + turfDayName(billQuery.to);
+}
+function billDatesAsk(anchor) {
+  datesAsk(anchor, {
+    presets: [['today', 'Today'], ['all', 'All dates']],
+    chosen: billQuery.range,
+    from: billQuery.from,
+    to: billQuery.to,
+    oneDay: true,
+    choose(range, from, to) {
+      billQuery.range = range;
+      if (range === 'custom') [billQuery.from, billQuery.to] = [from, to];
+      render();
+    }
+  });
+}
+const billDatesButton = () => h('button', { type: 'button', class: 'stock-when-button', data: { action: 'bill-dates' }, onclick: e => billDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: billWhen() }));
 async function loadBills(key) {
   try {
     const out = await rpc('rpcHistory', token, { text: billQuery.text, status: billQuery.status, ...billRange(), limit: 200 });
@@ -10825,12 +10855,11 @@ async function loadBills(key) {
   } catch (e) { billCache = { key, rows: [], matched: 0 }; notify('error', e.message); }
   if (page === 'bills' && billsMode === 'closed') redrawKeepingFocus();
 }
-const billKey = () => [version, billQuery.text, billQuery.status, billQuery.range].join('|');
+const billKey = () => [version, billQuery.text, billQuery.status, billQuery.range, billQuery.from, billQuery.to].join('|');
 const billsPage = {
   title: 'Billing',
   bar(bar) {
     bar.append(searchBox(billQuery.text, 'Search bill, name, mobile or unit', v => { billQuery.text = v; clearTimeout(billTimer); billTimer = setTimeout(redrawKeepingFocus, 250); }));
-    bar.append(segmented([['today', 'Today'], ['week', '7 days'], ['month', '30 days'], ['all', 'All']], billQuery.range, v => { billQuery.range = v; render(); }).node);
     bar.append(h('div', 'chips', [['all', 'All'], ['unpaid', 'Pending'], ['part', 'Part paid'], ['credit', 'On credit'], ['paid', 'Paid'], ['void', 'Voided']].map(([key, label]) =>
       h('button', { type: 'button', class: 'chip', 'aria-pressed': String(billQuery.status === key), onclick: () => { billQuery.status = key; render(); } }, label))));
     bar.append(btn([icon('download'), 'Export CSV'], () => { const r = billRange(); exportCsv('bills', r.fromMs, r.toMs); }, 'quiet'));
@@ -11816,20 +11845,38 @@ function stockWhen() {
   if (stockPreset === 'yesterday') return 'Yesterday';
   return stockFrom === stockTo ? turfDayName(stockFrom) : turfDayName(stockFrom) + ' – ' + turfDayName(stockTo);
 }
-// The date button's box: Today, Yesterday, or Custom with two dates and Show.
+// The Stock report's date box: Today, Yesterday, or Custom with two dates and Show.
 function stockDatesAsk(anchor) {
-  const choose = preset => { closePopover(); stockPreset = preset; render(); };
-  const option = (preset, label) => h('button', { type: 'button', class: 'stock-when-option', 'aria-pressed': String(stockPreset === preset), data: { stockWhen: preset }, onclick: () => choose(preset) }, h('span', { text: label }), stockPreset === preset ? icon('check') : null);
-  const from = h('input', { type: 'date', value: stockFrom, max: businessToday(), 'aria-label': 'From', data: { field: 'stock-from' } });
-  const to = h('input', { type: 'date', value: stockTo, max: businessToday(), 'aria-label': 'To', data: { field: 'stock-to' } });
+  datesAsk(anchor, {
+    presets: [['today', 'Today'], ['yesterday', 'Yesterday']],
+    chosen: stockPreset,
+    from: stockFrom,
+    to: stockTo,
+    choose(preset, from, to) {
+      stockPreset = preset;
+      if (preset === 'custom') [stockFrom, stockTo] = [from, to];
+      render();
+    }
+  });
+}
+// A date button's box (the Stock report's and the Bills'): its quick choices, then, with oneDay, one date of its own, then two
+// dates with Show. choose gets the preset, or 'custom' with the first and last day.
+function datesAsk(anchor, { presets, chosen, from, to, oneDay = false, choose }) {
+  const pick = (preset, a, b) => { closePopover(); choose(preset, a, b); };
+  const option = ([preset, label]) => h('button', { type: 'button', class: 'stock-when-option', 'aria-pressed': String(chosen === preset), data: { when: preset }, onclick: () => pick(preset) }, h('span', { text: label }), chosen === preset ? icon('check') : null);
+  const date = (label, value, name) => h('input', { type: 'date', value, max: businessToday(), 'aria-label': label, data: { field: name } });
+  const fromBox = date('From', from, 'when-from'), toBox = date('To', to, 'when-to');
   const show = btn('Show', () => {
-    if (!from.value || !to.value) return;
-    [stockFrom, stockTo] = from.value <= to.value ? [from.value, to.value] : [to.value, from.value];
-    choose('custom');
-  }, 'outline block', { data: { action: 'stock-dates-show' } });
+    if (!fromBox.value || !toBox.value) return;
+    const [a, b] = fromBox.value <= toBox.value ? [fromBox.value, toBox.value] : [toBox.value, fromBox.value];
+    pick('custom', a, b);
+  }, 'outline block', { data: { action: 'when-show' } });
+  const dayBox = date('Date', chosen === 'custom' && from === to ? from : '', 'when-day');
+  const dayShow = btn('Show', () => { if (dayBox.value) pick('custom', dayBox.value, dayBox.value); }, 'outline', { data: { action: 'when-day-show' } });
   popover(anchor, h('div', 'stock-when',
-    option('today', 'Today'), option('yesterday', 'Yesterday'),
-    h('div', 'stock-when-custom', h('span', { class: 'stock-when-label', text: 'Custom' }), h('div', 'stock-when-dates', field('From', from), field('To', to)), show)));
+    presets.map(option),
+    oneDay ? h('div', 'stock-when-custom', h('span', { class: 'stock-when-label', text: 'One date' }), h('div', 'stock-when-day', dayBox, dayShow)) : null,
+    h('div', 'stock-when-custom', h('span', { class: 'stock-when-label', text: oneDay ? 'Date range' : 'Custom' }), h('div', 'stock-when-dates', field('From', fromBox), field('To', toBox)), show)));
 }
 // Each part of the venue has its own colour in the report (tokens in styles.css).
 const REPORT_PARTS = {
@@ -12289,7 +12336,7 @@ const allBillsPage = {
   title: 'Bills',
   subtitle: 'Manage customer bills and payments',
   bar(bar) {
-    bar.append(segmented([['open', 'Open', 'clock'], ['closed', 'Closed', 'history']], billsMode, v => { billsMode = v; render(); }).node);
+    bar.append(segmented([['open', 'Open', 'clock'], ['closed', 'Closed', 'history']], billsMode, v => { billsMode = v; render(); }).node, billDatesButton());
     (billsMode === 'open' ? tabsPage : billsPage).bar(bar);
   },
   render(target) { (billsMode === 'open' ? tabsPage : billsPage).render(target); }
@@ -14346,7 +14393,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "50302aec815a";
+const APP_BUILD = "c4131e804d3e";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
