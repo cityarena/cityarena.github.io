@@ -3512,7 +3512,8 @@ var ArenaViews = (function () {
       // Paid on a later day than it was made: that day, shown beside its status on its own day (owner, 2 November).
       else {
         var lastPaid = (state.Payments || []).filter(function (p) { return p.billId === detail.id && p.amountPaise > 0; }).reduce(function (ms, p) { return Math.max(ms, p.createdMs); }, 0);
-        if (lastPaid && ArenaReports.dateKeyOf(state, lastPaid) !== ArenaReports.dateKeyOf(state, of(detail))) item.laterPaidMs = lastPaid;
+        // Only a day after it was played, and never on a voided bill (owner, 4 November: "Voided · Paid 1 Nov" on bills of 5 to 15 November).
+        if (lastPaid && item.status !== 'void' && ArenaReports.dateKeyOf(state, lastPaid) > ArenaReports.dateKeyOf(state, of(detail))) item.laterPaidMs = lastPaid;
       }
       if (query.status && query.status !== 'all' && item.status !== query.status) continue;
       if (query.unitId && item.units.indexOf(query.unitId) < 0) continue;
@@ -10917,7 +10918,9 @@ const billQuery = { text: '', status: 'all', range: 'today', from: '', to: '' };
 let billCache = { key: '', rows: null, matched: 0 }, billTimer = 0;
 function billRange() {
   const start = key => Date.parse(key + 'T00:00:00+05:30');
-  if (billQuery.range === 'today') return { fromMs: start(dayKey(nowMs())), toMs: 0 };
+  // Today ends at midnight: bills go by the day they are of, and a turf booking's may be of a day to come (owner, 4 November:
+  // Titans' voided bills of 5 to 15 November stood under Today).
+  if (billQuery.range === 'today') return { fromMs: start(dayKey(nowMs())), toMs: start(dayKey(nowMs())) + 86400000 };
   if (billQuery.range === 'yesterday') return { fromMs: start(dayKey(nowMs())) - 86400000, toMs: start(dayKey(nowMs())) };
   if (billQuery.range === 'custom') return { fromMs: start(billQuery.from), toMs: start(billQuery.to) + 86400000 };
   return { fromMs: 0, toMs: 0 };
@@ -14656,7 +14659,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "e06148147c2d";
+const APP_BUILD = "7fa39a981901";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
