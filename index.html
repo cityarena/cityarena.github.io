@@ -1224,6 +1224,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* What a bill on a credit account was for, opened under its row. */
 .breakdown { padding: 6px 0 14px; border-top: 1px dashed var(--line-strong); animation: rise 180ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .breakdown .lines { background: var(--surface); }
+/* A day of a credit account opened out: its bills and charges, each opening out again to what it was for. */
+.day-lines { padding-top: 8px; }
 .breakdown .group-title { font-size: var(--text-md); margin: 14px 0 6px; }
 .breakdown .bill-group { padding: 12px; border-radius: var(--r-lg); }
 .breakdown .bill-group > .group-title { font-size: var(--text-base); margin-bottom: 10px; }
@@ -11386,19 +11388,20 @@ function academyStatementSheet(account) {
   });
 }
 
-function creditEntrySheet(account, adjust) {
-  let label, amount, direction, purchaser;
+// A correction of an account's balance, up or down, with its reason. Nothing bought is added by hand: items go on an account
+// through Add Items, as a bill (owner, 3 November: "make sure it comes like a bill only, not by hand", after Chips was typed in
+// as a charge and then added again through Add Items).
+function creditAdjustSheet(account) {
+  let label, amount, direction;
   reasonSheet({
-    title: adjust ? 'Adjust balance' : 'Add charge', sub: account.name, action: adjust ? 'Save adjustment' : 'Add charge', icon: adjust ? 'settings' : 'plusCircle', tone: 'gold',
+    title: 'Adjust balance', sub: account.name, action: 'Save adjustment', icon: 'settings', tone: 'gold',
     extra(ui) {
-      label = label || textInput({ value: adjust ? 'Balance adjustment' : '', 'aria-label': 'Description', data: { field: 'credit-label' } });
+      label = label || textInput({ value: 'Balance adjustment', 'aria-label': 'Description', data: { field: 'credit-label' } });
       amount = amount || h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', 'aria-label': 'Amount', data: { field: 'credit-amount' } });
-      purchaser = purchaser || textInput({ value: account.name, 'aria-label': 'Bought by' });
-      ui.body.append(field('Description', label), field('Amount (₹)', amount));
-      if (adjust) { direction = direction || segmented([['increase', 'Increase'], ['decrease', 'Reduce (not a payment)']], 'decrease'); ui.body.append(h('div', 'field', h('span', { text: 'Balance' }), direction.node)); }
-      else ui.body.append(field('Bought by', purchaser));
+      direction = direction || segmented([['increase', 'Increase'], ['decrease', 'Reduce (not a payment)']], 'decrease');
+      ui.body.append(field('Description', label), field('Amount (₹)', amount), h('div', 'field', h('span', { text: 'Balance' }), direction.node));
     },
-    command: reason => ({ type: adjust ? 'CREDIT_ADJUST' : 'CREDIT_CHARGE', accountId: account.id, label: label.value.trim() || (adjust ? 'Balance adjustment' : 'Charge'), purchaser: purchaser.value.trim() || account.name, amountPaise: toPaise(amount.value), direction: adjust ? direction.value() : undefined, reason }),
+    command: reason => ({ type: 'CREDIT_ADJUST', accountId: account.id, label: label.value.trim() || 'Balance adjustment', purchaser: account.name, amountPaise: toPaise(amount.value), direction: direction.value(), reason }),
     then: () => accountSheet(account.id)
   });
 }
@@ -11441,6 +11444,8 @@ function accountSheet(accountId) {
   const summary = creditSummary(account.id), due = summary.outstandingPaise, phone = creditPhone(account.id);
   const payStore = { method: 'cash' };
   let amount, how, showEarlier = false;
+  // The days opened out to show their bills, kept while the sheet is redrawn.
+  const openDays = new Set();
   openSheet({
     title: account.name,
     sub: phone,
@@ -11451,8 +11456,7 @@ function accountSheet(accountId) {
       ui.body.append(h('div', 'hero' + (due > 0 ? '' : ' clear'), glyph('wallet', due > 0 ? 'gold' : '', 'lg'),
         h('div', 'hero-main', h('div', { class: 'foot-label', text: 'Outstanding' }), h('div', { class: 'foot-total', text: money(due), data: { outstanding: '1' } })),
         menu([
-          ['Add charge', () => creditEntrySheet(account, false), false, 'plusCircle'],
-          ['Adjust balance', () => creditEntrySheet(account, true), false, 'settings'],
+          ['Adjust balance', () => creditAdjustSheet(account), false, 'settings'],
           // An academy gets its statement of bookings (owner, 24 October); everyone else the day's account summary.
           ...(phone ? [turfAcademies().some(a => a.accountId === account.id) ? ['Send statement on WhatsApp', () => academyStatementSheet(account), false, 'whatsapp'] : ['Send on WhatsApp', () => whatsapp(phone, dayStatementText(account)), false, 'whatsapp']] : []),
           [phone ? 'Change mobile' : 'Add mobile', () => creditPhoneSheet(account, false), false, 'user']
@@ -11495,16 +11499,45 @@ function accountSheet(accountId) {
       let running = 0, settledUpTo = -1;
       events.forEach((e, i) => { running += e.change; if (running === 0) settledUpTo = i; });
       const unsettled = events.slice(settledUpTo + 1), earlier = events.slice(0, settledUpTo + 1);
+      // One line of the statement: a bill (opens out to what it was for), a charge, or a payment. Inside a day only the time.
+      const lineOf = (e, timeOnly) => {
+        const sub = [e.who, timeOnly ? clock(e.at) : when(e.at)].filter(Boolean).join(' · '), off = e.change < 0;
+        if (e.billId) return [...billRow(e.billId, e.title, sub, money(e.change)), ...[notesBlock([e.billId])].filter(Boolean)];
+        return [h('div', { class: 'line', data: e.payment ? { payment: e.payment.id } : null }, glyph(e.icon, off ? 'jade' : '', 'sm'),
+          h('div', 'line-main', h('b', { text: e.title }), h('span', { class: 'small muted', text: sub })),
+          h('span', { class: 'line-amount' + (off ? ' good' : ''), text: money(e.change) }),
+          e.payment ? menu([['Correct amount', () => correctPaymentSheet(account, e.payment), false, 'pencil']], 'Payment actions') : null)];
+      };
+      // A day that is over is one line, the day and what went on the account that day, opened out to its bills and charges
+      // (owner, 3 November: "once a day is done … after 12am, nov3rd so and so amount. if i need breakdown i will click that").
+      // Today stays line by line. A payment is always its own line, never taken off a day.
+      const dayRow = (key, list) => {
+        const bills = list.filter(e => e.billId).length, others = list.length - bills, open = openDays.has(key);
+        const holder = h('div', { class: 'breakdown day-lines', hidden: !open }, h('div', 'lines', list.flatMap(e => lineOf(e, true))));
+        const row = h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-expanded': String(open), data: { day: key } },
+          glyph('reservations', 'gold', 'sm'),
+          h('div', 'line-main', h('b', { text: turfDayName(key) }), h('span', { class: 'small muted', text: [bills ? plural(bills, 'bill', 'bills') : '', others ? plural(others, 'charge', 'charges') : ''].filter(Boolean).join(' · ') })),
+          h('span', { class: 'line-amount', text: money(list.reduce((n, e) => n + e.change, 0)) }), icon('chevron'));
+        const toggle = () => {
+          if (openDays.has(key)) openDays.delete(key);
+          else openDays.add(key);
+          holder.hidden = !openDays.has(key);
+          row.setAttribute('aria-expanded', String(openDays.has(key)));
+        };
+        row.onclick = toggle;
+        row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+        return [row, holder];
+      };
+      // Newest first: today's lines, then each day before it as its line, that day's payments after it.
       const statement = list => {
-        const card = h('div', 'lines');
+        const card = h('div', 'lines'), today = dayKey(nowMs()), days = [];
         for (const e of list) {
-          const sub = [e.who, when(e.at)].filter(Boolean).join(' · '), off = e.change < 0;
-          if (e.billId) card.append(...billRow(e.billId, e.title, sub, money(e.change)), ...[notesBlock([e.billId])].filter(Boolean));
-          else card.append(h('div', { class: 'line', data: e.payment ? { payment: e.payment.id } : null }, glyph(e.icon, off ? 'jade' : '', 'sm'),
-            h('div', 'line-main', h('b', { text: e.title }), h('span', { class: 'small muted', text: sub })),
-            h('span', { class: 'line-amount' + (off ? ' good' : ''), text: money(e.change) }),
-            e.payment ? menu([['Correct amount', () => correctPaymentSheet(account, e.payment), false, 'pencil']], 'Payment actions') : null));
+          const key = dayKey(e.at);
+          if (key === today) { card.append(...lineOf(e, false)); continue; }
+          if (!days.length || days[days.length - 1].key !== key) days.push({ key, added: [], paid: [] });
+          days[days.length - 1][e.change > 0 ? 'added' : 'paid'].push(e);
         }
+        for (const d of days) card.append(...(d.added.length ? dayRow(d.key, d.added) : []), ...d.paid.flatMap(e => lineOf(e, false)));
         return card;
       };
       if (unsettled.length) ui.body.append(h('div', 'group-title', icon('bills'), 'Bills and payments'), statement(unsettled.slice().reverse()));
@@ -11637,11 +11670,94 @@ function turfPendingSheet(r) {
     }
   });
 }
+// Who a pending row is for, its mobile, and the day it is of (a turf booking by its slot's day).
+const pendingWho = r => (r.booking ? { name: r.booking.customer, phone: r.booking.phone || '' } : { name: r.detail.customer, phone: (r.tab || {}).phone || '' });
+const pendingDay = r => (r.booking ? r.booking.dateKey : dayKey(r.detail.createdMs));
+// The same person's pending bills together (owner, 3 November: "incase if same person is been given pending twice then or
+// given pending today and tomoroow"): by mobile, or by name when there is none. Newest first.
+function pendingGroups(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    const who = pendingWho(r), digits = String(who.phone).replace(/\D/g, ''), key = digits ? 'm:' + digits : 'n:' + who.name.trim().toLowerCase();
+    if (!groups.has(key)) groups.set(key, { key, name: who.name, phone: who.phone, rows: [], owed: 0 });
+    const g = groups.get(key);
+    g.rows.push(r);
+    g.owed += r.owed;
+  }
+  return [...groups.values()];
+}
+// What a pending row was for, in a few words, and what is still owed on it, with its own Collect.
+function pendingLine(r, back) {
+  if (r.booking) {
+    const b = r.booking;
+    return h('div', { class: 'line', data: { pending: b.id } },
+      glyph('turf', '', 'sm'),
+      h('div', 'line-main', h('b', { text: 'Turf · ' + courtLabel(b.court) }), h('span', { class: 'small muted', text: turfRange(b) })),
+      h('span', { class: 'line-amount', text: money(r.owed) }),
+      btn([icon('wallet'), 'Collect'], () => turfPendingSheet(r), 'go', { data: { action: 'pending-collect-one' } }));
+  }
+  const where = [...new Set(segmentsOf(r.detail.tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ');
+  return h('div', { class: 'line', data: { pending: r.bill.id } },
+    glyph('bills', '', 'sm'),
+    h('div', 'line-main', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: [clock(r.detail.createdMs), where ? numberOf(r.bill.id) : ''].filter(Boolean).join(' · ') })),
+    h('span', { class: 'line-amount', text: money(r.owed) }),
+    btn([icon('wallet'), 'Collect'], () => receiptSheet(r.bill.id, back), 'go', { data: { action: 'pending-collect-one' } }));
+}
+// One person's pending money: today's bills one by one, each day before one line with its total, opened out to its bills
+// (as a credit account's days are), each with its own Collect; the reminder says each day.
+function pendingPersonSheet(group) {
+  const openDays = new Set();
+  const back = () => { const again = pendingGroups(pendingRows()).find(g => g.key === group.key); if (again && again.rows.length > 1) pendingPersonSheet(again); else closeSheet(); };
+  const days = [...new Set(group.rows.map(pendingDay))].sort().reverse(), today = dayKey(nowMs());
+  const dayTotal = key => group.rows.filter(r => pendingDay(r) === key).reduce((n, r) => n + r.owed, 0);
+  openSheet({
+    title: group.name,
+    sub: 'Pending · ' + money(group.owed),
+    icon: 'clock',
+    tone: 'gold',
+    focus: false,
+    build(ui) {
+      const card = h('div', 'lines');
+      for (const key of days) {
+        const list = group.rows.filter(r => pendingDay(r) === key);
+        if (key === today) { card.append(...list.map(r => pendingLine(r, back))); continue; }
+        const holder = h('div', { class: 'breakdown day-lines', hidden: !openDays.has(key) }, h('div', 'lines', list.map(r => pendingLine(r, back))));
+        const row = h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-expanded': String(openDays.has(key)), data: { day: key } },
+          glyph('reservations', 'gold', 'sm'),
+          h('div', 'line-main', h('b', { text: turfDayName(key) }), h('span', { class: 'small muted', text: plural(list.length, 'bill', 'bills') })),
+          h('span', { class: 'line-amount', text: money(dayTotal(key)) }), icon('chevron'));
+        const toggle = () => {
+          if (openDays.has(key)) openDays.delete(key);
+          else openDays.add(key);
+          holder.hidden = !openDays.has(key);
+          row.setAttribute('aria-expanded', String(openDays.has(key)));
+        };
+        row.onclick = toggle;
+        row.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+        card.append(row, holder);
+      }
+      ui.body.append(card);
+      const detail = days.map(key => '• ' + ordinalDate(key) + ' ' + money(dayTotal(key)));
+      if (group.phone) ui.foot.append(btn([icon('whatsapp'), 'Remind ' + group.name], () => whatsapp(group.phone, pendingReminderText(group.name, group.owed, 'your visits', detail)), 'block', { data: { action: 'pending-remind-sheet' } }));
+    }
+  });
+}
 function pendingList(page) {
   const text = creditSearch.trim().toLowerCase(), list = pendingRows().filter(r => !text || (r.booking ? r.booking.customer + ' ' + r.booking.phone : r.detail.customer + ' ' + ((r.tab || {}).phone || '')).toLowerCase().includes(text));
   page.append(table(
     [{ label: 'Who' }, { label: 'For', class: 'hide-s' }, { label: 'Pending' }, { label: 'Actions', class: 'r' }],
-    list.map(r => {
+    pendingGroups(list).map(group => {
+      if (group.rows.length > 1) {
+        const days = [...new Set(group.rows.map(pendingDay))].sort().reverse(), detail = days.map(key => '• ' + ordinalDate(key) + ' ' + money(group.rows.filter(r => pendingDay(r) === key).reduce((n, r) => n + r.owed, 0)));
+        return h('tr', { class: 'click', data: { pendingPerson: group.key }, onclick: () => pendingPersonSheet(group) },
+          h('td', null, person(group.name, group.phone)),
+          h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: plural(group.rows.length, 'bill', 'bills') }), h('span', { class: 'small muted', text: days.map(key => turfDayName(key)).join(' · ') }))),
+          h('td', { class: 'num owing', text: money(group.owed) }),
+          h('td', { class: 'r' }, h('div', 'row-tools',
+            group.phone ? iconButton('whatsapp', 'Remind ' + group.name + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(group.phone, pendingReminderText(group.name, group.owed, 'your visits', detail)); }, { data: { action: 'pending-remind' } }) : null,
+            h('button', { type: 'button', class: 'btn', data: { action: 'pending-collect' }, onclick: e => { e.stopPropagation(); pendingPersonSheet(group); } }, icon('wallet'), h('span', { class: 'hide-s', text: 'Collect' })))));
+      }
+      const r = group.rows[0];
       if (r.booking) {
         const b = r.booking, players = r.parts.filter(x => x.name), detail = players.length ? ['Still to pay:', ...players.map(x => '• ' + x.name + ' ' + money(x.owed))] : [];
         return h('tr', { class: 'click', data: { pending: b.id }, onclick: () => turfPendingSheet(r) },
@@ -11669,7 +11785,7 @@ const creditsPage = {
   get title() { return creditMode === 'pending' ? 'Pending' : 'Credit accounts'; },
   subtitle: () => (creditMode === 'pending' ? 'Money to be cleared in a day or two.' : 'Manage customer credit accounts, track outstanding balances and add items.'),
   bar(bar) {
-    const waiting = pendingRows().length;
+    const waiting = pendingGroups(pendingRows()).length;
     bar.append(segmented([['accounts', 'Credit', 'credits'], ['pending', 'Pending' + (waiting ? ' · ' + waiting : ''), 'clock']], creditMode, v => { creditMode = v; render(); }).node);
     bar.append(searchBox(creditSearch, creditMode === 'pending' ? 'Search pending' : 'Search accounts', v => { creditSearch = v; redrawKeepingFocus(); }));
     if (creditMode === 'accounts') bar.append(btn([icon('download'), 'Export'], exportCredit, '', { data: { action: 'export-credit' } }), btn([icon('plus'), 'New account'], newAccountSheet, 'primary', { data: { action: 'new-account' } }));
@@ -14410,7 +14526,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "070e65741f81";
+const APP_BUILD = "cd8ba9abe488";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
