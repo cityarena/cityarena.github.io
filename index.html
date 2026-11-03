@@ -9700,7 +9700,8 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
 
   openSheet({
     title: tab.customer,
-    sub: [tab.phone, tab.kind === 'quick_sale' ? 'Quick Sale' : ''].filter(Boolean).join(' · ') || 'Customer',
+    // The day it is of beside the mobile (owner, 4 November).
+    sub: [tab.phone, tab.kind === 'quick_sale' ? 'Quick Sale' : '', openedWords(tab)].filter(Boolean).join(' · '),
     caption: !tab.phone && tab.kind !== 'quick_sale',
     icon: 'user',
     focus: discountFirst ? '[data-field=discount]' : false,
@@ -10866,22 +10867,34 @@ function settingValue(key, fallback) { const row = state.Settings.find(r => r.id
 
 // ---------- Open tabs ----------
 let tabSearch = '';
+// When an open bill is of: its first game, its first item, or its turf slot (owner, 4 November: "i opened all dates, and then
+// the bill how will i know which date it is??").
+function openedAt(t) {
+  const booking = turfBookingForTab(t.id), starts = segmentsOf(t.id).map(g => Number(g.startMs)).concat(ordersOf(t.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried').map(o => Number(o.createdMs)), [booking ? hourStart(booking.dateKey, Number(booking.startHour)) : 0]).filter(n => n > 0);
+  return starts.length ? Math.min(...starts) : Number(t.createdMs);
+}
+// The bills still open. A turf booking's bill before its slot is over is on the turf board, not here (owner, 4 November: two of
+// Titans' bookings of 8 November read Ready to settle).
+// Its day always written, today's too ("4 Nov, 12:29 AM").
+const openedWords = t => day(openedAt(t)) + ', ' + clock(openedAt(t));
+function openBills() {
+  return state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length) && !(turfBookingForTab(t.id) && !turfEnded(turfBookingForTab(t.id))));
+}
 const tabsPage = {
   title: 'Open tabs',
   bar(bar) { bar.append(searchBox(tabSearch, 'Search open bills', v => { tabSearch = v; redrawKeepingFocus(); })); },
   render(page) {
     const text = tabSearch.trim().toLowerCase(), { fromMs, toMs } = billRange();
-    const open = state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length))
-      .filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
-    // The dates chosen, by the day each bill was opened.
-    // Newest first (owner, 4 November: "all dates everywhere i hope it starts from recent").
-    const tabs = open.filter(t => !(fromMs && Number(t.createdMs) < fromMs) && !(toMs && Number(t.createdMs) >= toMs)).sort((a, b) => Number(b.createdMs) - Number(a.createdMs));
+    const open = openBills().filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
+    // The dates chosen, by the day each bill is of; newest first (owner, 4 November: "all dates everywhere i hope it starts
+    // from recent").
+    const tabs = open.filter(t => !(fromMs && openedAt(t) < fromMs) && !(toMs && openedAt(t) >= toMs)).sort((a, b) => openedAt(b) - openedAt(a));
     page.append(table(
       [{ label: 'Customer' }, { label: 'Where', class: 'hide-s' }, { label: 'Status' }, { label: 'So far', class: 'r' }],
       tabs.map(t => {
         const units = [...new Set(segmentsOf(t.id).map(g => (unitOf(g.unitId) || {}).name || g.unitId))];
         return h('tr', { class: 'click', data: { tab: t.id }, onclick: () => settleSheet(t.id) },
-          h('td', null, person(t.customer, t.phone)),
+          h('td', null, person(t.customer, [t.phone, openedWords(t)].filter(Boolean).join(' · '))),
           h('td', { class: 'hide-s muted', text: units.join(', ') || (t.kind === 'quick_sale' ? 'Quick Sale' : '') }),
           h('td', null, stillPlaying(t.id) ? h('span', { class: 'badge good', text: 'Playing' }) : h('span', { class: 'badge warn', text: 'Ready to settle' })),
           h('td', { class: 'r num', text: money(tabTotal(t.id)) }));
@@ -10900,18 +10913,20 @@ let billCache = { key: '', rows: null, matched: 0 }, billTimer = 0;
 function billRange() {
   const start = key => Date.parse(key + 'T00:00:00+05:30');
   if (billQuery.range === 'today') return { fromMs: start(dayKey(nowMs())), toMs: 0 };
+  if (billQuery.range === 'yesterday') return { fromMs: start(dayKey(nowMs())) - 86400000, toMs: start(dayKey(nowMs())) };
   if (billQuery.range === 'custom') return { fromMs: start(billQuery.from), toMs: start(billQuery.to) + 86400000 };
   return { fromMs: 0, toMs: 0 };
 }
 // What the Bills' date button says: Today, one date, from – to, or All dates (billWhen in visit.js is a bill's own date).
 function billDatesWords() {
   if (billQuery.range === 'today') return 'Today';
+  if (billQuery.range === 'yesterday') return 'Yesterday';
   if (billQuery.range === 'all') return 'All dates';
   return billQuery.from === billQuery.to ? turfDayName(billQuery.from) : turfDayName(billQuery.from) + ' – ' + turfDayName(billQuery.to);
 }
 function billDatesAsk(anchor) {
   datesAsk(anchor, {
-    presets: [['today', 'Today'], ['all', 'All dates']],
+    presets: [['today', 'Today'], ['yesterday', 'Yesterday'], ['all', 'All dates']],
     chosen: billQuery.range,
     from: billQuery.from,
     to: billQuery.to,
@@ -10952,8 +10967,8 @@ const billsPage = {
         // A bill paid (in part) by UPI to the CA scanner carries a small CA (owner, 20 October).
         h('td', { class: 'num' }, b.number, b.ca ? h('span', { class: 'tag-ca', text: 'CA' }) : null),
         // A bill of an earlier day paid in these dates: when it was paid, and the day it was made.
-        // Played on an earlier day than it was closed: that day first ("Played 28 Oct · Closed 3 Nov, 11:53 PM").
-        h('td', { class: 'hide-s muted', text: b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.playedMs || b.createdMs) : b.playedMs && dayKey(b.playedMs) !== dayKey(b.createdMs) ? 'Played ' + day(b.playedMs) + ' · Closed ' + when(b.createdMs) : when(b.createdMs) }),
+        // When it is of: when it was played, a turf bill by its slot (owner, 4 November: "as long as i know which date it is of").
+        h('td', { class: 'hide-s muted', text: b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.playedMs || b.createdMs) : when(b.playedMs || b.createdMs) }),
         h('td', null, h('b', { text: b.customer }), h('div', { class: 'small muted', text: [b.units.map(id => (unitOf(id) || {}).name || id).join(', '), b.account ? 'credit: ' + b.account : '', b.paidAtMs ? (b.paidThenPaise < 0 ? money(-b.paidThenPaise) + ' taken back' : money(b.paidThenPaise) + ' paid') : ''].filter(Boolean).join(' · ') })),
         h('td', { class: 'r num', text: money(b.totalPaise) }),
         h('td', { class: 'r num hide-s' + (b.outstandingPaise && !b.account ? ' owing' : ''), text: b.outstandingPaise && !b.account ? money(b.outstandingPaise) : '—' }),
@@ -11815,17 +11830,19 @@ const pendingQuery = { range: 'all', from: '', to: '' };
 function pendingInDates(r) {
   const key = pendingDay(r);
   if (pendingQuery.range === 'today') return key === dayKey(nowMs());
+  if (pendingQuery.range === 'yesterday') return key === shiftDay(dayKey(nowMs()), -1);
   if (pendingQuery.range === 'custom') return key >= pendingQuery.from && key <= pendingQuery.to;
   return true;
 }
 function pendingDatesWords() {
   if (pendingQuery.range === 'today') return 'Today';
+  if (pendingQuery.range === 'yesterday') return 'Yesterday';
   if (pendingQuery.range === 'all') return 'All dates';
   return pendingQuery.from === pendingQuery.to ? turfDayName(pendingQuery.from) : turfDayName(pendingQuery.from) + ' – ' + turfDayName(pendingQuery.to);
 }
 function pendingDatesAsk(anchor) {
   datesAsk(anchor, {
-    presets: [['all', 'All dates'], ['today', 'Today']],
+    presets: [['all', 'All dates'], ['today', 'Today'], ['yesterday', 'Yesterday']],
     chosen: pendingQuery.range,
     from: pendingQuery.from,
     to: pendingQuery.to,
@@ -14492,7 +14509,7 @@ PAGES.more = {
 
 function navBadge(id) {
   if (!state) return null;
-  if (id === 'bills') { const ready = state.Tabs.filter(t => t.status === 'open' && !stillPlaying(t.id) && (segmentsOf(t.id).length || ordersOf(t.id).length)).length; return ready ? String(ready) : null; }
+  if (id === 'bills') { const ready = openBills().filter(t => !stillPlaying(t.id)).length; return ready ? String(ready) : null; }
   if (id === 'reservations') { const waiting = state.Reservations.filter(r => r.status === 'waiting' || (RES_PENDING.includes(r.status) && r.arrivalMs < nowMs())).length; return waiting ? String(waiting) : null; }
   return null;
 }
@@ -14634,7 +14651,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "bf03ff370f6b";
+const APP_BUILD = "1da87a81e69c";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
