@@ -1267,6 +1267,8 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* ---------- Turf: one day as a board, an hour per row and a column per court ---------- */
 .turf-day { display: inline-flex; align-items: center; gap: 4px; height: 44px; padding: 4px 4px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: rgba(255, 253, 249, 0.85); box-shadow: inset 0 1px 2px rgba(80, 62, 30, 0.15); }
 .turf-day .icon-btn { width: 34px; height: 34px; }
+/* Back to today, inside the date box while another day is shown. */
+.turf-day .turf-today { min-height: 34px; height: 34px; padding: 0 12px; border-color: var(--primary-line); color: var(--primary); background: var(--primary-soft); }
 .turf-day-word { display: inline-flex; align-items: baseline; gap: 8px; padding: 0 6px; font-family: var(--display); white-space: nowrap; }
 .turf-day-word b { font-weight: 600; }
 /* The date field shows only its calendar icon; the day is written beside it. */
@@ -1305,7 +1307,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-pick-bar { grid-column: 1 / -1; position: sticky; bottom: 0; z-index: 2; display: flex; align-items: center; justify-content: flex-end; gap: 10px; min-height: 56px; padding: 8px 10px 8px 16px; border: 1px solid var(--primary-line); border-radius: var(--r); background: var(--surface); box-shadow: var(--shadow-pop); font-weight: 600; }
 .turf-pick-bar > span { margin-right: auto; }
 /* The hour as a span: "6–7" with AM or PM under it. */
-.turf-hour-text { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0 4px; line-height: 1.2; text-align: right; }
+.turf-hour-text { display: flex; justify-content: flex-end; gap: 0 4px; line-height: 1.2; text-align: right; }
+/* "6:00am - 7:00am" on one line, the start right-aligned and the end left-aligned in the same widths, so the dash stands
+   in one place on every row and nothing gapes after it (owner, 3 November). */
+.turf-from, .turf-to { min-width: 7.6ch; }
+.turf-to { text-align: left; }
 .turf-hour-text b { font-weight: 600; color: inherit; }
 .chip.warn { border-color: var(--warn-line); color: var(--warn); }
 .academy-note { display: flex; align-items: center; gap: 8px; margin: -6px 0 14px; color: var(--gold); font-size: var(--text-sm); }
@@ -1625,6 +1631,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .list .btn { min-height: 40px; }
   .row-tools .icon-btn { width: 40px; height: 40px; }
   .turf-board { grid-template-columns: 62px repeat(3, minmax(0, 1fr)); gap: 6px; padding: 10px; }
+  /* A narrow hour column: the start with its dash, the end under it. */
+  .turf-hour-text { flex-wrap: wrap; }
+  .turf-from, .turf-to { min-width: 0; text-align: right; }
+  .turf-dash { display: none; }
+  .turf-from::after { content: " -"; }
   .turf-hour { padding-right: 2px; }
   .turf-hour.now::before { display: none; }
   .turf-court-head { padding: 0 6px; font-size: var(--text-sm); }
@@ -1699,6 +1710,11 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   .input-clear .icon-btn { right: 6px; width: 24px; height: 24px; margin-top: -12px; }
   .action { min-height: 56px; }
   .turf-board { grid-template-columns: 62px repeat(3, minmax(0, 1fr)); grid-template-rows: 40px; grid-auto-rows: 58px; gap: 6px; padding: 10px; }
+  /* A narrow hour column: the start with its dash, the end under it. */
+  .turf-hour-text { flex-wrap: wrap; }
+  .turf-from, .turf-to { min-width: 0; text-align: right; }
+  .turf-dash { display: none; }
+  .turf-from::after { content: " -"; }
   .turf-court-head { gap: 6px; font-size: var(--text-sm); }
   .turf-court-head svg { width: 18px; height: 18px; }
   .turf-block { padding: 4px 8px; }
@@ -3891,8 +3907,8 @@ var ArenaTurf = (function () {
   function endOf(booking) { return startOf(booking) + Number(booking.hours) * 3600000; }
   // An academy's slot goes to its account by itself this long after it ends, unless it was put there by hand before.
   var ACCOUNT_AFTER_MS = 2 * 3600000;
-  function hourText(hour) { var h = hour % 12 || 12; return h + (hour < 12 || hour === 24 ? ' AM' : ' PM'); }
-  function rangeText(booking) { return hourText(Number(booking.startHour)) + '–' + hourText(Number(booking.startHour) + Number(booking.hours)); }
+  function hourText(hour) { return (hour % 12 || 12) + ':00' + (hour % 24 < 12 ? 'am' : 'pm'); }
+  function rangeText(booking) { return hourText(Number(booking.startHour)) + ' - ' + hourText(Number(booking.startHour) + Number(booking.hours)); }
   function addDays(key, days) { return new Date(Date.parse(key + 'T00:00:00Z') + days * DAY_MS).toISOString().slice(0, 10); }
   function shortDate(key) { return Number(key.slice(8)) + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][Number(key.slice(5, 7)) - 1]; }
   // An amount carried here from an earlier booking of the same customer.
@@ -3935,7 +3951,7 @@ var ArenaTurf = (function () {
     check(validKey(cmd.dateKey), 'Choose a valid date.');
     check(COURTS.indexOf(cmd.court) >= 0, 'Choose a court.');
     var start = cmd.startHour, hours = cmd.hours;
-    check(Number.isSafeInteger(start) && Number.isSafeInteger(hours) && hours >= 1 && start >= OPEN_HOUR && start + hours <= CLOSE_HOUR, 'Choose hours between 6 AM and 10 PM.');
+    check(Number.isSafeInteger(start) && Number.isSafeInteger(hours) && hours >= 1 && start >= OPEN_HOUR && start + hours <= CLOSE_HOUR, 'Choose hours between 6:00am and 10:00pm.');
     var draft = { dateKey: cmd.dateKey, startHour: start, hours: hours };
     check(endOf(draft) > now, 'This time has already passed.');
     var other = clash(state, cmd.dateKey, cmd.court, start, hours, exceptId);
@@ -4345,7 +4361,7 @@ var ArenaTurf = (function () {
         rows.forEach(function (d) {
           check(Number.isInteger(d.weekday) && d.weekday >= 0 && d.weekday <= 6, 'Choose the days.');
           check(Array.isArray(d.courts) && d.courts.length > 0 && d.courts.every(function (c) { return COURTS.indexOf(c) >= 0; }) && new Set(d.courts).size === d.courts.length, 'Choose a court.');
-          check(Number.isSafeInteger(d.startHour) && Number.isSafeInteger(d.hours) && d.hours >= 1 && d.startHour >= OPEN_HOUR && d.startHour + d.hours <= CLOSE_HOUR, 'Choose hours between 6 AM and 10 PM.');
+          check(Number.isSafeInteger(d.startHour) && Number.isSafeInteger(d.hours) && d.hours >= 1 && d.startHour >= OPEN_HOUR && d.startHour + d.hours <= CLOSE_HOUR, 'Choose hours between 6:00am and 10:00pm.');
         });
         // Every Bulk booking is a series, so its weeks can later be cancelled together or chosen (owner, 21 October).
         var sid = id, series = { customer: person.customer, phone: person.phone, sport: person.sport, academyId: club2 ? cmd.academyId : '', onHold: onHold, days: rows.map(function (d) { return { weekday: d.weekday, courts: d.courts, startHour: d.startHour, hours: d.hours }; }), from: plan.from, until: cmd.bulk.forever === true ? '' : plan.until, forever: cmd.bulk.forever === true, stopped: false, createdMs: now };
@@ -12230,12 +12246,15 @@ const SHARE_COURTS = ['6-a-side', '5-a-side'];
 const TURF_OPEN = 6, TURF_CLOSE = 22;
 // Shown on the availability message, as on the old turf app.
 const TURF_CONTACT = '+91 9980388444';
-let turfDay = '', turfView = 'day', turfCache = { key: '', list: null };
+let turfDay = '', turfCache = { key: '', list: null };
 
 function shiftDay(key, days) { return new Date(Date.parse(key + 'T00:00:00Z') + days * 86400000).toISOString().slice(0, 10); }
-function hourLabel(hour) { return (hour % 12 || 12) + (hour < 12 ? ' AM' : ' PM'); }
+// A time on the turf as the owner writes it (3 November: "write everything like 6:00am -7:00am"): "6:00am", "12:00pm".
+function hourLabel(hour) { return ((hour % 12) || 12) + ':00' + ((hour % 24) < 12 ? 'am' : 'pm'); }
+// From one hour to another, "6:00am - 7:00am", always with both halves on one line.
+function hourSpan(from, to) { return hourLabel(from) + ' - ' + hourLabel(to); }
 function hourStart(key, hour) { return Date.parse(key + 'T00:00:00+05:30') + hour * 3600000; }
-function turfRange(b) { return hourLabel(Number(b.startHour)) + ' – ' + hourLabel(Number(b.startHour) + Number(b.hours)); }
+function turfRange(b) { return hourSpan(Number(b.startHour), Number(b.startHour) + Number(b.hours)); }
 function turfHours(b) { return Number(b.hours) + (Number(b.hours) === 1 ? ' hour' : ' hours'); }
 function turfDayName(key) { return new Date(key + 'T00:00:00+05:30').toLocaleDateString('en-IN', { timeZone: IST, weekday: 'short', day: 'numeric', month: 'short' }); }
 function turfDayWord(key) {
@@ -12619,7 +12638,7 @@ function turfBookingSheet(existing, preset) {
         // Checked against the day as it stands, so an hour taken meanwhile is said before saving.
         for (const slot of [main, ...more]) slot.ok = freeRun(dateKey, slot.court, slot.start, '') >= slot.hours;
         ui.body.append(h('div', { class: 'field', data: { field: 'picked-slots' } }, h('span', { text: [main, ...more].length === 1 ? 'Slot' : 'Slots' }),
-          h('div', 'chips', [main, ...more].map(slot => h('span', { class: 'chip' + (slot.ok ? '' : ' warn'), text: hourLabel(slot.start) + ' – ' + hourLabel(slot.start + slot.hours) + ' · ' + courtLabel(slot.court) + (slot.ok ? '' : ' · taken') })),
+          h('div', 'chips', [main, ...more].map(slot => h('span', { class: 'chip' + (slot.ok ? '' : ' warn'), text: hourSpan(slot.start, slot.start + slot.hours) + ' · ' + courtLabel(slot.court) + (slot.ok ? '' : ' · taken') })),
             btn([icon('pencil'), 'Change'], () => { editing = true; ui.redraw(); }, 'quiet', { data: { action: 'change-slots' } }))));
       } else ui.body.append(...turfSlotFields(dateKey, main, exceptId, more, () => ui.redraw()).filter(Boolean));
       if (editing) more.forEach((slot, i) => {
@@ -12652,7 +12671,7 @@ function turfBookingSheet(existing, preset) {
           btn([icon('clock'), 'Hold'], hold('maybe'), 'quiet', { 'aria-pressed': String(holding === 'maybe'), data: { action: 'hold-maybe' } })));
         if (holding === 'advance') ui.body.append(field('Advance needed (₹)', holdAmount));
       }
-      const label = holding ? 'Hold · ' + hourLabel(main.start) + ' – ' + hourLabel(main.start + main.hours) + (more.length ? ' + ' + more.length : '') : existing ? 'Save Changes' : more.length ? 'Confirm ' + (more.length + 1) + ' Slots' : 'Confirm Booking · ' + hourLabel(main.start) + ' – ' + hourLabel(main.start + main.hours);
+      const label = holding ? 'Hold · ' + hourSpan(main.start, main.start + main.hours) + (more.length ? ' + ' + more.length : '') : existing ? 'Save Changes' : more.length ? 'Confirm ' + (more.length + 1) + ' Slots' : 'Confirm Booking · ' + hourSpan(main.start, main.start + main.hours);
       ui.primary(label, !main.ok || more.some(slot => !slot.ok));
     },
     command() {
@@ -12664,7 +12683,6 @@ function turfBookingSheet(existing, preset) {
     },
     then(result, command) {
       turfDay = dateKey;
-      turfView = 'day';
       // A change goes back to the booking. A new booking goes back to the board: the booking opens only when tapped.
       if (existing) { render(); turfDetailSheet(result.bookingId); return null; }
       closeSheet();
@@ -13547,7 +13565,7 @@ function turfBulkSheet() {
   let editing = 0;
   let who, sport, from, until, forWho, forever = false;
   const courtsText = d => d.courts.map(courtLabel).join(' & ');
-  const dayText = d => WEEKDAYS.find(([n]) => n === d.weekday)[1] + ' · ' + courtsText(d) + ' · ' + hourLabel(d.start) + ' – ' + hourLabel(d.start + d.hours);
+  const dayText = d => WEEKDAYS.find(([n]) => n === d.weekday)[1] + ' · ' + courtsText(d) + ' · ' + hourSpan(d.start, d.start + d.hours);
   openSheet({
     title: 'Bulk booking',
     icon: 'reservations',
@@ -13806,13 +13824,8 @@ function turfPickedSlots() {
   }
   return slots.sort((a, b) => a.start - b.start || a.court.localeCompare(b.court));
 }
-// An hour as it is written everywhere on the turf (owner, 21 October): "6:00 – 7:00 AM"; across noon or midnight both halves
-// say which, "11:00 AM – 12:00 PM". turfHourParts gives the two halves for the board, which can set them on two lines.
-const turfHourParts = hour => {
-  const half = n => ((n % 24) < 12 ? 'AM' : 'PM'), at = n => ((n % 12) || 12) + ':00', same = half(hour) === half(hour + 1);
-  return [at(hour) + (same ? '' : ' ' + half(hour)) + ' –', at(hour + 1) + ' ' + half(hour + 1)];
-};
-const turfChipText = hour => turfHourParts(hour).join(' ');
+// An hour as it is written everywhere on the turf (owner, 3 November): "6:00am - 7:00am".
+const turfChipText = hour => hourSpan(hour, hour + 1);
 function turfBoard(key, all) {
   if (turfPicked.day !== key) turfPicked = { day: key, cells: new Set() };
   const now = nowMs(), list = all, hours = turfBoardHours();
@@ -13820,7 +13833,7 @@ function turfBoard(key, all) {
   board.append(h('div', 'turf-corner'), ...TURF_COURTS.map((court, i) => h('div', { class: 'turf-court-head', style: 'grid-column:' + (i + 2), data: { court } }, icon('turf'), h('b', { text: courtLabel(court) }))));
   hours.forEach((hour, index) => {
     const row = index + 2, over = hourStart(key, hour + 1) <= now, current = !over && hourStart(key, hour) <= now;
-    board.append(h('div', { class: 'turf-hour' + (current ? ' now' : '') + (over ? ' over' : ''), style: 'grid-row:' + row, 'aria-label': hourLabel(hour) + ' to ' + hourLabel(hour + 1) }, h('span', 'turf-hour-text', ...turfHourParts(hour).map(text => h('b', { text })))));
+    board.append(h('div', { class: 'turf-hour' + (current ? ' now' : '') + (over ? ' over' : ''), style: 'grid-row:' + row, 'aria-label': hourLabel(hour) + ' to ' + hourLabel(hour + 1) }, h('span', 'turf-hour-text', h('b', { class: 'turf-from', text: hourLabel(hour) }), h('b', { class: 'turf-dash', text: '-' }), h('b', { class: 'turf-to', text: hourLabel(hour + 1) }))));
     TURF_COURTS.forEach((court, i) => {
       const where = 'grid-row:' + row + ';grid-column:' + (i + 2), taken = bookingAt(list, court, hour);
       // A booking is drawn once, from its first hour on the board; every hour of it is on the board.
@@ -13845,44 +13858,30 @@ let turfScrolledTo = '';
 function turfLegend() {
   return h('div', { class: 'turf-legend', 'aria-hidden': 'true' }, [['free', 'Free'], ['booked', 'Booked'], ['paid', 'Paid'], ['owing', 'Pending · part paid'], ['hold', 'Hold · Hold (Pay)'], ['missed', 'Time gone, not booked']].map(([k, t]) => h('span', 'turf-key ' + k, h('i'), t)));
 }
-// Every booking still to come, soonest first.
-function turfUpcoming(target) {
-  const list = (state.TurfBookings || []).filter(b => !turfEnded(b)).sort((a, b) => hourStart(a.dateKey, Number(a.startHour)) - hourStart(b.dateKey, Number(b.startHour)));
-  target.append(table(
-    [{ label: 'When' }, { label: 'Customer' }, { label: 'Court', class: 'hide-s' }, { label: '' }],
-    list.map(b => h('tr', { class: 'click', data: { booking: b.id }, onclick: () => turfOpenBooking(b.id) },
-      h('td', null, h('div', 'cell-text', h('b', { text: turfDayWord(b.dateKey) }), h('span', { class: 'small muted num', text: turfRange(b) }))),
-      h('td', null, person(b.customer, turfPhone(b))),
-      h('td', { class: 'hide-s' }, h('span', 'cell', icon(sportIcon(b.sport)), h('span', { text: courtLabel(b.court) + ' · ' + b.sport }))),
-      h('td', { class: 'r' }, turfHeld(b) ? h('span', { class: 'badge hold', text: turfMaybe(b) ? 'Hold' : 'Hold (Pay)' }) : h('span', { class: 'badge ' + (b.confirmSent === 'yes' ? 'good' : 'warn'), text: b.confirmSent === 'yes' ? 'Sent' : 'Not sent' })))),
-    'No bookings to come.', 'turf'));
-}
-
 const turfPage = {
   title: 'Turf',
   subtitle: 'Manage turf bookings and availability',
   bar(bar) {
     turfDay = turfDay || dayKey(nowMs());
-    const view = segmented([['day', 'Day'], ['upcoming', 'Upcoming']], turfView, value => { turfView = value; render(); });
-    bar.append(view.node);
-    if (turfView === 'day') {
-      // The calendar opens from its own icon; the day itself is written once, in words.
-      const date = h('input', { type: 'date', value: turfDay, title: 'Choose a day', 'aria-label': 'Choose a day', data: { field: 'turf-day' }, onchange: () => { if (date.value) { turfDay = date.value; render(); } } });
-      const word = turfDayWord(turfDay), name = turfDayName(turfDay);
-      bar.append(h('div', 'turf-day',
-        iconButton('back', 'Previous day', () => { turfDay = shiftDay(turfDay, -1); render(); }, { data: { action: 'turf-prev' } }),
-        h('span', 'turf-day-word', h('b', { text: word }), word === name ? null : h('span', { class: 'muted', text: name })),
-        date,
-        iconButton('right', 'Next day', () => { turfDay = shiftDay(turfDay, 1); render(); }, { data: { action: 'turf-next' } })));
-      const list = turfBookingsOn(turfDay);
-      bar.append(btn([icon('reservations'), 'Bulk booking'], () => turfBulkSheet(), 'quiet', { data: { action: 'turf-bulk' } }));
-      if (list) bar.append(btn([icon('whatsapp'), h('span', { class: 'desk-only', text: 'Share availability' })], () => turfShareSheet(turfDay, list), 'quiet', { title: 'Share availability', 'aria-label': 'Share availability', data: { action: 'turf-availability' } }));
-    }
+    // One board, one day at a time (owner, 3 November: the Upcoming list went, "even if i just see the cards, its easier").
+    // The calendar opens from its own icon; the day itself is written once, in words.
+    const date = h('input', { type: 'date', value: turfDay, title: 'Choose a day', 'aria-label': 'Choose a day', data: { field: 'turf-day' }, onchange: () => { if (date.value) { turfDay = date.value; render(); } } });
+    const word = turfDayWord(turfDay), name = turfDayName(turfDay);
+    bar.append(h('div', 'turf-day',
+      iconButton('back', 'Previous day', () => { turfDay = shiftDay(turfDay, -1); render(); }, { data: { action: 'turf-prev' } }),
+      h('span', 'turf-day-word', h('b', { text: word }), word === name ? null : h('span', { class: 'muted', text: name })),
+      date,
+      iconButton('right', 'Next day', () => { turfDay = shiftDay(turfDay, 1); render(); }, { data: { action: 'turf-next' } }),
+      // Back to today in one tap from any other day (owner, 3 November: a booking two weeks ahead leaves the board there);
+      // on today the box already says Today.
+      turfDay === dayKey(nowMs()) ? null : btn('Today', () => { turfDay = dayKey(nowMs()); render(); }, 'turf-today', { title: 'Back to today', data: { action: 'turf-today' } })));
+    const list = turfBookingsOn(turfDay);
+    bar.append(btn([icon('reservations'), 'Bulk booking'], () => turfBulkSheet(), 'quiet', { data: { action: 'turf-bulk' } }));
+    if (list) bar.append(btn([icon('whatsapp'), h('span', { class: 'desk-only', text: 'Share availability' })], () => turfShareSheet(turfDay, list), 'quiet', { title: 'Share availability', 'aria-label': 'Share availability', data: { action: 'turf-availability' } }));
     // Exports are a desk job; a phone does not show them.
     bar.append(h('span', 'grow desk-only'), btn([icon('download'), 'Export CSV'], () => exportCsv('turf'), 'outline desk-only'));
   },
   render(target) {
-    if (turfView === 'upcoming') { turfUpcoming(target); return; }
     const list = turfBookingsOn(turfDay);
     if (!list) { loadTurfDay(turfDay); target.append(loadingRows(6)); return; }
     target.append(...[turfLegend(), turfBoard(turfDay, list)].filter(Boolean));
@@ -14229,7 +14228,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "1f4f32744ad6";
+const APP_BUILD = "d565e1cb333e";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
