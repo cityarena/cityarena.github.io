@@ -3969,7 +3969,7 @@ var ArenaReports = (function () {
    their own items, settled through the usual checkout. Every amount is an ordinary order on an ordinary tab. */
 var ArenaTurf = (function () {
   'use strict';
-  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
+  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
   // Items bought for Team A, Team B or everyone are kept once, as bought, and each player's part is one line on their bill.
   var SHARED = 'Shared items', GROUPS = ['A', 'B', 'all'];
   var COURTS = ['6-a-side', '5-a-side', '1v1'], SPORTS = ['Football', 'Cricket'], TEAMS = ['A', 'B'], OPEN_HOUR = 6, CLOSE_HOUR = 22, DAY_MS = 86400000;
@@ -4289,6 +4289,18 @@ var ArenaTurf = (function () {
   }
   // One payer whose bill is not made yet or still open (a closed one, paid in part or pending, is collected as it is).
   function billOpen(state, booking) { var main = tabOf(state, booking.tabId); return !main || main.status === 'open'; }
+  // Pending: each open bill of the booking (or of one player) closed with nothing paid, to wait under Credit → Pending.
+  function keepPending(state, booking, playerId, actor, now, id) {
+    var waiting = 0, total = 0;
+    if (!playerId && booking.split !== 'yes' && billOpen(state, booking)) { ensureMain(state, booking, now, id); sync(state, booking, now, id); }
+    settlement(state, booking).parts.forEach(function (bit, i) {
+      if (bit.state !== 'open' || !bit.owedPaise || (playerId && bit.playerId !== playerId) || onAccountPart(state, bit)) return;
+      ArenaLifecycle.execute(state, { type: 'SETTLE_REVIEW', tabId: bit.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: 0, method: 'cash' }, actor, now, id + '-pending-' + i);
+      waiting++;
+      total += bit.owedPaise;
+    });
+    return { waiting: waiting, total: total };
+  }
   function ensureMain(state, booking, now, id) {
     var main = tabOf(state, booking.tabId);
     if (main) { check(main.status === 'open', 'This booking’s bill is already closed.'); return main; }
@@ -4382,6 +4394,22 @@ var ArenaTurf = (function () {
       if (cmd.remove === true) { check(!!setting, 'This academy is not set up.'); setting.id = 'removed-academy-' + club + '-' + now; return { accountId: club, message: 'Academy removed. Its credit account stays.' }; }
       if (setting) setting.value = JSON.stringify(rates); else state.Settings.push({ id: 'academy-' + club, value: JSON.stringify(rates) });
       return { accountId: club, message: 'Academy rates saved. Bookings already made keep their rate.' };
+    }
+    if (cmd.type === 'TURF_PENDING_DUE') {
+      // Once its day is over (after midnight), a booking still orange on the board, over and not paid or paid in part, goes
+      // to Pending by itself (owner, 3 November: "once the day is ended, whatver is in orange should directly go to pending,
+      // unless i do anything"). An academy's slot goes to its account instead; a slot paid with another is moved with it. Any
+      // open screen asks; nothing is kept pending twice, and nothing to do is not an error.
+      var today = dateKeyOf(now), kept = 0, keptPaise = 0;
+      booked(state).forEach(function (b, n) {
+        if (b.dateKey >= today || leadOf(state, b) || accountOf(state, b.id)) return;
+        var st = settlement(state, b).state;
+        if (st !== 'open' && st !== 'part') return;
+        var done = keepPending(state, b, '', actor, now, id + '-' + n);
+        kept += done.waiting;
+        keptPaise += done.total;
+      });
+      return { posted: kept, amountPaise: keptPaise, message: kept ? 'Pending ' + (keptPaise / 100) + ' from earlier days.' : 'Nothing is due to pending.' };
     }
     if (cmd.type === 'TURF_ACCOUNT_DUE') {
       // Academy slots that have ended go to the academy's credit account, with their items named; so do academy players in a
@@ -4904,16 +4932,9 @@ var ArenaTurf = (function () {
     if (cmd.type === 'TURF_PENDING') {
       // Pending (owner, 20 October): the whole booking, or one player, pays in a day or two. Each open bill is closed with
       // nothing paid; it waits under Credit → Pending until it is cleared, and the board treats the booking as done.
-      var waiting = 0, total = 0;
-      if (!cmd.playerId && booking.split !== 'yes' && billOpen(state, booking)) { ensureMain(state, booking, now, id); sync(state, booking, now, id); }
-      settlement(state, booking).parts.forEach(function (bit, i) {
-        if (bit.state !== 'open' || !bit.owedPaise || (cmd.playerId && bit.playerId !== cmd.playerId) || onAccountPart(state, bit)) return;
-        ArenaLifecycle.execute(state, { type: 'SETTLE_REVIEW', tabId: bit.tabId, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: 0, method: 'cash' }, actor, now, id + '-pending-' + i);
-        waiting++;
-        total += bit.owedPaise;
-      });
-      check(waiting > 0, 'Nothing is left to keep pending.');
-      return { bookingId: booking.id, amountPaise: total, bills: waiting, message: 'Pending ' + (total / 100) + '.' };
+      var kept = keepPending(state, booking, cmd.playerId, actor, now, id);
+      check(kept.waiting > 0, 'Nothing is left to keep pending.');
+      return { bookingId: booking.id, amountPaise: kept.total, bills: kept.waiting, message: 'Pending ' + (kept.total / 100) + '.' };
     }
     if (cmd.type === 'TURF_DISCOUNT') {
       // Split: taken off before the shares. One payer (owner, 22 October): taken off the turf while its bill is open.
@@ -14207,6 +14228,18 @@ function extendSeries() {
   const here = trySaveHere({ type: 'TURF_SERIES_EXTEND', seriesId: due });
   if (here && !here.refused) render();
 }
+// Once a day is over, its bookings still orange go to Pending by themselves (owner, 3 November), unless something was done
+// about them first: any open screen sends it after midnight; the server keeps each one pending once.
+let pendingDueTried = 0;
+function postPendingDue() {
+  if (!state || outbox.length || flow.saving() || nowMs() - pendingDueTried < 60000) return;
+  const today = dayKey(nowMs());
+  const due = (state.TurfBookings || []).some(b => b.dateKey < today && !turfAccountOf(b.id) && !turfStatusOf(b.id).leadId && ['open', 'part'].includes(turfStatusOf(b.id).state));
+  if (!due) return;
+  pendingDueTried = nowMs();
+  const here = trySaveHere({ type: 'TURF_PENDING_DUE' });
+  if (here && !here.refused) render();
+}
 function postAcademyDue() {
   if (!state || outbox.length || flow.saving() || nowMs() - academyDueTried < 60000) return;
   const owing = tabId => { const t = tabOf(tabId); return !!t && t.status === 'open' && !stillPlaying(t.id) && ordersOf(t.id).length > 0; };
@@ -14526,7 +14559,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "cd8ba9abe488";
+const APP_BUILD = "5053d4f7f036";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
@@ -14550,6 +14583,7 @@ function applySnapshot(data) {
   watchArrivals();
   reloadIfOld(data.build);
   postAcademyDue();
+  postPendingDue();
   extendSeries();
   // A save left unconfirmed: the notice with Check again. Never retried by itself (owner, 25 October: the retry every minute
   // put "Saving…" on the open sheet's button and held every tap while it waited).
