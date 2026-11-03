@@ -77,8 +77,6 @@
   --edge-head: #d3c9b6;
   --edge-free: #d2c9b9;
   --edge-board: #ded6c8;
-  /* The top card of the Turf page, in the cream of the owner's picture of 3 November. */
-  --turf-cream: #fcf5ea;
   --edge-booked: #335a69;
   --edge-paid: #18512f;
   --edge-owing: #a35610;
@@ -1310,41 +1308,33 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .turf-block.paid { --edge: var(--edge-paid); background: linear-gradient(180deg, #e3efe2 0%, #d6e8d4 100%); }
 .turf-block.owing { --edge: var(--edge-owing); background: linear-gradient(180deg, #fbebd6 0%, #f6dfc0 100%); }
 .turf-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: var(--text-xs); color: var(--ink-2); }
-/* The colours, and at the right, where there is room, the hours booked and still free that day, each in its own pill after a
-   short divider (owner, 3 November); under a fine line at the foot of the top card. */
-.turf-key-row { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--line-strong); }
-.turf-counts { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; padding-left: 16px; border-left: 1px solid var(--line-strong); }
-.turf-count { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px 0 10px; border: 1px solid var(--edge-soft); border-radius: 999px; background: var(--raised); box-shadow: var(--hi), 0 2px 6px -4px rgba(80, 62, 30, 0.25); color: var(--ink-2); font-size: var(--text-sm); white-space: nowrap; }
-.turf-count b { color: var(--ink); font: 700 var(--text-base)/1 var(--display); font-variant-numeric: tabular-nums; }
-.turf-count svg { width: 17px; height: 17px; color: var(--primary); }
-.turf-count.free svg { color: var(--accent); }
-/* The top of the Turf page is one card, as the owner's picture of 3 November: the title with a green bar beside it, the
-   turf photograph (Manipal's, faded to nothing on the left and below in the picture itself) across the top right to the
-   card's edges with the buttons on it, each on its own surface, then the day and the tools, a fine line, and the colours with
-   the counts. Made of the page's header and its bar, joined without a seam; a notice comes after it. */
-main[data-page=turf] > .top { min-height: 96px; margin-top: 16px; padding: 14px 20px 8px; border: 1px solid var(--edge-board); border-bottom: 0; border-radius: var(--r-lg) var(--r-lg) 0 0;
+/* The top of the Turf page at its earlier, compact size (owner, 3 November: "revert back to earlier size so i can see more
+   slots"): the title and its line, the turf photograph (Manipal's) across the right of the title row, hazed in on a slant
+   and faded into the page at its foot as in the owner's picture, the buttons on it each on its own surface; the day and the
+   tools below, the colours over the board. No booked / available counts (owner, 3 November). */
+main[data-page=turf] > .top {
   background:
-    linear-gradient(180deg, rgba(252, 245, 234, 0) 0%, rgba(252, 245, 234, 0) 82%, var(--turf-cream) 100%),
-    linear-gradient(105deg, var(--turf-cream) 0%, var(--turf-cream) 43%, rgba(252, 245, 234, 0.75) 46%, rgba(252, 245, 234, 0.3) 50%, rgba(252, 245, 234, 0) 54%),
-    var(--turf-head) right top / 58% auto no-repeat,
-    var(--turf-cream); }
-main[data-page=turf] > #pageBar { margin-bottom: 16px; padding: 6px 20px 14px; border: 1px solid var(--edge-board); border-top: 0; border-radius: 0 0 var(--r-lg) var(--r-lg); background: var(--turf-cream); box-shadow: 0 14px 26px -18px rgba(80, 62, 30, 0.32); }
+    linear-gradient(180deg, rgba(244, 239, 228, 0) 0%, rgba(244, 239, 228, 0) 70%, var(--bg) 100%),
+    linear-gradient(105deg, var(--bg) 0%, var(--bg) 52%, rgba(244, 239, 228, 0.75) 55%, rgba(244, 239, 228, 0.3) 59%, rgba(244, 239, 228, 0) 63%),
+    var(--turf-head) right top / 48% auto no-repeat,
+    var(--bg); }
+main[data-page=turf] .top-tools .btn.quiet { border-color: var(--line-strong); background: var(--raised); }
 main[data-page=turf] > #notice { order: 1; }
 main[data-page=turf] > #page { order: 2; }
-main[data-page=turf] .top-title { position: relative; padding-left: 16px; }
-main[data-page=turf] .top-title::before { content: ""; position: absolute; left: 0; top: 5px; bottom: 5px; width: 4px; border-radius: 2px; background: var(--brand-green); }
-main[data-page=turf] .top-tools .btn.quiet { border-color: var(--line-strong); background: var(--raised); }
-/* A fine divider before Bulk booking and before Share availability; Export in mint. */
-main[data-page=turf] .page-bar > [data-action=turf-bulk], main[data-page=turf] .page-bar > [data-action=turf-availability] { position: relative; margin-left: 12px; }
-main[data-page=turf] .page-bar > [data-action=turf-bulk]::before, main[data-page=turf] .page-bar > [data-action=turf-availability]::before { content: ""; position: absolute; left: -11px; top: 8px; bottom: 8px; width: 1px; background: var(--line-strong); }
-main[data-page=turf] .page-bar > .btn.outline { border-color: var(--accent-line); background: #e9f3ec; color: var(--accent-ink); }
-/* The board scrolls within itself, filling the window below the page's bar; the page around it stays still (owner,
-   3 November: "keep one scrolling within"). The headings stay at its top on a strip of the card's own colour. */
-main[data-page=turf] { display: flex; flex-direction: column; overflow: hidden; padding-bottom: 16px; }
+.turf-legend { margin: -6px 2px 12px; }
+/* Up to the top once the page is scrolled down, down to the last hour while it is still below (owner, 3 November). */
+.turf-jump { position: fixed; right: 24px; bottom: 24px; z-index: 30; display: grid; gap: 8px; }
+.turf-jump .icon-btn { width: 44px; height: 44px; border-radius: 50%; border-color: var(--primary-line); background: var(--raised); color: var(--primary); box-shadow: var(--shadow-pop); }
+.turf-jump .icon-btn[hidden] { display: none; }
+.turf-jump svg { width: 20px; height: 20px; }
+/* The page scrolls as it always did (owner, 3 November: the board's own scrolling box went, "let it be like earlier"). The
+   page is a column only so a notice keeps its place after the page's bar; the headings stay at the top of the page on a strip
+   of the card's own colour while it scrolls. */
+main[data-page=turf] { display: flex; flex-direction: column; }
+/* Room under the board for the arrows, so they never cover the last hour. */
+main[data-page=turf] > #page { padding-bottom: 56px; }
 main[data-page=turf] > * { flex: none; }
-main[data-page=turf] > #page { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-main[data-page=turf] .turf-board { flex: 0 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y mandatory; }
-main[data-page=turf] .turf-hour { scroll-snap-align: start; }
+main[data-page=turf] .turf-board { overflow-x: clip; }
 .turf-board { position: relative; container-type: inline-size; }
 .turf-corner::before { content: ""; position: absolute; z-index: -1; left: -16px; top: -14px; width: calc(100cqw + 32px); height: calc(100% + 20px); background: var(--card); }
 .turf-key { display: inline-flex; align-items: center; gap: 8px; }
@@ -1632,9 +1622,8 @@ main[data-page=turf] .turf-hour { scroll-snap-align: start; }
   .rep-lead { grid-column: 1 / -1; }
   .rep-main { grid-template-columns: minmax(0, 1fr); }
   .till { position: static; }
-  /* Below this the colours and the counts no longer fit on one line: the counts are left out (owner: "only if space permits"). */
-  .turf-counts { display: none; }
-  main[data-page=turf] > .top { min-height: 0; background: var(--turf-cream); }
+  /* Too narrow for the photograph beside the title and the buttons: left out. */
+  main[data-page=turf] > .top { background: none; }
 }
 
 /* ---------- Phone ---------- */
@@ -1728,9 +1717,6 @@ main[data-page=turf] .turf-hour { scroll-snap-align: start; }
   .turf-player.cleared { grid-template-columns: auto minmax(0, 1fr) auto auto; }
   .turf-player.cleared .turf-player-tools { grid-column: auto; gap: 2px; }
   .page-bar .turf-day { order: 5; flex-basis: 100%; justify-content: space-between; }
-  .page-bar .turf-key-row { order: 6; }
-  main[data-page=turf] .page-bar > [data-action=turf-bulk], main[data-page=turf] .page-bar > [data-action=turf-availability] { margin-left: 0; }
-  main[data-page=turf] .page-bar > [data-action=turf-bulk]::before, main[data-page=turf] .page-bar > [data-action=turf-availability]::before { display: none; }
   .row-tools .btn { padding: 0 12px; }
   /* A phone or a tablet upright: the lounge and the logo at the top, fading into cream; the form below. */
   .login { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; background: #f6f1e7; }
@@ -1863,11 +1849,7 @@ main[data-page=turf] .turf-hour { scroll-snap-align: start; }
 /* A phone's turf board (owner, 25 October: a hold showed its name and the cross, On hold cut off below): the name on its
    own line, then the cross and, on a hold, a clock that asks Confirm or No, side by side within the hour. */
 @media (max-width: 599px) {
-  main[data-page=turf] > .top { margin-top: 10px; padding: 10px 12px 4px; }
-  main[data-page=turf] > #pageBar { margin-bottom: 10px; padding: 4px 12px 10px; }
-  main[data-page=turf] .top-title { padding-left: 12px; }
-  main[data-page=turf] .page-sub { display: none; }
-  .turf-key-row { gap: 6px 14px; padding-top: 10px; }
+  .turf-jump { right: 16px; bottom: 84px; }
   .turf-block { flex-direction: row; flex-wrap: wrap; align-content: center; align-items: center; gap: 4px; }
   .turf-block-top, .turf-block-sub { display: contents; }
   .turf-hold-tag { display: inline-grid; place-items: center; width: 28px; height: 24px; padding: 0; }
@@ -13944,68 +13926,50 @@ function turfBoard(key, all) {
     btn([icon('plus'), turfPickedSlots().length === 1 ? 'Book' : 'Book ' + turfPickedSlots().length + ' slots'], () => turfBookingSheet(null, { dateKey: key, slots: turfPickedSlots() }), 'primary', { data: { action: 'turf-book-picked' } })));
   return board;
 }
-// The board scrolls within itself (owner, 3 November: "keep one scrolling within"). Opened on today it starts an hour before
-// the hour now ("2 hours no need, 1 is fine"), or earlier at the start of a booking of two hours or more under way then, so it
-// is shown whole ("incase 2-3 or multiple hours is booked then show"); the earlier hours above it; another day starts at its
-// first hour; a redraw keeps where it was, and opening the Turf page again starts afresh.
-let turfBoardAt = { day: '', top: 0 };
-// The board's box fills the room below the page's bar to the foot of the window (owner, 3 November: "why are you wasting that
-// below space?") and holds whole hours only, never a card cut at its foot ("make sure entire card is visible at a time"): as
-// many hours as fit at their own height, each then stretched a little so together they fill the box. It scrolls an hour at a
-// time (each hour a snap point under the headings). Measured from the board itself, again when the window changes.
-function turfBoardFit(board) {
-  board.style.gridAutoRows = '';
-  board.style.height = '';
-  const rows = board.querySelectorAll('.turf-hour');
-  if (rows.length < 2 || !board.parentElement) return;
-  const style = getComputedStyle(board), base = rows[0].offsetHeight, gap = rows[1].offsetTop - rows[0].offsetTop - base;
-  // An hour stops right under the headings (which stay below the board's top padding), where the first hour starts; the box
-  // ends one row gap below its last whole hour.
-  const stop = rows[0].offsetTop, edges = parseFloat(style.borderTopWidth) + parseFloat(style.borderBottomWidth);
-  const room = board.parentElement.clientHeight - edges - stop;
-  const hours = Math.max(1, Math.min(rows.length, Math.floor(room / (base + gap))));
-  const height = Math.max(base, Math.min(Math.round(base * 1.5), Math.floor(room / hours) - gap));
-  board.style.gridAutoRows = height + 'px';
-  board.style.paddingBottom = gap + 'px';
-  board.style.scrollPaddingTop = stop + 'px';
-  board.style.height = (edges + stop + hours * (height + gap)) + 'px';
-}
-window.addEventListener('resize', () => { const board = document.querySelector('main[data-page=turf] .turf-board'); if (board) turfBoardFit(board); });
-function turfBoardScroll(board, list) {
-  if (turfBoardAt.day === turfDay) board.scrollTop = turfBoardAt.top;
-  else {
-    const today = turfDay === dayKey(nowMs());
-    const before = Math.min(TURF_CLOSE - 1, Math.max(TURF_OPEN, Math.floor((nowMs() - hourStart(turfDay, 0)) / 3600000) - 1));
-    const hour = Math.max(TURF_OPEN, Math.min(before, ...TURF_COURTS.map(court => bookingAt(list, court, before)).filter(Boolean).map(b => Number(b.startHour))));
-    const row = board.querySelector(today ? '.turf-hour[data-hour="' + hour + '"]' : '.turf-hour');
-    board.scrollTop = row ? row.offsetTop - (parseFloat(board.style.scrollPaddingTop) || 0) : 0;
-    turfBoardAt = { day: turfDay, top: board.scrollTop };
-  }
-  board.addEventListener('scroll', () => { turfBoardAt = { day: turfDay, top: board.scrollTop }; });
+// The page scrolls as it always did; the board's own scrolling box went (owner, 3 November: "that scrolling part do not want
+// … let it be like earlier"). Opened on today the page starts an hour before the hour now ("2 hours no need, 1 is fine"), or
+// earlier at the start of a booking of two hours or more under way then, so it shows whole ("incase 2-3 or multiple hours is
+// booked then show"), that hour right under the headings, the earlier hours above it; once each time the page is opened or
+// today is chosen again, so a refresh never moves it.
+let turfOpenedOn = '';
+function turfOpenAt(board, list) {
+  if (turfDay !== dayKey(nowMs()) || turfOpenedOn === turfDay) return;
+  turfOpenedOn = turfDay;
+  const before = Math.min(TURF_CLOSE - 1, Math.max(TURF_OPEN, Math.floor((nowMs() - hourStart(turfDay, 0)) / 3600000) - 1));
+  const hour = Math.max(TURF_OPEN, Math.min(before, ...TURF_COURTS.map(court => bookingAt(list, court, before)).filter(Boolean).map(b => Number(b.startHour))));
+  // After the page has put back its own scroll (go and render do so once this returns).
+  setTimeout(() => {
+    const main = $('main'), row = board.querySelector('.turf-hour[data-hour="' + hour + '"]'), head = board.querySelector('.turf-court-head');
+    if (!row || !head || !board.isConnected) return;
+    const gap = parseFloat(getComputedStyle(board).rowGap) || 0;
+    main.scrollTop += row.getBoundingClientRect().top - main.getBoundingClientRect().top - head.offsetHeight - gap;
+  }, 0);
 }
 // What each colour on the board means.
 function turfLegend() {
   return h('div', { class: 'turf-legend', 'aria-hidden': 'true' }, [['free', 'Free'], ['booked', 'Booked'], ['paid', 'Paid'], ['owing', 'Pending · part paid'], ['hold', 'Hold · Hold (Pay)'], ['missed', 'Time gone, not booked']].map(([k, t]) => h('span', 'turf-key ' + k, h('i'), t)));
 }
-// How many hours are booked that day and how many are still free, beside the colours where there is room (owner, 3 November:
-// "only if space permits write the slots booked and available"); counted from the board's own cells.
-function turfCounts(key, list) {
-  const now = nowMs();
-  let booked = 0, free = 0;
-  for (const hour of turfBoardHours()) {
-    for (const court of TURF_COURTS) {
-      if (bookingAt(list, court, hour)) booked++;
-      else if (hourStart(key, hour + 1) > now) free++;
-    }
-  }
-  const slots = n => n + (n === 1 ? ' slot ' : ' slots ');
-  return h('span', 'turf-counts',
-    h('span', { class: 'turf-count', title: slots(booked) + 'booked', data: { turfCount: 'booked' } }, icon('reservations'), h('b', { text: String(booked) }), 'booked'),
-    h('span', { class: 'turf-count free', title: slots(free) + 'available', data: { turfCount: 'free' } }, icon('layers'), h('b', { text: String(free) }), 'available'));
+// Two small round arrows at the bottom right (owner, 3 November): up, back to the top to choose another day, once the page is
+// scrolled down ("keep one small button once i come to end of screen, if i click it should automatically take me to top to
+// select dates"); down, straight to the last hour, while the end is still below ("same way keep one down arrow at top, to
+// directly to last").
+let turfJumpWatched = false;
+function turfJumpShow() {
+  const main = $('main'), up = document.querySelector('.turf-jump [data-action=turf-up]'), down = document.querySelector('.turf-jump [data-action=turf-down]');
+  if (up) up.hidden = main.scrollTop < 240;
+  if (down) down.hidden = main.scrollTop > main.scrollHeight - main.clientHeight - 240;
+}
+function turfJumpButtons() {
+  const main = $('main'), how = () => (matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+  if (!turfJumpWatched) { turfJumpWatched = true; main.addEventListener('scroll', turfJumpShow, { passive: true }); }
+  setTimeout(turfJumpShow, 0);
+  return h('div', 'turf-jump',
+    iconButton('arrowUp', 'Back to the top', () => main.scrollTo({ top: 0, behavior: how() }), { hidden: true, data: { action: 'turf-up' } }),
+    iconButton('arrowDown', 'To the last hour', () => main.scrollTo({ top: main.scrollHeight, behavior: how() }), { hidden: true, data: { action: 'turf-down' } }));
 }
 const turfPage = {
   title: 'Turf',
-  open() { turfBoardAt = { day: '', top: 0 }; },
+  open() { turfOpenedOn = ''; },
   subtitle: 'Manage turf bookings and availability',
   bar(bar) {
     turfDay = turfDay || dayKey(nowMs());
@@ -14020,22 +13984,19 @@ const turfPage = {
       iconButton('right', 'Next day', () => { turfDay = shiftDay(turfDay, 1); render(); }, { data: { action: 'turf-next' } }),
       // Back to today in one tap from any other day (owner, 3 November: a booking two weeks ahead leaves the board there);
       // on today the box already says Today.
-      turfDay === dayKey(nowMs()) ? null : btn('Today', () => { turfDay = dayKey(nowMs()); render(); }, 'turf-today', { title: 'Back to today', data: { action: 'turf-today' } })));
+      turfDay === dayKey(nowMs()) ? null : btn('Today', () => { turfDay = dayKey(nowMs()); turfOpenedOn = ''; render(); }, 'turf-today', { title: 'Back to today', data: { action: 'turf-today' } })));
     const list = turfBookingsOn(turfDay);
     bar.append(btn([icon('reservations'), 'Bulk booking'], () => turfBulkSheet(), 'quiet', { data: { action: 'turf-bulk' } }));
     if (list) bar.append(btn([icon('whatsapp'), h('span', { class: 'desk-only', text: 'Share availability' })], () => turfShareSheet(turfDay, list), 'quiet', { title: 'Share availability', 'aria-label': 'Share availability', data: { action: 'turf-availability' } }));
     // Exports are a desk job; a phone does not show them.
     bar.append(h('span', 'grow desk-only'), btn([icon('download'), 'Export CSV'], () => exportCsv('turf'), 'outline desk-only'));
-    // The colours, and the hours booked and still free where there is room, at the foot of the top card (owner, 3 November).
-    bar.append(h('div', 'turf-key-row', turfLegend(), list ? turfCounts(turfDay, list) : null));
   },
   render(target) {
     const list = turfBookingsOn(turfDay);
     if (!list) { loadTurfDay(turfDay); target.append(loadingRows(6)); return; }
     const board = turfBoard(turfDay, list);
-    target.append(board);
-    turfBoardFit(board);
-    turfBoardScroll(board, list);
+    target.append(turfLegend(), board, turfJumpButtons());
+    turfOpenAt(board, list);
   }
 };
 
@@ -14381,7 +14342,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "264bccf2320c";
+const APP_BUILD = "0d31e657fd48";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
