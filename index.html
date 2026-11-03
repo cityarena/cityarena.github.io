@@ -3460,21 +3460,22 @@ var ArenaViews = (function () {
     (state.Segments || []).forEach(function (g) { if (g.tabId === tabId && g.status !== 'void') seen[g.unitId] = true; });
     return Object.keys(seen);
   }
-  // When a bill was played: its first game, its first item, or its turf slot (owner, 4 November: turf bookings of earlier days
-  // kept pending at 11:53 PM read as that night's; "keep pending with own dates").
-  function playedMs(state, tabId) {
-    var starts = (state.Segments || []).filter(function (g) { return g.tabId === tabId; }).map(function (g) { return Number(g.startMs); })
-      .concat((state.Orders || []).filter(function (o) { return o.tabId === tabId && o.category !== 'Turf' && o.category !== 'Carried'; }).map(function (o) { return Number(o.createdMs); }));
-    var player = (state.TurfPlayers || []).find(function (p) { return p.tabId === tabId; });
-    var booking = (state.TurfBookings || []).find(function (b) { return player ? b.id === player.bookingId : b.tabId === tabId; });
-    if (booking) starts.push(Date.parse(booking.dateKey + 'T00:00:00+05:30') + Number(booking.startHour) * 3600000);
-    starts = starts.filter(function (n) { return n > 0; });
-    return starts.length ? Math.min.apply(null, starts) : 0;
+  // When each bill was played, by its visit: its first game, its first item, or its turf slot (owner, 4 November: turf bookings
+  // of earlier days kept pending at 11:53 PM read as that night's; "keep pending with own dates").
+  function playedIndex(state) {
+    var at = {};
+    var earliest = function (tabId, ms) { ms = Number(ms); if (tabId && ms > 0 && (!at[tabId] || ms < at[tabId])) at[tabId] = ms; };
+    (state.Segments || []).forEach(function (g) { earliest(g.tabId, g.startMs); });
+    (state.Orders || []).forEach(function (o) { if (o.category !== 'Turf' && o.category !== 'Carried') earliest(o.tabId, o.createdMs); });
+    var bookings = index(state.TurfBookings), slot = function (b) { return Date.parse(b.dateKey + 'T00:00:00+05:30') + Number(b.startHour) * 3600000; };
+    (state.TurfBookings || []).forEach(function (b) { earliest(b.tabId, slot(b)); });
+    (state.TurfPlayers || []).forEach(function (p) { if (bookings[p.bookingId]) earliest(p.tabId, slot(bookings[p.bookingId])); });
+    return at;
   }
-  function summaryRow(state, bill, detail, tabs, accounts) {
+  function summaryRow(state, bill, detail, tabs, accounts, played) {
     var tab = tabs[detail.tabId] || {}, transfer = transferFor(state, bill.id);
     return {
-      playedMs: playedMs(state, detail.tabId),
+      playedMs: (played || {})[detail.tabId] || 0,
       id: bill.id, number: number(state, bill.id), customer: detail.customer, phone: tab.phone || '', kind: tab.kind || '',
       createdMs: detail.createdMs, subtotalPaise: detail.subtotalPaise, discountPaise: detail.discountPaise,
       totalPaise: bill.totalPaise, paidPaise: bill.paidPaise, outstandingPaise: Math.max(0, bill.totalPaise - bill.paidPaise),
@@ -3496,19 +3497,22 @@ var ArenaViews = (function () {
       paidIn[p.billId] = (paidIn[p.billId] || 0) + p.amountPaise;
       paidAt[p.billId] = Math.max(paidAt[p.billId] || 0, p.createdMs);
     });
-    var made = function (d) { return !(query.fromMs && d.createdMs < query.fromMs) && !(query.toMs && d.createdMs >= query.toMs); };
-    var when = function (d) { return made(d) ? d.createdMs : paidAt[d.id] || d.createdMs; };
+    // The dates go by the day each bill was played, as its When reads (owner, 4 November: "how the fuck is this in todays?" —
+    // three turf bookings of 3 November kept pending just after midnight stood under Today).
+    var played = playedIndex(state), of = function (d) { return played[d.tabId] || d.createdMs; };
+    var made = function (d) { return !(query.fromMs && of(d) < query.fromMs) && !(query.toMs && of(d) >= query.toMs); };
+    var when = function (d) { return made(d) ? of(d) : paidAt[d.id] || of(d); };
     var list = (state.BillDetails || []).slice().sort(function (a, b) { return when(b) - when(a); });
     for (var i = 0; i < list.length; i++) {
       var detail = list[i], bill = bills[detail.id];
       if (!bill) continue;
       if (!made(detail) && !(detail.id in paidIn)) continue;
-      var item = summaryRow(state, bill, detail, tabs, accounts);
+      var item = summaryRow(state, bill, detail, tabs, accounts, played);
       if (!made(detail)) { item.paidThenPaise = paidIn[detail.id]; item.paidAtMs = paidAt[detail.id]; }
       // Paid on a later day than it was made: that day, shown beside its status on its own day (owner, 2 November).
       else {
         var lastPaid = (state.Payments || []).filter(function (p) { return p.billId === detail.id && p.amountPaise > 0; }).reduce(function (ms, p) { return Math.max(ms, p.createdMs); }, 0);
-        if (lastPaid && ArenaReports.dateKeyOf(state, lastPaid) !== ArenaReports.dateKeyOf(state, detail.createdMs)) item.laterPaidMs = lastPaid;
+        if (lastPaid && ArenaReports.dateKeyOf(state, lastPaid) !== ArenaReports.dateKeyOf(state, of(detail))) item.laterPaidMs = lastPaid;
       }
       if (query.status && query.status !== 'all' && item.status !== query.status) continue;
       if (query.unitId && item.units.indexOf(query.unitId) < 0) continue;
@@ -3598,7 +3602,7 @@ var ArenaViews = (function () {
     if (dataset === 'sessions') return { name: 'gaming-sessions', columns: ['Unit', 'Controller', 'Player', 'Visit', 'Start', 'End', 'Billed minutes', 'Charge', 'Status'],
       rows: (state.Segments || []).filter(function (g) { return inRange(g.startMs, fromMs, toMs); }).map(function (g) { return [g.unitId, g.controller || '', g.player, (tabs[g.tabId] || {}).customer || '', when(g.startMs), when(g.endMs), g.billableMinutes, rupees(g.totalPaise), g.status]; }) };
     if (dataset === 'bills') return { name: 'bills', columns: ['Bill', 'Date', 'Customer', 'Mobile', 'Subtotal', 'Discount', 'Total', 'Paid', 'Outstanding', 'Status', 'Credit account'],
-      rows: history(state, { fromMs: fromMs, toMs: toMs, limit: 500 }).rows.map(function (b) { return [b.number, when(b.createdMs), b.customer, b.phone, rupees(b.subtotalPaise), rupees(b.discountPaise), rupees(b.totalPaise), rupees(b.paidPaise), rupees(b.outstandingPaise), b.status, b.account]; }) };
+      rows: history(state, { fromMs: fromMs, toMs: toMs, limit: 500 }).rows.map(function (b) { return [b.number, when(b.playedMs || b.createdMs), b.customer, b.phone, rupees(b.subtotalPaise), rupees(b.discountPaise), rupees(b.totalPaise), rupees(b.paidPaise), rupees(b.outstandingPaise), b.status, b.account]; }) };
     if (dataset === 'orders') return { name: 'product-orders', columns: ['Date', 'Item', 'Category', 'Quantity', 'Unit price', 'Total', 'Bought by', 'Visit', 'Status'],
       rows: (state.Orders || []).filter(function (o) { return inRange(o.createdMs, fromMs, toMs); }).map(function (o) { return [when(o.createdMs), o.label, o.category, o.quantity, rupees(o.unitPricePaise), rupees(o.totalPaise), o.purchaser, (tabs[o.tabId] || {}).customer || '', o.status]; }) };
     if (dataset === 'payments') return { name: 'payments', columns: ['Receipt', 'Date', 'Amount', 'Method', 'Bill', 'Customer', 'Type'],
@@ -7912,11 +7916,12 @@ function commentField() {
 const NOTE_KIND = {
   SETTLE_REVIEW: 'Moved to credit', TRANSFER_CREDIT_INLINE: 'Moved to credit', CREDIT_SALE: 'Put on credit', TURF_CREDIT_ALL: 'Moved to credit',
   TURF_CARRY: 'Moved to the next booking', MOVE_REVIEW: 'Moved to a system', TURF_TAKE: 'Moved to the turf', TURF_MOVE: 'Moved to a system',
-  CONSOLIDATE_TABS: 'Added to a bill', ATTACH_TO_GROUP: 'Added to a bill', KEEP_SHARED: 'Added to a bill',
-  CREDIT_UNPAID: 'Still owed'
+  CONSOLIDATE_TABS: 'Added to a bill', ATTACH_TO_GROUP: 'Added to a bill', KEEP_SHARED: 'Added to a bill'
 };
-// Notes the app keeps for itself (an academy booking's link to its account), never shown as comments (owner, 21 October).
-const INTERNAL_NOTES = ['TURF_ACCOUNT'];
+// Notes the app keeps for itself, never shown as comments: an academy booking's link to its account (owner, 21 October), and
+// what a bill moved to credit was for, which the bill itself shows when opened (owner, 4 November: "what is that extra
+// comment? app did or human??").
+const INTERNAL_NOTES = ['TURF_ACCOUNT', 'CREDIT_UNPAID'];
 function notesBlock(ids) {
   const want = new Set(ids.filter(Boolean));
   const refs = n => { try { return JSON.parse(n.refsJson || '[]'); } catch (e) { return []; } };
@@ -10477,16 +10482,16 @@ function printReceipt(data) {
   window.print();
 }
 
-// When a bill was made; played on an earlier day, that day too (owner, 2 November: "the fuck is that walk in with todays time
-// and yesterday's bill" — a pool game of 1 November closed the next morning read only 2 Nov, 10:04 AM).
+// When a bill is of, and nothing about when it was closed (owner, 4 November: "why … again closed at 12 man?? instead … write
+// what time turf it was"): a turf booking's bill its day and slot ("3 Nov · 9:00pm - 10:00pm"); any other bill the day and
+// time it was played, its first game or item ("3 Nov, 8:29 PM"; owner, 2 November: never today's time on yesterday's bill).
 function billWhen(data, detail) {
   if (!detail) return '';
-  const closed = day(detail.createdMs) + ', ' + clock(detail.createdMs);
-  // A turf booking's bill: its slot's day (owner, 4 November: "keep pending with own dates").
-  const booking = turfBookingForTab(detail.tabId), slot = booking ? hourStart(booking.dateKey, Number(booking.startHour)) : 0;
-  const starts = (data.segments || []).map(g => Number(g.startMs)).concat((data.orders || []).filter(o => o.category !== 'Carried' && o.category !== 'Turf').map(o => Number(o.createdMs)), [slot]).filter(Boolean);
-  const first = starts.length ? Math.min(...starts) : 0;
-  return first && dayKey(first) !== dayKey(detail.createdMs) ? 'Played ' + day(first) + ' · Closed ' + closed : closed;
+  const booking = turfBookingForTab(detail.tabId);
+  if (booking) return day(hourStart(booking.dateKey, Number(booking.startHour))) + ' · ' + turfRange(booking);
+  const starts = (data.segments || []).map(g => Number(g.startMs)).concat((data.orders || []).filter(o => o.category !== 'Carried' && o.category !== 'Turf').map(o => Number(o.createdMs))).filter(Boolean);
+  const first = starts.length ? Math.min(...starts) : Number(detail.createdMs);
+  return day(first) + ', ' + clock(first);
 }
 async function receiptSheet(billId, back) {
   let data = viewHere(view => ArenaViews.bill(view, billId));
@@ -14651,7 +14656,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "1da87a81e69c";
+const APP_BUILD = "e06148147c2d";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
