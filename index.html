@@ -1224,6 +1224,20 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* What a bill on a credit account was for, opened under its row. */
 .breakdown { padding: 6px 0 14px; border-top: 1px dashed var(--line-strong); animation: rise 180ms cubic-bezier(0.2, 0.7, 0.2, 1); }
 .breakdown .lines { background: var(--surface); }
+/* A system's name over its controllers in a list to tick, with their total. */
+.pick-group { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 0 4px; font-size: var(--text-md); }
+.pick-group + .line { border-top: 0; }
+/* A bill moved onto another, in a box of its own: a clear edge and a gap from the next, its name, total and tick on a tinted
+   top line (owner, 4 November: "put proper borderline between bills"). Ticked lines keep the same background; the tick
+   says it. */
+.end-pick.bill-box { border-color: var(--line-bold); box-shadow: var(--hi), 0 1px 3px rgba(80, 62, 30, 0.08); overflow: hidden; }
+.end-pick.bill-box + .end-pick.bill-box, .end-pick + .end-pick { margin-top: 10px; }
+.line.pick.whole { background: var(--gold-soft); font-weight: 600; }
+.line.pick.whole .line-main b { font-weight: 700; }
+.line.pick.whole .fold-toggle { margin-left: 4px; }
+.end-pick .line.pick[aria-pressed=true] { background: transparent; }
+.end-pick .line.pick.whole[aria-pressed=true] { background: var(--gold-soft); }
+.line.in-group { padding-left: 28px; }
 /* A day of a credit account opened out: its bills and charges, each opening out again to what it was for. */
 .day-lines { padding-top: 8px; }
 .breakdown .group-title { font-size: var(--text-md); margin: 14px 0 6px; }
@@ -2571,7 +2585,12 @@ var ArenaLifecycle=(function(){
    // another", "only the items before the table"): how many of each, paid in full now; they become a bill of their own and
    // the rest, the time included, stays on the table.
    var it=tab(s,c.tabId);check(it.status==='open','This tab is already finalized.');
-   check(Array.isArray(c.items)&&c.items.length>=1&&c.items.length<=40,'Choose the items they are paying for.');
+   // A system already closed on the bill (time moved onto it, a controller that stopped earlier) is paid the same way, with
+   // or without items (owner, 4 November: "that pay items give option to pay the closed system as well").
+   var timers=(Array.isArray(c.segments)?c.segments:[]).map(function(gid){var g=row(s.Segments,gid);check(g.tabId===it.id&&g.status==='ended','This time is no longer on the bill. Refresh and try again.');return g;});
+   check(new Set(timers.map(function(g){return g.id;})).size===timers.length&&timers.length<=40,'Choose each one once.');
+   c=Object.assign({},c,{items:Array.isArray(c.items)?c.items:[]});
+   check((c.items.length>=1||timers.length>=1)&&c.items.length<=40,'Choose what they are paying for.');
    var onIt=(s.Orders||[]).filter(function(o){return o.tabId===it.id&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried';}),taking=[];
    // Checked first, then taken: a refused payment changes nothing.
    var chosen=c.items.map(function(item){
@@ -2580,8 +2599,9 @@ var ArenaLifecycle=(function(){
     return {order:o,quantity:item.quantity};
    });
    check(new Set(chosen.map(function(x){return x.order.id;})).size===chosen.length,'Choose each item once.');
-   var itemsDue=chosen.reduce(function(n,x){return n+x.order.unitPricePaise*x.quantity;},0);
-   check(c.amountPaise===itemsDue,'Collect '+(itemsDue/100)+' for these items.');
+   var itemsDue=chosen.reduce(function(n,x){return n+x.order.unitPricePaise*x.quantity;},0)+timers.reduce(function(n,g){return n+Number(g.totalPaise||0);},0);
+   check(itemsDue>0,'Choose what they are paying for.');
+   check(c.amountPaise===itemsDue,'Collect '+(itemsDue/100)+' for these.');
    chosen.forEach(function(x,i){
     var o=x.order;
     if(x.quantity===Number(o.quantity)){taking.push(o);return;}
@@ -2590,9 +2610,10 @@ var ArenaLifecycle=(function(){
    });
    var own=newTab(s,id+'-items',it.customer,it.phone,now,'individual');
    taking.forEach(function(o){o.tabId=own.id;});
+   timers.forEach(function(g){g.tabId=own.id;(s.Endings||[]).forEach(function(e){if(e.segmentId===g.id&&(e.status==='shared'||e.status==='review'))e.status='paid';});});
    s.OrderOwners=(s.OrderOwners||[]).filter(function(w){return !taking.some(function(o){return o.id===w.id;});});
    var paidItems=execute(s,{type:'SETTLE_REVIEW',tabId:own.id,settlement:'pay',discountType:'none',discountValue:0,amountPaise:itemsDue,method:c.method||'cash',payments:c.payments},actor,now,id+'-settle');
-   paidItems.tabId=own.id;paidItems.message='Items paid. The table plays on.';
+   paidItems.tabId=own.id;paidItems.message=timers.length?'Paid. The rest plays on.':'Items paid. The table plays on.';
    return paidItems;
   }
   if(c.type==='TABLE_COLLECT'){
@@ -2899,7 +2920,10 @@ var ArenaSales=(function(){
    // The same item at the same price added again to a bill joins its line (owner, 27 October: "A and B ... cant you add to
    // the same thing"): one line, its count raised. Not an item bought for one player (OrderOwners), nor a line with a reason.
    var buyer=c.purchaser?text(c.purchaser,80):target.customer,owned=(s.OrderOwners||[]).map(function(w){return w.id;});
-   var same=c.merge===true&&product?(s.Orders||[]).find(function(o){return o.tabId===target.id&&o.status==='active'&&o.productId===product.id&&Number(o.unitPricePaise)===price&&o.purchaser===buyer&&!o.reason&&owned.indexOf(o.id)<0;}):null;
+   // Never into a line that came over with a bill moved onto this one: a moved bill keeps its own items apart (owner, 4 November:
+   // "do not do that anywhere when a system is moved, let everything be along with its own bill").
+   var movedIn=[];(s.Notes||[]).forEach(function(n){if(n.kind==='MOVED_FROM'&&String(n.refsJson||'').indexOf(target.id)>=0){try{movedIn=movedIn.concat(JSON.parse(n.text).orders||[]);}catch(e){}}});
+   var same=c.merge===true&&product?(s.Orders||[]).find(function(o){return o.tabId===target.id&&o.status==='active'&&o.productId===product.id&&Number(o.unitPricePaise)===price&&o.purchaser===buyer&&!o.reason&&owned.indexOf(o.id)<0&&movedIn.indexOf(o.id)<0;}):null;
    if(product)takeStock(s,product.id,q,actor,now,id);
    if(same){var more=Number(same.quantity)+q;check(price*more<=100000000,'Charge exceeds supported amount.');same.quantity=more;same.totalPaise=price*more;same.revision=Number(same.revision)+1;return {orderId:same.id,message:'Charge added to '+target.customer+'.'};}
    s.Orders.push({id:id,tabId:target.id,productId:product?product.id:'',label:label,category:category,quantity:q,unitPricePaise:price,totalPaise:total,createdMs:now,status:'active',purchaser:c.purchaser?text(c.purchaser,80):target.customer,durationMinutes:duration,ratesJson:rates,reason:c.reason?text(c.reason,300):'',revision:1});return {orderId:id,message:'Charge added to '+target.customer+'.'};
@@ -2928,7 +2952,11 @@ var ArenaSales=(function(){
    check(['segment','order'].indexOf(c.kind)>=0,'Invalid charge type.');var charge=row(c.kind==='segment'?s.Segments:s.Orders,c.id);check(charge.category!=='Turf'&&charge.category!=='Carried','The turf charge follows the booking. Use the turf booking to move it.');check(charge.status!=='shared','This item is shared by a group. Change it from the turf booking.');tab(s,charge.tabId);tab(s,c.tabId);check(charge.status!=='active'||c.kind==='order','This player is still active. End their controller first.');check(charge.status!=='void','This charge is voided.');var from=charge.tabId;check(from!==c.tabId,'This charge is already on that tab.');text(c.reason,300);charge.tabId=c.tabId;if(c.kind==='order')charge.revision++;return {fromTabId:from,tabId:c.tabId,message:'Charge reassigned once. Other players are unchanged.'};
   }
   var source=tab(s,c.sourceTabId),destination=tab(s,c.tabId);check(source.id!==destination.id,'Invalid consolidation target.');check(!s.Segments.some(function(g){return g.tabId===source.id&&g.status==='active';}),'This source tab still has active players.');
-  var moved=0;s.Segments.concat(s.Orders).forEach(function(x){if(x.tabId===source.id){x.tabId=destination.id;moved++;}});(s.Advances||[]).forEach(function(a){if(a.tabId===source.id&&a.status==='held')a.tabId=destination.id;});check(moved>0,'This source tab has no charges.');source.status='merged';return {tabId:destination.id,message:'Added to '+destination.customer+'’s bill.'};
+  // What came over is kept as a note the app keeps for itself, so the bill shows it as one: the system and its total, its time
+  // and items when opened (owner, 4 November: "if the customer asks me, what is that 60 … if i forget").
+  var movedSegments=[],movedOrders=[];s.Segments.forEach(function(g){if(g.tabId===source.id&&g.status!=='void')movedSegments.push(g.id);});(s.Orders||[]).forEach(function(o){if(o.tabId===source.id&&o.status==='active')movedOrders.push(o.id);});
+  var moved=0;s.Segments.concat(s.Orders).forEach(function(x){if(x.tabId===source.id){x.tabId=destination.id;moved++;}});
+  if(moved){s.Notes=s.Notes||[];s.Notes.push({id:id+'-moved',kind:'MOVED_FROM',text:JSON.stringify({segments:movedSegments,orders:movedOrders}),refsJson:JSON.stringify([destination.id]),createdMs:now});}(s.Advances||[]).forEach(function(a){if(a.tabId===source.id&&a.status==='held')a.tabId=destination.id;});check(moved>0,'This source tab has no charges.');source.status='merged';return {tabId:destination.id,message:'Added to '+destination.customer+'’s bill.'};
  }
  return {handles:function(t){return ['SAVE_PRODUCT','REMOVE_PRODUCT','QUICK_TAB','ADD_ORDER','ADD_ITEMS','UPDATE_ORDER','TAKE_ITEMS','MOVE_CHARGE','CONSOLIDATE_TABS','STOCK','STOCK_COUNT'].indexOf(t)>=0;},execute:execute,stockOf:stockOf,stockReport:stockReport};
 })();
@@ -7922,7 +7950,7 @@ const NOTE_KIND = {
 // Notes the app keeps for itself, never shown as comments: an academy booking's link to its account (owner, 21 October), and
 // what a bill moved to credit was for, which the bill itself shows when opened (owner, 4 November: "what is that extra
 // comment? app did or human??").
-const INTERNAL_NOTES = ['TURF_ACCOUNT', 'CREDIT_UNPAID'];
+const INTERNAL_NOTES = ['TURF_ACCOUNT', 'CREDIT_UNPAID', 'MOVED_FROM'];
 function notesBlock(ids) {
   const want = new Set(ids.filter(Boolean));
   const refs = n => { try { return JSON.parse(n.refsJson || '[]'); } catch (e) { return []; } };
@@ -9062,7 +9090,7 @@ function itemChooser(orders, counts, onchange) {
       const n = counts.get(o.id) || 0, most = Number(o.quantity);
       const set = value => { counts.set(o.id, Math.max(0, Math.min(most, value))); draw(); onchange(); };
       return h('div', { class: 'line', data: { pick: o.id } },
-        h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: money(o.unitPricePaise) + ' each · ' + most + ' on the bill' })),
+        h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: money(o.unitPricePaise) + ' each' })),
         h('span', 'step',
           h('button', { type: 'button', 'aria-label': 'One fewer ' + o.label, disabled: !n, onclick: () => set(n - 1) }, icon('minus')),
           h('b', { text: String(n), data: { picked: o.id } }),
@@ -9182,7 +9210,7 @@ function endSheet(segments, memory = null) {
   // the system. Something ticked: Collect. Their own time not ticked is asked for (Others will pay, Credit or Pending); with
   // Credit or Pending it goes on the bill too, the amount received set to what is ticked and the rest asked there.
   // own: their controllers paying now. rows: the rest; picks: how many of each. rest: their unticked time.
-  let time, rows = [], rest = memory ? memory.rest : 'others', paidNow = 0;
+  let time, rows = [], rest = memory ? memory.rest : 'others', paidNow = 0, whole = null;
   const own = new Set(memory ? memory.own : []), picks = new Map(memory ? memory.picks : []);
   const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
   const others = () => state.Segments.filter(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id));
@@ -9209,8 +9237,10 @@ function endSheet(segments, memory = null) {
         tick();
         return;
       }
-      const closed = closedEarlier(segments).map(g => ({ key: 'seg:' + g.id, name: ps5 ? (/^Controller \d$/.test(g.player || '') || !g.player ? 'Controller ' + g.controller : g.player) : (tabOf(g.tabId) || {}).customer || g.player, timers: [g], most: 1, price: 'stopped ' + when(g.endMs) + ' · others to pay', worth: () => g.totalPaise }));
-      rows = pickRows(restOfBill(segments), true).concat(closed);
+      const closed = closedEarlier(segments).map(g => ({ key: 'seg:' + g.id, seat: ps5 ? g.controller : 0, name: ps5 ? (/^Controller \d$/.test(g.player || '') || !g.player ? 'Controller ' + g.controller : g.player) : (tabOf(g.tabId) || {}).customer || g.player, timers: [g], most: 1, price: 'stopped ' + when(g.endMs) + ' · others to pay', worth: () => g.totalPaise }));
+      const restLines = restOfBill(segments), parts = movedPicks(tabOf(segments[0].tabId), restLines.filter(x => x.unitId), restLines.filter(x => !x.unitId));
+      rows = parts.closed.concat(parts.items, closed);
+      whole = whole || wholePicks(() => rows, picks, () => ui.redraw());
       for (const row of rows) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
       const redraw = () => ui.redraw(), bin = o => removeOne(o, () => { ui.redraw(); return null; });
       const section = (name, title, lines, field) => lines.length ? ui.body.append(h('div', 'group-title', icon(name), title), h('div', { class: 'lines end-pick', data: { field } }, lines)) : null;
@@ -9219,8 +9249,8 @@ function endSheet(segments, memory = null) {
         h('input', { type: 'checkbox', checked: own.has(g.id), tabindex: '-1', 'aria-hidden': 'true' }),
         h('div', 'line-main', h('b', null, controllerLabel(g)), h('span', { class: 'small muted', text: (units.length > 1 ? (unitOf(g.unitId) || {}).name + ' · ' : '') + 'since ' + when(g.startMs) })), timer(g, true), cost(g))), 'end-pick');
       section('history', 'Closed earlier', pickLines(closed, picks, redraw), 'end-closed');
-      section('transfer', 'Moved here', pickLines(rows.filter(row => row.timers && !row.key.startsWith('seg:')), picks, redraw), 'end-moved');
-      section('snack', 'Items', pickLines(rows.filter(row => row.order), picks, redraw, bin), 'end-items');
+      if (parts.closed.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(parts.closed, picks, redraw, null, whole, 'end-moved'));
+      section('snack', ownItemsTitle(tabOf(segments[0].tabId)), pickLines(parts.items, picks, redraw, bin), 'end-items');
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
       const paying = own.size > 0 || rows.some(row => (picks.get(row.key) || 0) > 0);
       // Their own time not ticked, when they pay for something else: who pays it (owner, 27 October).
@@ -9342,8 +9372,12 @@ function tableExtras(tab, game) {
 function pickRows(lines, byItem = false) {
   return [...new Set(lines.filter(x => x.unitId).map(x => x.unitId))].map(unitId => {
     const timers = lines.filter(x => x.unitId === unitId), same = timers.every(g => g.totalPaise === timers[0].totalPaise);
-    return { key: 'unit:' + unitId, name: (unitOf(unitId) || {}).name || unitId, timers, most: timers.length, price: (same ? money(timers[0].totalPaise) + ' each' : money(timers.reduce((total, g) => total + g.totalPaise, 0)) + ' in all') + ' · moved here', worth: n => timers.slice(0, n).reduce((total, g) => total + g.totalPaise, 0) };
-  }).concat(byItem ? itemRows(lines.filter(x => !x.unitId)) : lines.filter(x => !x.unitId).map(o => ({ key: o.id, name: o.label, order: o, most: Number(o.quantity), price: money(o.unitPricePaise) + ' each', worth: n => n * o.unitPricePaise })));
+    const name = (unitOf(unitId) || {}).name || unitId;
+    // Several timers (a console's controllers, each with its own time; owner, 4 November: "say 4 controllers have different
+    // timings then how will it work out"): one row each, ticked on its own, under the system's name.
+    if (timers.length > 1) return timers.map(g => ({ key: 'unit:' + unitId + ':' + g.id, group: name, name: g.controller ? 'Controller ' + g.controller : name, seat: g.controller || 0, timers: [g], most: 1, price: '', worth: n => (n ? g.totalPaise : 0) }));
+    return [{ key: 'unit:' + unitId, name, timers, most: 1, price: '', worth: n => (n ? timers[0].totalPaise : 0) }];
+  }).flat().concat(byItem ? itemRows(lines.filter(x => !x.unitId)) : lines.filter(x => !x.unitId).map(o => ({ key: o.id, name: o.label, order: o, most: Number(o.quantity), price: money(o.unitPricePaise) + ' each', worth: n => n * o.unitPricePaise })));
 }
 function itemRows(orders) {
   const groups = new Map();
@@ -9362,18 +9396,91 @@ function removeOne(o, after) {
 }
 // The rows as lines: a tick for one thing, − n of N + for more; the amount beside each. With remove, an item added by
 // mistake can be taken off the bill from here too (owner, 21 October), with the bin, as on the bill.
-function pickLines(rows, picks, redraw, remove = null) {
-  return rows.map(row => {
-    const n = picks.get(row.key) || 0, set = v => { picks.set(row.key, Math.max(0, Math.min(row.most, v))); redraw(); }, data = { pick: row.order ? row.order.id : row.key };
-    const main = h('div', 'line-main', h('b', { text: row.name }), h('span', { class: 'small muted', text: row.price + (row.most > 1 ? ' · ' + row.most + ' on the bill' : '') }));
-    const bin = remove && row.order ? h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove one ' + row.name + ' from the bill', title: 'Remove one from the bill', data: { action: 'item-remove' }, onclick: e => { e.stopPropagation(); remove(row.binOrder || row.order); } }, icon('trash')) : null;
-    if (row.most === 1) return h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(n === 1), data, onclick: () => set(n ? 0 : 1) },
-      h('input', { type: 'checkbox', checked: n === 1, tabindex: '-1', 'aria-hidden': 'true' }), main, bin, h('span', { class: 'line-amount', text: money(row.worth(1)) }));
-    return h('div', { class: 'line pick-count', data },
-      h('input', { type: 'checkbox', checked: n > 0, 'aria-label': 'All ' + row.most + ' ' + row.name, data: { action: 'pick-all' }, onchange: () => set(n > 0 ? 0 : row.most) }), main,
-      h('span', 'item-tools', h('span', 'step', h('button', { type: 'button', 'aria-label': 'One fewer ' + row.name, disabled: n === 0, data: { action: 'pick-less' }, onclick: () => set(n - 1) }, icon('minus')), h('b', { class: 'qty-n', text: n + ' of ' + row.most }), h('button', { type: 'button', 'aria-label': 'One more ' + row.name, disabled: n === row.most, data: { action: 'pick-more' }, onclick: () => set(n + 1) }, icon('plus'))), bin),
-      h('span', { class: 'line-amount', text: money(row.worth(n)) }));
+function pickLines(rows, picks, redraw, remove = null, whole = null) {
+  let group = '';
+  return rows.flatMap(row => {
+    const first = row.group && row.group !== group;
+    group = row.group || '';
+    // Pay Items (owner, 4 November: "in pay items, i should be able to do both"): the system is one line with one tick for
+    // all of it, its time and its items, and + opens it to tick one by one.
+    if (whole && row.group) {
+      const head = first ? [wholeLine(row.group, rows.filter(r => r.group === row.group), picks, whole)] : [];
+      const line = pickLine(row, picks, redraw, remove);
+      line.hidden = !whole.open.has(row.group);
+      return head.concat(line);
+    }
+    // The system's name over its controllers, once.
+    const head = first ? [h('div', { class: 'pick-group', data: { pickGroup: row.group } }, h('b', { text: row.group }), h('span', { class: 'line-amount', text: money(rows.filter(r => r.group === row.group).reduce((total, r) => total + r.timers[0].totalPaise, 0)) }))] : [];
+    return head.concat(pickLine(row, picks, redraw, remove));
   });
+}
+// A moved system in Pay Items as one line: ticked when all of it is, its total, + to show its controllers.
+function wholeLine(name, list, picks, whole) {
+  const all = list.every(r => (picks.get(r.key) || 0) === r.most), some = list.some(r => (picks.get(r.key) || 0) > 0), open = whole.open.has(name);
+  const total = list.reduce((sum, r) => sum + r.worth(r.most), 0), timer = list.find(r => r.timers), unit = timer ? unitOf(timer.timers[0].unitId) : null;
+  const box = h('input', { type: 'checkbox', checked: all, 'aria-label': 'All of ' + name, data: { action: 'pick-whole' }, onclick: e => { e.stopPropagation(); whole.tick(name, !all); } });
+  box.indeterminate = some && !all;
+  return h('div', { class: 'line pick whole', data: { pickWhole: name } }, box,
+    h('span', { class: 'fold-icon', 'aria-hidden': 'true' }, icon(unit ? unit.category : 'floor')),
+    h('div', 'line-main', h('b', { text: name })),
+    h('span', { class: 'line-amount', text: money(total) }),
+    h('button', { type: 'button', class: 'fold-toggle', 'aria-expanded': String(open), 'aria-label': open ? 'Hide ' + name : 'Show ' + name + ' one by one', data: { action: 'whole-open' }, onclick: e => { e.stopPropagation(); whole.flip(name); } }, icon(open ? 'minus' : 'plus')));
+}
+function pickLine(row, picks, redraw, remove) {
+  const n = picks.get(row.key) || 0, set = v => { picks.set(row.key, Math.max(0, Math.min(row.most, v))); redraw(); }, data = { pick: row.order ? row.order.id : row.key };
+  // A timer as on the bill: its name (a controller by its number), then started · ended · charged.
+  const said = row.timers ? timerWords(row.timers[0], state.Pauses || []) : null;
+  const sub = said ? [said.started, said.paused, said.ended, said.charged].filter(Boolean).join(' · ') : row.price;
+  const main = h('div', 'line-main', h('b', { text: row.name }), h('span', { class: 'small muted', text: sub }));
+  const bin = remove && row.order ? h('button', { type: 'button', class: 'item-remove', 'aria-label': 'Remove one ' + row.name + ' from the bill', title: 'Remove one from the bill', data: { action: 'item-remove' }, onclick: e => { e.stopPropagation(); remove(row.binOrder || row.order); } }, icon('trash')) : null;
+  // A bill moved here with one line is its own tinted top line, as the others are.
+  if (row.most === 1) return h('div', { class: 'line pick' + (row.group ? ' in-group' : row.bill && row.timers ? ' whole' : ''), role: 'button', tabindex: '0', 'aria-pressed': String(n === 1), data, onclick: () => set(n ? 0 : 1) },
+    h('input', { type: 'checkbox', checked: n === 1, tabindex: '-1', 'aria-hidden': 'true' }), row.seat ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(row.seat) }) : null, main, bin, h('span', { class: 'line-amount', text: money(row.worth(1)) }));
+  return h('div', { class: 'line pick-count' + (row.group ? ' in-group' : ''), data },
+    h('input', { type: 'checkbox', checked: n > 0, 'aria-label': 'All ' + row.most + ' ' + row.name, data: { action: 'pick-all' }, onchange: () => set(n > 0 ? 0 : row.most) }), main,
+    h('span', 'item-tools', h('span', 'step', h('button', { type: 'button', 'aria-label': 'One fewer ' + row.name, disabled: n === 0, data: { action: 'pick-less' }, onclick: () => set(n - 1) }, icon('minus')), h('b', { class: 'qty-n', text: n + ' of ' + row.most }), h('button', { type: 'button', 'aria-label': 'One more ' + row.name, disabled: n === row.most, data: { action: 'pick-more' }, onclick: () => set(n + 1) }, icon('plus'))), bin),
+    h('span', { class: 'line-amount', text: money(row.worth(n)) }));
+}
+// The lists to tick on a bill with bills moved onto it (owner, 4 November: "do not do that anywhere when a system is moved,
+// let everything be along with its own bill"): each moved bill apart, its timers and its own items under its name, one tick
+// for all of it and + to tick one by one; the timers moved before moves were noted, by system; the bill's own items apart.
+function movedPicks(tab, timers, orders) {
+  const used = new Set(), seen = new Map(), closed = [];
+  for (const m of movedOnto(tab.id, timers, orders)) {
+    const base = (unitOf(m.segments[0].unitId) || {}).name || m.segments[0].unitId, count = (seen.get(base) || 0) + 1;
+    seen.set(base, count);
+    const name = count > 1 ? base + ' (' + count + ')' : base, whole = m.segments.length > 1 || m.orders.length > 0;
+    const named = r => (r.group ? r.name : r.timers[0].controller ? 'Controller ' + r.timers[0].controller : 'Time played');
+    closed.push(...pickRows(m.segments).map(r => (whole ? { ...r, key: 'mv:' + name + ':' + r.key, group: name, bill: name, name: named(r) } : { ...r, bill: name })));
+    closed.push(...pickRows(m.orders, true).map(r => ({ ...r, key: 'mv:' + name + ':' + r.key, group: name, bill: name })));
+    m.segments.forEach(g => used.add(g.id));
+    m.orders.forEach(o => used.add(o.id));
+  }
+  closed.push(...pickRows(timers.filter(g => !used.has(g.id))).map(r => ({ ...r, bill: r.group || r.name })));
+  return { closed, items: pickRows(orders.filter(o => !used.has(o.id)), true) };
+}
+// The lines to tick as boxes (owner, 4 November: "put proper borderline between bills … cannot even understand which is of
+// which"): each bill moved onto this one in a box of its own, its name, total and tick at the top; everything else in one box.
+function pickBoxes(rows, picks, redraw, remove, whole, field) {
+  const runs = [];
+  for (const row of rows) {
+    const last = runs[runs.length - 1], key = row.bill || '';
+    if (last && last.key === key) last.rows.push(row);
+    else runs.push({ key, rows: [row] });
+  }
+  return runs.map(run => h('div', { class: 'lines end-pick' + (run.key ? ' bill-box' : ''), data: { field, ...(run.key ? { billBox: run.key } : {}) } }, pickLines(run.rows, picks, redraw, remove, whole)));
+}
+// The heading over a bill's own items, by its system (owner, 4 November: "give a different heading to items of current
+// system").
+const ownItemsTitle = tab => { const names = unitsOfTab(tab.id).map(id => (unitOf(id) || {}).name).filter(Boolean); return names.length ? 'Items · ' + names.join(', ') : 'Items on this bill'; };
+// Ticks for a moved bill as a whole: its tick takes all of it, + shows its lines.
+function wholePicks(rows, picks, redraw) {
+  const open = new Set();
+  return {
+    open,
+    flip: name => { if (open.has(name)) open.delete(name); else open.add(name); redraw(); },
+    tick: (name, on) => { for (const row of rows()) if (row.group === name) picks.set(row.key, on ? row.most : 0); redraw(); }
+  };
 }
 // The picks as the server takes them: the time ticked (ids) and how many of each item.
 function pickedLines(rows, picks) {
@@ -9399,7 +9506,7 @@ function tableCollectSheet(unit, tab, game) {
   // "why is diet coke written multiple times?? did we not discuss it to come in 1? no matter when they buy"); at first it
   // counts the ones added during this game.
   const picks = new Map(), firstCount = new Map(gameOwed(tab.id, game).items.map(o => [o.id, Number(o.quantity)]));
-  let picker = null, extras = [], counted = false;
+  let picker = null, extras = [], counted = false, whole = null;
   // The table's time unticked: only the items counted are paid now, in full, and the game stays to be paid (owner, 24 October).
   let tableOff = false;
   const itemsDue = () => extras.filter(row => row.order).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
@@ -9414,14 +9521,18 @@ function tableCollectSheet(unit, tab, game) {
       const { paid: before } = gameOwed(tab.id, game);
       drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false, ticks: { off: new Set(tableOff ? [game.id] : []), toggle: () => { tableOff = !tableOff; draft.edited = false; ui.redraw(); }, count: () => 0, setCount: () => {} } });
       if (before) ui.body.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
-      // Each item says which game it was added during, or that it is for the table.
-      const games = closedGames(tab.id, unit.id).concat(segmentsOf(tab.id).filter(g => g.status === 'active' && g.unitId === unit.id)).sort((x, y) => x.startMs - y.startMs);
-      const during = o => { const w = (state.OrderOwners || []).find(x => x.id === o.id), at = w ? games.findIndex(g => g.id === w.segmentId) : -1; return w && w.segmentId === game.id ? 'this game' : at >= 0 ? 'game ' + (at + 1) : 'the table'; };
-      extras = pickRows(tableExtras(tab, game), true).map(row => (row.order ? { ...row, price: row.price + ' · ' + [...new Set((row.orders || [row.order]).map(during))].join(', ') } : row));
+      // An item says its price only (owner, 4 November: "dont write all this … this game, game 2 · 2 on the bill … if not do not
+      // write"); the count beside it says how many are on the bill. A moved bill's items are under its name.
+      const extra = tableExtras(tab, game), parts = movedPicks(tab, extra.filter(x => x.unitId), extra.filter(x => !x.unitId));
+      extras = parts.closed.concat(parts.items);
+      whole = whole || wholePicks(() => extras, picks, () => ui.redraw());
       if (!counted) for (const row of extras) if (row.order) picks.set(row.key, (row.orders || [row.order]).reduce((n, o) => n + (firstCount.get(o.id) || 0), 0));
       counted = true;
       for (const row of extras) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
-      if (extras.length) ui.body.append(h('div', 'group-title', icon('wallet'), 'Paid with this game'), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(extras, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
+      // Paid with this game: each bill moved onto the table in a box of its own, then the table's own items (owner, 4 November).
+      const movedHere = extras.filter(row => row.bill), tableItems = extras.filter(row => !row.bill), bin = o => removeOne(o, () => { ui.redraw(); return null; });
+      if (movedHere.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(movedHere, picks, () => ui.redraw(), bin, whole, 'table-extra'));
+      if (tableItems.length) ui.body.append(h('div', 'group-title', icon('snack'), 'Items · ' + unit.name), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(tableItems, picks, () => ui.redraw(), bin, whole)));
       const owed = due();
       const received = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.edited ? draft.received : String(owed / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
       const restBox = h('div');
@@ -9548,8 +9659,21 @@ function folded(glyph, title, sub, totalPaise, fill, lead = null) {
   const head = h('div', 'lines', h('div', 'line fold-head', lead, h('span', { class: 'fold-icon', 'aria-hidden': 'true' }, icon(glyph)), h('div', 'line-main', h('b', { text: title }), sub ? h('span', { class: 'small muted', text: sub }) : null), h('span', { class: 'line-amount', text: money(totalPaise) }), toggle));
   return { head, details };
 }
+// What was moved onto a bill, each move apart: its timers and items, from the note the app keeps when a bill is moved (moves
+// made before 4 November have none; their timers are found by lines.brought and their items stay with the others).
+function movedOnto(tabId, segments, orders) {
+  const here = new Set(segments.map(g => g.id)), items = new Set(orders.map(o => o.id)), refs = n => { try { return JSON.parse(n.refsJson || '[]'); } catch (e) { return []; } };
+  return (state.Notes || []).filter(n => n.kind === 'MOVED_FROM' && refs(n).includes(tabId)).map(n => { try { return JSON.parse(n.text); } catch (e) { return null; } })
+    .filter(Boolean).map(m => ({ segments: segments.filter(g => (m.segments || []).includes(g.id) && here.has(g.id)), orders: orders.filter(o => (m.orders || []).includes(o.id) && items.has(o.id)) }))
+    .filter(m => m.segments.length);
+}
 function drawLines(body, lines) {
-  const { segments, orders, customer, tab, editable, detail } = lines, byUnit = new Map();
+  const { segments: shown, orders: all, customer, tab, editable, detail } = lines, byUnit = new Map();
+  // A system moved onto this bill (owner, 4 November: "lets not waste the space"): one timer alone is one line, its time and
+  // amount; with more (controllers, items) it is the system and its total, opened to its times and items.
+  const moves = tab ? movedOnto(tab.id, shown, all) : [];
+  const inMove = new Set(moves.flatMap(m => m.segments.map(g => g.id).concat(m.orders.map(o => o.id))));
+  const segments = shown.filter(g => !inMove.has(g.id)), orders = all.filter(o => !inMove.has(o.id));
   // Ticks (a bill being settled, owner 21 October): every line ticked to be paid now; untick what they are not paying now.
   // ticks: { off: Set of line ids unticked, toggle(ids) }.
   const tickBox = ids => (lines.ticks ? h('input', { type: 'checkbox', class: 'line-tick', checked: !ids.some(lid => lines.ticks.off.has(lid)), 'aria-label': 'Paying now', data: { action: 'line-tick' }, onclick: e => { e.stopPropagation(); lines.ticks.toggle(ids); } }) : null);
@@ -9582,11 +9706,16 @@ function drawLines(body, lines) {
         quote ? h('span', { class: 'line-amount', text: money(quote.totalPaise) }) : running ? timer(g, true) : h('span', { class: 'line-amount', text: money(g.totalPaise) }),
         editable ? sessionMenu(g) : null));
     }
-    if (lines.brought && list.every(g => lines.brought.has(g.id))) {
-      const count = list.length > 1 ? list.length + (unit && unit.category === 'PS5' ? ' controllers' : ' sessions') + ' · ' : '';
-      const fold = folded(unit ? unit.category : 'floor', unit ? unit.name : unitId, count + 'added from another bill', list.reduce((sum, g) => sum + g.totalPaise, 0), box => box.append(card), tickBox(list.map(g => g.id)));
-      body.append(h('section', 'bill-group folded', fold.head, fold.details));
-    } else body.append(h('section', 'bill-group', h('div', 'group-title', icon(closedEarlierHere ? 'history' : unit ? unit.category : 'floor'), (unit ? unit.name : unitId) + part, partTotal), card));
+    if (lines.brought && list.every(g => lines.brought.has(g.id))) body.append(movedGroup(unit, unitId, list, card, [], tickBox, lines));
+    else body.append(h('section', 'bill-group', h('div', 'group-title', icon(closedEarlierHere ? 'history' : unit ? unit.category : 'floor'), (unit ? unit.name : unitId) + part, partTotal), card));
+  }
+  // Each move with its items: the system and its total, its timers and items inside.
+  for (const m of moves) {
+    const unit = unitOf(m.segments[0].unitId), sub = { ...lines, segments: m.segments, orders: m.orders, tab: null, brought: null, earlier: null };
+    const inside = h('div');
+    drawLines(inside, sub);
+    const card = inside.querySelector('.bill-group .lines') || h('div', 'lines');
+    body.append(movedGroup(unit, m.segments[0].unitId, m.segments, card, m.orders, tickBox, lines, inside));
   }
   // The turf fee or a player's share of it: its own heading, and it follows the booking, so it has no edit menu here.
   const turf = orders.filter(o => o.category === 'Turf'), brought = orders.filter(o => o.category === 'Carried'), goods = orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
@@ -9648,7 +9777,30 @@ function drawLines(body, lines) {
     }
     body.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size ? h('span', { class: 'group-sum', text: money(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) }) : null), card));
   }
-  return segments.length + turf.length + brought.length + goods.length;
+  return shown.length + turf.length + brought.length + goods.length;
+}
+// One system moved onto a bill: a single timer with nothing else is one line, its time and amount (and its tick); with more
+// it is the system's name and its total, folded, its timers and items shown when opened (owner, 4 November).
+function movedGroup(unit, unitId, timers, card, items, tickBox, lines, inside = null) {
+  const name = unit ? unit.name : unitId, total = timers.reduce((sum, g) => sum + Number(g.totalPaise || 0), 0) + items.reduce((sum, o) => sum + Number(o.totalPaise || 0), 0);
+  // One tick for the whole move on a bill being settled: its time and its items together.
+  const ids = timers.map(g => g.id);
+  const moveTick = () => {
+    if (!lines.ticks) return null;
+    const paying = !ids.some(lid => lines.ticks.off.has(lid));
+    return h('input', { type: 'checkbox', class: 'line-tick', checked: paying, 'aria-label': 'Paying ' + name + ' now', data: { action: 'move-tick' }, onclick: e => { e.stopPropagation(); items.forEach(o => (paying ? lines.ticks.setCount(o, 0) : lines.ticks.full(o))); lines.ticks.toggle(ids); } });
+  };
+  if (timers.length === 1 && !items.length) {
+    const g = timers[0], said = timerWords(g, lines.pauses || state.Pauses || []);
+    return h('section', 'bill-group', h('div', 'lines', h('div', { class: 'line', data: { segment: g.id, moved: '1' } }, moveTick(),
+      h('span', { class: 'fold-icon', 'aria-hidden': 'true' }, icon(unit ? unit.category : 'floor')),
+      h('div', 'line-main', h('b', { text: name }), h('span', { class: 'small muted', text: [said.started, said.paused, said.ended, said.charged].filter(Boolean).join(' · ') })),
+      h('span', { class: 'line-amount', text: money(total) }))));
+  }
+  // Inside, the system's name is not said again under its own line.
+  if (inside) [...inside.querySelectorAll('.bill-group > .group-title')].filter(t => t.textContent.trim().startsWith(name)).forEach(t => t.remove());
+  const fold = folded(unit ? unit.category : 'floor', name, '', total, box => box.append(...(inside ? [...inside.childNodes] : [card])), moveTick());
+  return h('section', 'bill-group folded', fold.head, fold.details);
 }
 // Time brought onto this bill from another (Move · add to their bill, or the rest of a bill taken by the players who stopped):
 // an ended timer whose ending was reviewed on some other bill. Shown folded, as one line with its total.
@@ -10024,7 +10176,7 @@ async function costSheet(unit) {
   const tabs = [...new Set(players.map(g => g.tabId))].map(tabOf).filter(Boolean);
   // Controllers that stopped earlier and left their time for the others: a section of their own (owner, 27 October).
   const earlier = new Set(closedEarlier(players).map(g => g.id)), back = () => costSheet(unit);
-  const payable = tabs.filter(t => payableItems(t).length);
+  const payable = tabs.filter(t => payableItems(t).length || payableTimers(t).length);
   openSheet({
     title: unit.name + ' · so far',
     icon: unit.category,
@@ -10036,7 +10188,8 @@ async function costSheet(unit) {
       for (const t of tabs) {
         if (tabs.length > 1) ui.body.append(h('div', { class: 'cost-who', style: 'margin:16px 0 -8px' }, h('span', { class: 'muted', text: t.customer + ' · ' + money(quote.tabTotals[t.id] || 0) }),
           payable.length > 1 && payable.includes(t) ? btn([icon('wallet'), 'Pay Items'], () => payItemsSheet(t, back), 'quiet', { data: { action: 'pay-items' } }) : null));
-        drawLines(ui.body, { segments: segmentsOf(t.id), orders: ordersOf(t.id), customer: t.customer, editable: false, quotes: quote.quotes, earlier, after: back });
+        // A system moved onto it reads as on the bill: one line, or its name and total to open (owner, 4 November).
+        drawLines(ui.body, { segments: segmentsOf(t.id), orders: ordersOf(t.id), customer: t.customer, tab: t, brought: broughtIn(t, earlier), editable: false, quotes: quote.quotes, earlier, after: back });
       }
       // The controllers chosen on the card, or, with none chosen, the whole console.
       const chosen = chosenOn(players).length ? chosenOn(players) : players;
@@ -10056,13 +10209,16 @@ async function costSheet(unit) {
 
 // Items on a bill, apart from the turf and what was carried from earlier.
 const payableItems = tab => ordersOf(tab.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried');
+// Systems already closed on a bill that can be paid on their own (owner, 4 November): time moved onto it and controllers that
+// stopped earlier; a table's own closed games keep their own Collect.
+const payableTimers = tab => { const playing = new Set(unitsOfTab(tab.id)); return segmentsOf(tab.id).filter(g => g.status === 'ended' && !(isTable(unitOf(g.unitId) || {}) && playing.has(g.unitId))); };
 // Pay Items (owner, 27 October: "i should be allowed to pay for the items without closing any controllers ... for pool and
 // all"): from "so far" on any system, the items they pay for now, ticked or counted, paid in full; they become a bill of their
 // own (TABLE_ITEMS_PAY) and the time and every other item stay on the system.
 function payItemsSheet(tab, back) {
   const picks = new Map(), pay = { method: 'cash' };
-  let rows = [], how = null;
-  const owed = () => rows.reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
+  let rows = [], timeRows = [], how = null, ticked = false, whole = null;
+  const owed = () => timeRows.concat(rows).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
   openSheet({
     title: 'Pay Items',
     sub: tab.customer,
@@ -10070,17 +10226,27 @@ function payItemsSheet(tab, back) {
     focus: false,
     onClose: back,
     build(ui) {
-      rows = pickRows(payableItems(tab), true);
-      for (const row of rows) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
-      if (!rows.length) {
+      // Each bill moved onto it apart, with its own items; the bill's own items under Items.
+      const parts = movedPicks(tab, payableTimers(tab), payableItems(tab));
+      timeRows = parts.closed;
+      rows = parts.items;
+      // The closed systems ticked at first, to untick any not paid now (owner, 4 November: "by default click all and then i
+      // will choose which to untick"), a moved system's items with them; other items unticked, as before.
+      if (!ticked) for (const row of timeRows) picks.set(row.key, row.most);
+      ticked = true;
+      for (const row of timeRows.concat(rows)) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
+      if (!rows.length && !timeRows.length) {
         ui.body.append(h('p', { class: 'muted', text: 'No items on this bill.' }));
         return;
       }
-      ui.body.append(h('div', 'group-title', icon('snack'), 'Items'), h('div', { class: 'lines end-pick', data: { field: 'pay-items' } }, pickLines(rows, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
+      // The systems already closed first, each with its time, then the items; nothing ticked at first.
+      whole = whole || wholePicks(() => timeRows, picks, () => ui.redraw());
+      if (timeRows.length) ui.body.append(h('div', 'group-title', icon('history'), 'Closed'), ...pickBoxes(timeRows, picks, () => ui.redraw(), null, whole, 'pay-closed'));
+      if (rows.length) ui.body.append(h('div', 'group-title', icon('snack'), ownItemsTitle(tab)), h('div', { class: 'lines end-pick', data: { field: 'pay-items' } }, pickLines(rows, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
       const due = owed();
       const paint = () => {
         const button = current.primaryButton, split = how.paid(), blank = how.blank();
-        const label = !due ? 'Choose the items they pay for' : blank ? 'Enter cash and UPI' : split !== null && split !== due ? 'Collect the full ' + money(due) : 'Collect ' + money(due);
+        const label = !due ? 'Choose what they pay for' : blank ? 'Enter cash and UPI' : split !== null && split !== due ? 'Collect the full ' + money(due) : 'Collect ' + money(due);
         button.dataset.label = label;
         button.textContent = label;
         button.disabled = !due || blank || (split !== null && split !== due);
@@ -10091,15 +10257,15 @@ function payItemsSheet(tab, back) {
       paint();
     },
     command() {
-      const items = (pickedLines(rows, picks) || { items: [] }).items;
-      if (!items.length) throw new Error('Choose the items they pay for.');
-      return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items, amountPaise: owed(), ...how.value() };
+      const closed = pickedLines(timeRows, picks) || { ids: [], items: [] }, items = (pickedLines(rows, picks) || { items: [] }).items.concat(closed.items), segments = closed.ids;
+      if (!items.length && !segments.length) throw new Error('Choose what they pay for.');
+      return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items, ...(segments.length ? { segments } : {}), amountPaise: owed(), ...how.value() };
     },
     then(result, command) {
       render();
       back();
       // Said on "so far", which opens again over the board.
-      sheetStatus('success', 'Items paid · ' + [money(command.amountPaise), methodText(result.method || command.method), result.receiptNumber].filter(Boolean).join(' · ') + '. The time plays on.');
+      sheetStatus('success', (command.segments ? 'Paid · ' : 'Items paid · ') + [money(command.amountPaise), methodText(result.method || command.method), result.receiptNumber].filter(Boolean).join(' · ') + '. The rest plays on.');
       return null;
     }
   });
@@ -10110,7 +10276,7 @@ function billBreakdown(holder, data, back) {
   const bill = data.bill, detail = data.detail, paidThen = data.payments.reduce((sum, p) => sum + p.amountPaise, 0);
   const kv = (label, value) => h('div', 'kv', h('span', { text: label }), h('b', { text: value }));
   if (detail) holder.append(h('p', { class: 'small muted', text: detail.customer + ' · ' + day(detail.createdMs) + ', ' + clock(detail.createdMs) }));
-  drawLines(holder, { segments: data.segments, orders: data.orders, customer: detail ? detail.customer : '', editable: false, detail: true, pauses: data.pauses });
+  drawLines(holder, { segments: data.segments, orders: data.orders, customer: detail ? detail.customer : '', tab: data.tab || null, editable: false, detail: true, pauses: data.pauses });
   // A figure is shown only when it differs from the one above it: a bill moved whole to credit is one line.
   // Repayments are lines of their own on the account; they are not taken off this bill here.
   const moved = data.transfer && data.transfer.amountPaise !== bill.totalPaise ? data.transfer.amountPaise : null;
@@ -10537,7 +10703,7 @@ async function receiptSheet(billId, back) {
             : [...(correctable(data) && data.payments.length ? [] : [['Correct charges', () => reasonSheet({ title: 'Correct charges · Bill ' + data.number, sub: 'The visit opens again to be corrected and settled.', action: 'Open to correct', icon: 'pencil', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet()) }), false, 'pencil']]),
               ['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'Cancelled completely: nothing is charged.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason, whole: true }), then: result => { closeSheet(); render(); return { text: result.message }; } }), true, 'ban']]) : [])
         ], 'Bill actions'))));
-      drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, editable: false, detail: true, pauses: data.pauses });
+      drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, tab: data.tab || null, editable: false, detail: true, pauses: data.pauses });
       const notes = notesBlock([billId, data.tab ? data.tab.id : '']);
       if (notes) ui.body.append(notes);
 
@@ -13272,14 +13438,22 @@ function turfDetailSheet(id) {
       const notes = notesBlock([b.id, b.tabId, ...turfPlayersOf(b).map(x => x.tabId)]);
       if (notes) ui.body.append(notes);
       // Play brought from the gaming floor (a group that played before the turf), at its saved price.
-      const played = main && main.status === 'open' ? [...segmentsOf(main.id), ...ordersOf(main.id).filter(o => CATEGORIES.includes(o.category) || o.category === 'Manual')] : [];
+      // A bill moved onto the booking from the floor keeps its own items with it (owner, 4 November: "any system, turf when
+      // bills are moved do not club it"): each one, its time and its items, one line opened with +.
+      const taken = main && main.status === 'open' ? movedOnto(main.id, segmentsOf(main.id), ordersOf(main.id)) : [], takenIds = new Set(taken.flatMap(m => m.segments.map(g => g.id).concat(m.orders.map(o => o.id))));
+      if (taken.length) {
+        const box = h('div');
+        drawLines(box, { segments: taken.flatMap(m => m.segments), orders: taken.flatMap(m => m.orders), customer: b.customer, tab: main, editable: false });
+        ui.body.append(h('div', 'group-title', icon('floor'), 'From the gaming floor'), ...box.childNodes);
+      }
+      const played = main && main.status === 'open' ? [...segmentsOf(main.id), ...ordersOf(main.id).filter(o => CATEGORIES.includes(o.category) || o.category === 'Manual')].filter(x => !takenIds.has(x.id)) : [];
       if (played.length) ui.body.append(h('div', 'group-title', icon('floor'), 'From the gaming floor'), h('div', 'lines', played.map(x => {
         const unit = x.unitId ? unitOf(x.unitId) : null, label = unit ? unit.name + (x.player ? ' · ' + x.player : '') : x.label;
         const sub = unit ? minutes(Number(x.billableMinutes) ? x.billableMinutes * 60000 : (Number(x.endMs) || nowMs()) - x.startMs) : x.reason || x.category;
         return h('div', { class: 'line', data: { played: x.id } }, h('div', 'line-main', h('b', { text: label }), h('span', { class: 'small muted', text: sub })), h('span', { class: 'line-amount', text: money(x.totalPaise) }));
       })));
       // Items: with one payer they are part of the booking's bill; when split, items for a team or everyone are shared out.
-      const general = split ? turfPooledOf(b) : main && main.status === 'open' ? turfItemsOf(main.id).filter(o => !turfCarried(o) && !CATEGORIES.includes(o.category) && o.category !== 'Manual') : [];
+      const general = split ? turfPooledOf(b) : main && main.status === 'open' ? turfItemsOf(main.id).filter(o => !turfCarried(o) && !CATEGORIES.includes(o.category) && o.category !== 'Manual' && !takenIds.has(o.id)) : [];
       // An academy's slot lists its items once, below, where they are paid at the counter or left for its account.
       if (general.length && !(b.split !== 'yes' && turfAccountOf(b.id))) {
         const card = h('div', 'lines'), players = turfPlayersOf(b).filter(p => (tabOf(p.tabId) || {}).status === 'open' && !p.movedTo);
@@ -14659,7 +14833,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "7fa39a981901";
+const APP_BUILD = "bfe799c7a427";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
