@@ -14364,8 +14364,10 @@ function turfBlock(b, row, column, rows) {
   // An academy's slot: orange once its time is over, until it goes to its account (by hand, or by itself two hours after); then
   // green, "On account" on the card (owner, 3 November: "once its moved to credit by me or automatically, turn it green but
   // mention on account on the card").
+  // Orange only once its time is over: one put on Pending or part paid before then stays teal until it is (owner, 5 November:
+  // "whatever it is orange is only when its actually pending").
   const academy = turfAccountOf(b.id), onAccount = !!academy && settled === 'settled';
-  const tone = academy ? (onAccount ? ' paid' : ended ? ' owing' : '') : settled === 'settled' ? ' paid' : settled === 'pending' || settled === 'part' || ended ? ' owing' : '';
+  const tone = academy ? (onAccount ? ' paid' : ended ? ' owing' : '') : settled === 'settled' ? ' paid' : ended ? ' owing' : '';
   const accountWords = onAccount ? h('span', { class: 'turf-account', title: 'On ' + academy.name + '’s account', data: { turfOnAccount: b.id }, text: 'On account' }) : null;
   // Money paid in advance, on the card beside the name (owner, 2 November: "if advance is paid show like nicely so and so is
   // paid"), as a station's card shows it; on a narrow card the wallet and the amount.
@@ -14859,7 +14861,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "3e1f654989a3";
+const APP_BUILD = "40a93188e1ed";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
