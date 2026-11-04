@@ -1230,7 +1230,18 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 /* A bill moved onto another, in a box of its own: a clear edge and a gap from the next, its name, total and tick on a tinted
    top line (owner, 4 November: "put proper borderline between bills"). Ticked lines keep the same background; the tick
    says it. */
-.end-pick.bill-box { border-color: var(--line-bold); box-shadow: var(--hi), 0 1px 3px rgba(80, 62, 30, 0.08); overflow: hidden; }
+/* Outlined clearly, dark and in the theme (owner, 4 November: "outline the boxes clearly … something dark which goes well
+   with our theme"), 1.5px as a booking card is (a 1px border with half a pixel inside it): each moved bill deep gold, as its
+   top line; the other boxes of these lists dark slate teal. */
+.end-pick { border-color: var(--edge-booked); box-shadow: inset 0 0 0 0.5px var(--edge-booked), 0 1px 3px rgba(80, 62, 30, 0.08); }
+/* A bill with bills moved onto it (owner, 4 November): its own part (its systems, turf, items, each in its usual box) inside
+   one dark slate teal outline, each moved bill below in deep gold. */
+.own-bill { margin-bottom: 12px; padding: 10px; border: 1px solid var(--edge-booked); border-radius: var(--r-lg); box-shadow: inset 0 0 0 0.5px var(--edge-booked), 0 1px 3px rgba(80, 62, 30, 0.08); }
+.own-bill > .bill-group:last-child { margin-bottom: 0; }
+.own-bill > .group-title:first-child { margin-top: 0; }
+.own-bill > .end-pick { box-shadow: var(--hi); border-color: var(--line-strong); }
+.bill-group.moved { border-color: var(--edge-account); box-shadow: inset 0 0 0 0.5px var(--edge-account), 0 1px 3px rgba(80, 62, 30, 0.1); }
+.end-pick.bill-box { border-color: var(--edge-account); box-shadow: inset 0 0 0 0.5px var(--edge-account), 0 1px 3px rgba(80, 62, 30, 0.1); overflow: hidden; }
 .end-pick.bill-box + .end-pick.bill-box, .end-pick + .end-pick { margin-top: 10px; }
 .line.pick.whole { background: var(--gold-soft); font-weight: 600; }
 .line.pick.whole .line-main b { font-weight: 700; }
@@ -9243,14 +9254,17 @@ function endSheet(segments, memory = null) {
       whole = whole || wholePicks(() => rows, picks, () => ui.redraw());
       for (const row of rows) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
       const redraw = () => ui.redraw(), bin = o => removeOne(o, () => { ui.redraw(); return null; });
-      const section = (name, title, lines, field) => lines.length ? ui.body.append(h('div', 'group-title', icon(name), title), h('div', { class: 'lines end-pick', data: { field } }, lines)) : null;
+      // Its own part first, in one outline when bills were moved onto it, each moved bill below (owner, 4 November).
+      const ownPart = h('div', parts.closed.length ? 'own-bill' : 'own-part');
+      ui.body.append(ownPart);
+      const section = (name, title, lines, field) => lines.length ? ownPart.append(h('div', 'group-title', icon(name), title), h('div', { class: 'lines end-pick', data: { field } }, lines)) : null;
       // Stopping now: a tick each for the ones who pay their own time now.
       section(unit.category, 'Stopping now', segments.map(g => h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(own.has(g.id)), data: { segment: g.id }, onclick: () => { if (own.has(g.id)) own.delete(g.id); else own.add(g.id); ui.redraw(); } },
         h('input', { type: 'checkbox', checked: own.has(g.id), tabindex: '-1', 'aria-hidden': 'true' }),
         h('div', 'line-main', h('b', null, controllerLabel(g)), h('span', { class: 'small muted', text: (units.length > 1 ? (unitOf(g.unitId) || {}).name + ' · ' : '') + 'since ' + when(g.startMs) })), timer(g, true), cost(g))), 'end-pick');
       section('history', 'Closed earlier', pickLines(closed, picks, redraw), 'end-closed');
-      if (parts.closed.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(parts.closed, picks, redraw, null, whole, 'end-moved'));
       section('snack', ownItemsTitle(tabOf(segments[0].tabId)), pickLines(parts.items, picks, redraw, bin), 'end-items');
+      if (parts.closed.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(parts.closed, picks, redraw, null, whole, 'end-moved'));
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
       const paying = own.size > 0 || rows.some(row => (picks.get(row.key) || 0) > 0);
       // Their own time not ticked, when they pay for something else: who pays it (owner, 27 October).
@@ -9519,8 +9533,10 @@ function tableCollectSheet(unit, tab, game) {
     focus: false,
     build(ui) {
       const { paid: before } = gameOwed(tab.id, game);
-      drawLines(ui.body, { segments: [game], orders: [], customer: tab.customer, editable: false, ticks: { off: new Set(tableOff ? [game.id] : []), toggle: () => { tableOff = !tableOff; draft.edited = false; ui.redraw(); }, count: () => 0, setCount: () => {} } });
-      if (before) ui.body.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
+      const ownPart = h('div', 'own-part');
+      ui.body.append(ownPart);
+      drawLines(ownPart, { segments: [game], orders: [], customer: tab.customer, editable: false, ticks: { off: new Set(tableOff ? [game.id] : []), toggle: () => { tableOff = !tableOff; draft.edited = false; ui.redraw(); }, count: () => 0, setCount: () => {} } });
+      if (before) ownPart.append(h('div', 'summary', h('div', 'kv good', h('span', { text: 'Paid already' }), h('b', { text: '−' + money(before) }))));
       // An item says its price only (owner, 4 November: "dont write all this … this game, game 2 · 2 on the bill … if not do not
       // write"); the count beside it says how many are on the bill. A moved bill's items are under its name.
       const extra = tableExtras(tab, game), parts = movedPicks(tab, extra.filter(x => x.unitId), extra.filter(x => !x.unitId));
@@ -9531,8 +9547,11 @@ function tableCollectSheet(unit, tab, game) {
       for (const row of extras) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
       // Paid with this game: each bill moved onto the table in a box of its own, then the table's own items (owner, 4 November).
       const movedHere = extras.filter(row => row.bill), tableItems = extras.filter(row => !row.bill), bin = o => removeOne(o, () => { ui.redraw(); return null; });
-      if (movedHere.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(movedHere, picks, () => ui.redraw(), bin, whole, 'table-extra'));
-      if (tableItems.length) ui.body.append(h('div', 'group-title', icon('snack'), 'Items · ' + unit.name), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(tableItems, picks, () => ui.redraw(), bin, whole)));
+      if (tableItems.length) ownPart.append(h('div', 'group-title', icon('snack'), 'Items · ' + unit.name), h('div', { class: 'lines end-pick', data: { field: 'table-extra' } }, pickLines(tableItems, picks, () => ui.redraw(), bin, whole)));
+      if (movedHere.length) {
+        ownPart.className = 'own-bill';
+        ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(movedHere, picks, () => ui.redraw(), bin, whole, 'table-extra'));
+      }
       const owed = due();
       const received = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.edited ? draft.received : String(owed / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
       const restBox = h('div');
@@ -9686,6 +9705,10 @@ function drawLines(body, lines) {
     if (!byUnit.has(key)) byUnit.set(key, []);
     byUnit.get(key).push(g);
   }
+  // With bills moved onto it (owner, 4 November: "ps53 and then below snacks and beverage … outline both together … anywhere
+  // when bills are moved"): the bill's own part first, its systems, turf and items, in one outline; each moved bill below it.
+  const movedAll = [...byUnit.values()].filter(list => lines.brought && list.every(g => lines.brought.has(g.id)));
+  const hasMoved = moves.length > 0 || movedAll.length > 0, own = hasMoved ? h('div', 'own-bill') : body, movedOut = [];
   for (const [key, list] of byUnit) {
     const unitId = list[0].unitId, closedEarlierHere = key.endsWith(':earlier'), unit = unitOf(unitId), card = h('div', 'lines');
     // On "so far" the ones still playing are a section of their own beside those closed earlier (owner, 27 October).
@@ -9706,8 +9729,8 @@ function drawLines(body, lines) {
         quote ? h('span', { class: 'line-amount', text: money(quote.totalPaise) }) : running ? timer(g, true) : h('span', { class: 'line-amount', text: money(g.totalPaise) }),
         editable ? sessionMenu(g) : null));
     }
-    if (lines.brought && list.every(g => lines.brought.has(g.id))) body.append(movedGroup(unit, unitId, list, card, [], tickBox, lines));
-    else body.append(h('section', 'bill-group', h('div', 'group-title', icon(closedEarlierHere ? 'history' : unit ? unit.category : 'floor'), (unit ? unit.name : unitId) + part, partTotal), card));
+    if (lines.brought && list.every(g => lines.brought.has(g.id))) movedOut.push(movedGroup(unit, unitId, list, card, [], tickBox, lines));
+    else own.append(h('section', 'bill-group', h('div', 'group-title', icon(closedEarlierHere ? 'history' : unit ? unit.category : 'floor'), (unit ? unit.name : unitId) + part, partTotal), card));
   }
   // Each move with its items: the system and its total, its timers and items inside.
   for (const m of moves) {
@@ -9715,11 +9738,11 @@ function drawLines(body, lines) {
     const inside = h('div');
     drawLines(inside, sub);
     const card = inside.querySelector('.bill-group .lines') || h('div', 'lines');
-    body.append(movedGroup(unit, m.segments[0].unitId, m.segments, card, m.orders, tickBox, lines, inside));
+    movedOut.push(movedGroup(unit, m.segments[0].unitId, m.segments, card, m.orders, tickBox, lines, inside));
   }
   // The turf fee or a player's share of it: its own heading, and it follows the booking, so it has no edit menu here.
   const turf = orders.filter(o => o.category === 'Turf'), brought = orders.filter(o => o.category === 'Carried'), goods = orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
-  if (brought.length) body.append(h('section', 'bill-group', h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(o => h('div', { class: 'line', data: { order: o.id } },
+  if (brought.length) own.append(h('section', 'bill-group', h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(o => h('div', { class: 'line', data: { order: o.id } },
     h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: o.reason.replace('Carried from ', 'from ') })),
     h('span', { class: 'line-amount', text: money(o.totalPaise) }))))));
   if (turf.length) {
@@ -9728,7 +9751,7 @@ function drawLines(body, lines) {
       h('div', 'line-main', h('b', { text: o.label.replace(/6-a-side|5-a-side|1v1/, court => courtLabel(court)) }), h('span', { class: 'small muted', text: o.quantity > 1 ? money(o.unitPricePaise) + ' an hour' : o.purchaser && o.purchaser !== customer ? o.purchaser : o.reason || 'Turf' })),
       h('span', { class: 'line-amount', text: money(o.totalPaise) })));
     // A discount on the turf sits in the turf card, under the charge (owner, 22 October).
-    body.append(h('section', 'bill-group', h('div', 'group-title', icon('turf'), 'Turf'), card, lines.turfExtra || null));
+    own.append(h('section', 'bill-group', h('div', 'group-title', icon('turf'), 'Turf'), card, lines.turfExtra || null));
   }
   if (goods.length) {
     const card = h('div', 'lines');
@@ -9775,8 +9798,10 @@ function drawLines(body, lines) {
         open ? itemTools(o.label, qty, change, product) : null,
         h('span', { class: 'line-amount', text: money(total) })));
     }
-    body.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size ? h('span', { class: 'group-sum', text: money(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) }) : null), card));
+    own.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size ? h('span', { class: 'group-sum', text: money(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) }) : null), card));
   }
+  // The own part in its outline (left out when it holds nothing), then each moved bill.
+  if (hasMoved) body.append(...[own.childNodes.length ? own : null].filter(Boolean), ...movedOut);
   return shown.length + turf.length + brought.length + goods.length;
 }
 // One system moved onto a bill: a single timer with nothing else is one line, its time and amount (and its tick); with more
@@ -9792,7 +9817,7 @@ function movedGroup(unit, unitId, timers, card, items, tickBox, lines, inside = 
   };
   if (timers.length === 1 && !items.length) {
     const g = timers[0], said = timerWords(g, lines.pauses || state.Pauses || []);
-    return h('section', 'bill-group', h('div', 'lines', h('div', { class: 'line', data: { segment: g.id, moved: '1' } }, moveTick(),
+    return h('section', 'bill-group moved', h('div', 'lines', h('div', { class: 'line', data: { segment: g.id, moved: '1' } }, moveTick(),
       h('span', { class: 'fold-icon', 'aria-hidden': 'true' }, icon(unit ? unit.category : 'floor')),
       h('div', 'line-main', h('b', { text: name }), h('span', { class: 'small muted', text: [said.started, said.paused, said.ended, said.charged].filter(Boolean).join(' · ') })),
       h('span', { class: 'line-amount', text: money(total) }))));
@@ -9800,7 +9825,7 @@ function movedGroup(unit, unitId, timers, card, items, tickBox, lines, inside = 
   // Inside, the system's name is not said again under its own line.
   if (inside) [...inside.querySelectorAll('.bill-group > .group-title')].filter(t => t.textContent.trim().startsWith(name)).forEach(t => t.remove());
   const fold = folded(unit ? unit.category : 'floor', name, '', total, box => box.append(...(inside ? [...inside.childNodes] : [card])), moveTick());
-  return h('section', 'bill-group folded', fold.head, fold.details);
+  return h('section', 'bill-group folded moved', fold.head, fold.details);
 }
 // Time brought onto this bill from another (Move · add to their bill, or the rest of a bill taken by the players who stopped):
 // an ended timer whose ending was reviewed on some other bill. Shown folded, as one line with its total.
@@ -10241,8 +10266,9 @@ function payItemsSheet(tab, back) {
       }
       // The systems already closed first, each with its time, then the items; nothing ticked at first.
       whole = whole || wholePicks(() => timeRows, picks, () => ui.redraw());
-      if (timeRows.length) ui.body.append(h('div', 'group-title', icon('history'), 'Closed'), ...pickBoxes(timeRows, picks, () => ui.redraw(), null, whole, 'pay-closed'));
+      // Its own items first, then what is closed or moved onto it (owner, 4 November).
       if (rows.length) ui.body.append(h('div', 'group-title', icon('snack'), ownItemsTitle(tab)), h('div', { class: 'lines end-pick', data: { field: 'pay-items' } }, pickLines(rows, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
+      if (timeRows.length) ui.body.append(h('div', 'group-title', icon('history'), 'Closed'), ...pickBoxes(timeRows, picks, () => ui.redraw(), null, whole, 'pay-closed'));
       const due = owed();
       const paint = () => {
         const button = current.primaryButton, split = how.paid(), blank = how.blank();
@@ -14833,7 +14859,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "bfe799c7a427";
+const APP_BUILD = "3e1f654989a3";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
