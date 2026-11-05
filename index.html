@@ -1264,6 +1264,10 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
 .menu-list button:hover svg { color: var(--ink); }
 .menu-list button.danger, .menu-list button.danger svg { color: var(--danger); }
 .menu-list button.danger:hover { background: var(--danger-soft); }
+/* A time typed with AM or PM, then the day (owner, 5 November). */
+.clock-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.clock-pick input[type=text] { width: 96px; flex: none; }
+.clock-pick input[type=date] { flex: 1 1 160px; min-width: 0; }
 .time-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; color: var(--ink-2); }
 .time-lead { display: inline-flex; align-items: center; gap: 10px; }
 .time-lead svg { width: 17px; height: 17px; color: var(--ink-3); }
@@ -8042,6 +8046,27 @@ function timeChoice(label, initialMs) {
   return { node: h('div', null, h('div', 'time-row', lead, toggle), h('div', { class: 'field' }, input)), value: () => (custom ? stamp(input.value) : null), input };
 }
 
+// A time as the owner's picture of 5 November: the hour and minutes typed ("1:41"), AM or PM beside it, then the day (today
+// at first for a new one). A time typed as on a 24-hour clock ("13:41") is read as written.
+function clockPick(ms, name, dayText) {
+  const at = istInput(ms), hour = Number(at.slice(11, 13));
+  const time = h('input', { type: 'text', inputmode: 'numeric', autocomplete: 'off', maxlength: '5', value: ((hour % 12) || 12) + ':' + at.slice(14, 16), placeholder: '1:30', 'aria-label': 'Time', data: { field: name + '-time' } });
+  const half = segmented([['am', 'AM'], ['pm', 'PM']], hour < 12 ? 'am' : 'pm');
+  const day = h('input', { type: 'date', value: dayText || at.slice(0, 10), 'aria-label': 'Date', data: { field: name + '-date' } });
+  half.node.classList.add('clock-half');
+  return {
+    node: h('div', { class: 'clock-pick', data: { field: name } }, time, half.node, day),
+    value() {
+      const typed = /^(\d{1,2})(?:[:.](\d{2}))?$/.exec(time.value.trim());
+      const hours = typed ? Number(typed[1]) : -1, minutes = typed ? Number(typed[2] || 0) : -1;
+      if (hours < 0 || hours > 23 || minutes > 59) throw new Error('Enter the time, like 1:30.');
+      if (!day.value) throw new Error('Choose the day.');
+      const clock = hours > 12 || hours === 0 ? hours : (hours % 12) + (half.value() === 'pm' ? 12 : 0);
+      return stamp(day.value + 'T' + String(clock).padStart(2, '0') + ':' + String(minutes).padStart(2, '0'));
+    }
+  };
+}
+
 // A three-dot menu of corrections, kept away from the main actions.
 function menu(items, label = 'More') {
   const list = h('div', { class: 'menu-list', hidden: true });
@@ -11204,7 +11229,8 @@ function reservationSheet(r) {
     icon: 'reservations',
     build(ui) {
       who = who || customerFields(r ? r.customer : '', r ? r.phone : '');
-      at = at || h('input', { type: 'datetime-local', value: istInput(r ? r.arrivalMs : nowMs() + 3600000), 'aria-label': 'Arrival time', data: { field: 'arrival' } });
+      // The time typed with AM or PM, the day today at first (owner, 5 November).
+      at = at || (r ? clockPick(r.arrivalMs, 'arrival') : clockPick(nowMs() + 3600000, 'arrival', istInput(nowMs()).slice(0, 10)));
       notes = notes || textInput({ value: r ? r.notes : '', 'aria-label': 'Notes' });
       const chosen = category ? category.value() : r ? r.category : 'PC', chosenUnit = unit ? unit.value : r ? r.unitId : '';
       category = segmented(CATEGORIES.map(c => [c, catName(c), c]), chosen, () => { unit = null; ui.redraw(); });
@@ -11212,12 +11238,12 @@ function reservationSheet(r) {
       unit.value = chosenUnit;
       // A PS5 asks how many controllers, beside the unit.
       pads = chosen === 'PS5' ? segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], pads ? pads.value() : (r && resControllers(r)) || 1) : null;
-      ui.body.append(...[who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null, field('Arriving', at), field('Notes (optional)', notes)].filter(Boolean));
+      ui.body.append(...[who.node, h('div', 'field', h('span', { text: 'For' }), category.node), field('Unit', unit), pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null, h('div', 'field', h('span', { text: 'Booking at' }), at.node), field('Notes (optional)', notes)].filter(Boolean));
       ui.primary('Save reservation');
     },
     command() {
-      if (!at.value) throw new Error('Enter the arrival time.');
-      return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: category.value(), unitId: unit.value, arrivalMs: stamp(at.value), notes: notes.value.trim(), controllers: pads ? Number(pads.value()) : undefined };
+      const arrivalMs = at.value();
+      return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: category.value(), unitId: unit.value, arrivalMs, notes: notes.value.trim(), controllers: pads ? Number(pads.value()) : undefined };
     }
   });
 }
@@ -14861,7 +14887,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "40a93188e1ed";
+const APP_BUILD = "3c7ab0a819b1";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
