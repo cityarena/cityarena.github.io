@@ -11304,7 +11304,12 @@ const reservationsPage = {
   subtitle: 'Manage bookings for gaming stations',
   bar(bar) { bar.append(btn([icon('plus'), 'New Reservation'], () => reservationSheet(null), 'primary', { data: { action: 'new-reservation' } })); },
   render(page) {
-    const list = state.Reservations.slice().sort((a, b) => Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs);
+    // A cancelled booking goes the moment it is cancelled; a no-show stays until the end of the day it was booked for
+    // (owner, 6 November: "cancelled bookings should literally disappear the moment i cancel … no show, let it remain until
+    // end of the day and then disappear").
+    const today = businessToday(), startMinutes = settingValue('businessDayStartMinutes', 0) * 60000;
+    const shown = r => r.status !== 'cancelled' && (r.status !== 'no_show' || dayKey(r.arrivalMs - startMinutes) >= today);
+    const list = state.Reservations.filter(shown).sort((a, b) => Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs);
     const kinds = CATEGORIES.concat([...new Set(list.map(r => r.category))].filter(c => !CATEGORIES.includes(c)));
     page.append(h('div', 'res-board', kinds.map(kind => {
       const mine = list.filter(r => r.category === kind);
@@ -14903,7 +14908,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "af919d553624";
+const APP_BUILD = "c6a1fb31ef16";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
