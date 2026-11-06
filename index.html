@@ -3903,7 +3903,7 @@ var ArenaReports = (function () {
         var own = (state.BillDetails || []).filter(function (d) { return d.tabId === advance.tabId && !voided[d.id]; }).pop();
         customer = (tabs[advance.tabId] || {}).customer || '';
         var ownParts = own ? partsFor(own.id) : null;
-        return ownParts ? { parts: ownParts, customer: customer } : { as: 'advance', customer: customer };
+        return ownParts ? { parts: ownParts, billId: own.id, customer: customer } : { as: 'advance', customer: customer };
       }
       if (receipt) return { as: 'credit', customer: ((state.CreditAccounts || []).find(function (a) { return a.id === receipt.accountId; }) || {}).name || '' };
       if (p.amountPaise < 0) {
@@ -3915,7 +3915,7 @@ var ArenaReports = (function () {
         return { as: 'reversed', customer: customer };
       }
       if (detail && dateKeyOf(state, detail.createdMs) < day) return { as: 'pending', customer: customer };
-      if (detail && partsOf[detail.id]) return { parts: partsOf[detail.id], customer: customer };
+      if (detail && partsOf[detail.id]) return { parts: partsOf[detail.id], billId: detail.id, customer: customer };
       return { as: detail ? 'pending' : 'advance', customer: customer };
     };
     // A payment taken back the same day it was taken never happened, for the report: neither it nor its reversal is listed
@@ -3927,20 +3927,68 @@ var ArenaReports = (function () {
       var original = (state.Payments || []).find(function (x) { return x.id === c.targetId; }), back = (state.Payments || []).find(function (x) { return x.id === c.id; });
       if (original && back && dateKeyOf(state, original.createdMs) === dateKeyOf(state, back.createdMs)) { undoneSameDay[original.id] = true; undoneSameDay[back.id] = true; }
     });
+    // Payments fill a bill's parts in order (owner, 6 November: "how is the turf money 702.97"): a balance it brought from an
+    // earlier bill first, then the turf and the games, then snacks, beverages and ice cream, each up to what is still owed on
+    // it, the bill's payments taken oldest first (a booking's advance before the rest). So ₹300 in advance and ₹710 later on
+    // a ₹1,000 turf and a ₹10 water are turf ₹300, then turf ₹700 and water ₹10, never ₹702.97 and ₹7.03. A payment taken
+    // back later gives back what it filled; one taken back the same day never filled anything.
+    var fillRank = function (key) { var name = key.split('@')[0]; return key === 'pending' ? 0 : name === 'turf' ? 1 : ['PC', 'PS5', 'RC', 'Pool', 'Snooker', 'Manual'].indexOf(name) >= 0 ? 2 : 3; };
+    var billPayments = null, fills = {};
+    var paymentsOfBill = function (billId) {
+      if (!billPayments) {
+        billPayments = {};
+        var billOfPayment = {};
+        (state.Payments || []).forEach(function (p) {
+          if (undoneSameDay[p.id] || p.amountPaise < 0 && (state.Corrections || []).some(function (c) { return c.kind === 'payment_reversal' && c.id === p.id; })) return;
+          var f = classify(p);
+          if (!f.parts || !f.billId) return;
+          billOfPayment[p.id] = f.billId;
+          (billPayments[f.billId] = billPayments[f.billId] || []).push({ p: p });
+        });
+        (state.Corrections || []).forEach(function (c) {
+          if (c.kind !== 'payment_reversal' || undoneSameDay[c.id] || !billOfPayment[c.targetId]) return;
+          var back = (state.Payments || []).find(function (x) { return x.id === c.id; });
+          if (back) billPayments[billOfPayment[c.targetId]].push({ p: back, undoes: c.targetId });
+        });
+      }
+      return (billPayments[billId] || []).slice().sort(function (a, b) { return a.p.createdMs - b.p.createdMs || (a.p.id < b.p.id ? -1 : a.p.id > b.p.id ? 1 : 0); });
+    };
+    var fillOf = function (billId, parts) {
+      if (fills[billId]) return fills[billId];
+      var keys = Object.keys(parts).filter(function (k) { return parts[k] > 0; }).sort(function (a, b) { return fillRank(a) - fillRank(b) || (a < b ? -1 : a > b ? 1 : 0); });
+      var left = {}, each = {};
+      keys.forEach(function (k) { left[k] = parts[k]; });
+      paymentsOfBill(billId).forEach(function (item) {
+        var bits = {}, amount = item.p.amountPaise;
+        if (item.undoes) {
+          // Taken back: what the payment filled is owed again.
+          var was = each[item.undoes] || {};
+          Object.keys(was).forEach(function (k) { bits[k] = -was[k]; left[k] = (left[k] || 0) + was[k]; });
+        } else if (amount >= 0) {
+          var rest = amount;
+          keys.forEach(function (k) { var take = Math.min(rest, left[k]); if (take > 0) { bits[k] = take; left[k] -= take; rest -= take; } });
+          // More than the bill (rounding of an older bill): kept on its last part, so every rupee received is counted.
+          if (rest > 0 && keys.length) bits[keys[keys.length - 1]] = (bits[keys[keys.length - 1]] || 0) + rest;
+        } else {
+          // Money handed back (an advance's balance): taken off the parts filled last.
+          var owed = -amount;
+          keys.slice().reverse().forEach(function (k) { var give = Math.min(owed, parts[k] - left[k]); if (give > 0) { bits[k] = -give; left[k] += give; owed -= give; } });
+          if (owed > 0 && keys.length) bits[keys[0]] = (bits[keys[0]] || 0) - owed;
+        }
+        each[item.p.id] = bits;
+      });
+      fills[billId] = each;
+      return each;
+    };
     (state.Payments || []).forEach(function (p) {
       if (!inRange(p.createdMs, fromMs, toMs) || undoneSameDay[p.id]) return;
       var found = classify(p), as = found.as || '', amount = p.amountPaise;
       if (as === 'reversed') out.collected.reversed += -amount;
       else if (as) out.collected[as] += amount;
       else {
-        // Shared out over the bill's parts in proportion, to the paisa (a reversal the same way, taken off); a balance the
-        // bill brought is pending collected.
-        var parts = found.parts, sign = amount < 0 ? -1 : 1, size = Math.abs(amount);
-        var keys = Object.keys(parts).filter(function (k) { return parts[k] > 0; }), whole = 0, given = 0;
-        keys.forEach(function (k) { whole += parts[k]; });
-        var bits = keys.map(function (k) { var exact = whole > 0 ? size * parts[k] / whole : 0, floor = Math.floor(exact); given += floor; return { key: k, paise: floor, rest: exact - floor }; });
-        bits.sort(function (a, b) { return b.rest - a.rest || a.key.localeCompare(b.key); });
-        for (var i = 0; given < size && i < bits.length; i++, given++) bits[i].paise++;
+        // What this payment filled of the bill's parts, in order (fillOf above); a balance the bill brought is pending collected.
+        var filled = (found.billId && fillOf(found.billId, found.parts)[p.id]) || {};
+        var bits = Object.keys(filled).filter(function (k) { return filled[k] !== 0; }).map(function (k) { return { key: k, paise: filled[k] }; });
         if (!bits.length) out.collected.pending += amount;
         // Each part is named by the day it was played or bought: paid that day, under its own name; paid after it, Pending
         // collected (owner, 2 November: a PS5 played yesterday and paid today is not today's PS5); paid before it, Advance (a
@@ -3953,8 +4001,8 @@ var ArenaReports = (function () {
         };
         bits.forEach(function (b) {
           var key = named(b.key);
-          if (key === 'pending' || key === 'advance') out.collected[key] += sign * b.paise;
-          else out.paid[key] = (out.paid[key] || 0) + sign * b.paise;
+          if (key === 'pending' || key === 'advance') out.collected[key] += b.paise;
+          else out.paid[key] = (out.paid[key] || 0) + b.paise;
           b.key = key;
         });
         as = bits.map(function (b) { return b.key; }).filter(function (k, i, all) { return all.indexOf(k) === i; }).join(' + ') || 'pending';
@@ -14981,7 +15029,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "8527120d7c2d";
+const APP_BUILD = "68b18d915358";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
