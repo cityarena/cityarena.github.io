@@ -14462,15 +14462,22 @@ function turfCancelSheet(b, back) {
 }
 
 // A free slot to post on WhatsApp status when someone cancels late. The owner's wording; 🟩 for the artificial grass.
-function turfSlotText(key, court, start, hours) {
-  const today = dayKey(nowMs()), tomorrow = shiftDay(today, 1);
+// The hours tapped, each run of them one Time line ("06:00 AM – 08:00 AM", then "09:00 AM – 10:00 AM").
+function turfSlotText(key, court, hoursPicked) {
+  const sorted = hoursPicked.slice().sort((x, y) => x - y), runs = [];
+  for (const hour of sorted) {
+    const last = runs[runs.length - 1];
+    if (last && last.end === hour) last.end++;
+    else runs.push({ start: hour, end: hour + 1 });
+  }
+  const start = sorted[0], today = dayKey(nowMs()), tomorrow = shiftDay(today, 1);
   const when = key === today ? (start >= 17 ? 'tonight' : 'today') : key === tomorrow ? 'tomorrow' : 'on ' + turfDayName(key);
   const part = start >= 17 ? 'evening' : start >= 12 ? 'afternoon' : 'morning';
   return [
     '⚽ *TURF SLOT AVAILABLE!* 🟩', '',
     'Looking for a game ' + when + '? We’ve got a slot open! 🔥', '',
     '📅 *Date:* ' + (key === today ? 'Today' : key === tomorrow ? 'Tomorrow' : turfDayName(key)),
-    '⏰ *Time:* ' + paddedHour(start) + ' – ' + paddedHour(start + hours),
+    ...runs.map(r => '⏰ *Time:* ' + paddedHour(r.start) + ' – ' + paddedHour(r.end)),
     '🟩 *Turf:* ' + courtLabel(court), '',
     'Gather your squad and make the most of your ' + part + '! ⚽🙌', '',
     '📩 *DM us now to book your slot!*', '',
@@ -14481,7 +14488,7 @@ function turfSlotText(key, court, start, hours) {
 // Share availability: the whole day for a group, or one free slot as a status, for any day from today on (owner,
 // 22 October: any date can be chosen here).
 function turfShareSheet(key, list, kindFirst = 'day') {
-  let mode = kindFirst, court = SHARE_COURTS[0], start = null, hours = 1;
+  let mode = kindFirst, court = SHARE_COURTS[0], picked = null;
   openSheet({
     title: 'Share availability',
     sub: turfDayName(key),
@@ -14498,21 +14505,29 @@ function turfShareSheet(key, list, kindFirst = 'day') {
         text = turfAvailabilityText(key, list);
         if (hourStart(key, TURF_CLOSE) <= nowMs()) ui.body.append(h('p', { class: 'muted', text: 'Every hour of this day has gone by. Choose another day.' }));
       } else {
-        // The free hours of the chosen court; consecutive free hours can go together.
+        // The free hours of the chosen court, each tapped on or off (owner, 8 November: "instead of selecting 1 hour 2 hour remove
+        // it … i will click 6-7,7-8"); the first free hour at first, a court changed starting again.
         const starts = freeStarts(key, court, '');
-        if (!starts.includes(start)) start = starts.length ? starts[0] : null;
-        const longest = start == null ? 0 : freeRun(key, court, start, '');
-        hours = Math.max(1, Math.min(hours, longest || 1));
-        const courts = segmented(SHARE_COURTS.map(c => [c, courtLabel(c), 'turf']), court, value => { court = value; ui.redraw(); });
+        if (!picked) picked = new Set(starts.slice(0, 1));
+        for (const hour of [...picked]) if (!starts.includes(hour)) picked.delete(hour);
+        const courts = segmented(SHARE_COURTS.map(c => [c, courtLabel(c), 'turf']), court, value => { court = value; picked = null; ui.redraw(); });
         ui.body.append(h('div', 'field', h('span', { text: 'Court' }), courts.node));
         if (!starts.length) {
           ui.body.append(h('p', { class: 'muted', text: 'No free hours on this court that day.' }));
           return;
         }
-        const chips = h('div', { class: 'chips turf-starts', data: { field: 'slot-start' } }, starts.map(hour => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(hour === start), data: { startHour: String(hour) }, onclick: () => { start = hour; ui.redraw(); } }, turfChipText(hour))));
-        ui.body.append(h('div', 'field', h('span', { text: 'Starts' }), chips));
-        if (longest > 1) ui.body.append(h('div', 'field', h('span', { text: 'For' }), segmented([1, 2, 3, 4].filter(n => n <= longest).map(n => [n, n + (n === 1 ? ' hour' : ' hours')]), hours, value => { hours = value; ui.redraw(); }).node));
-        text = turfSlotText(key, court, start, hours);
+        const tap = hour => {
+          if (picked.has(hour)) picked.delete(hour);
+          else picked.add(hour);
+          ui.redraw();
+        };
+        const chips = h('div', { class: 'chips turf-starts', data: { field: 'slot-start' } }, starts.map(hour => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(picked.has(hour)), data: { startHour: String(hour) }, onclick: () => tap(hour) }, turfChipText(hour))));
+        ui.body.append(h('div', 'field', h('span', { text: 'Hours' }), chips));
+        if (!picked.size) {
+          ui.body.append(h('p', { class: 'muted', text: 'Tap the hours to share.' }));
+          return;
+        }
+        text = turfSlotText(key, court, [...picked]);
       }
       ui.body.append(whatsappPreview(text, 'share-preview'));
       const copy = btn([icon('copy'), 'Copy'], async () => {
@@ -15049,7 +15064,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "8af90600d090";
+const APP_BUILD = "3f2a808c0cac";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
