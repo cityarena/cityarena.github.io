@@ -4103,7 +4103,7 @@ var ArenaReports = (function () {
    their own items, settled through the usual checkout. Every amount is an ordinary order on an ordinary tab. */
 var ArenaTurf = (function () {
   'use strict';
-  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
+  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ACADEMY_ADOPT', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
   // Items bought for Team A, Team B or everyone are kept once, as bought, and each player's part is one line on their bill.
   var SHARED = 'Shared items', GROUPS = ['A', 'B', 'all'];
   var COURTS = ['6-a-side', '5-a-side', '1v1'], SPORTS = ['Football', 'Cricket'], TEAMS = ['A', 'B'], OPEN_HOUR = 6, CLOSE_HOUR = 22, DAY_MS = 86400000;
@@ -4544,6 +4544,51 @@ var ArenaTurf = (function () {
         keptPaise += done.total;
       });
       return { posted: kept, amountPaise: keptPaise, noop: !kept, message: kept ? 'Pending ' + (keptPaise / 100) + ' from earlier days.' : 'Nothing is due to pending.' };
+    }
+    if (cmd.type === 'TURF_ACADEMY_ADOPT') {
+      // Bookings made in an academy's name as a customer's (owner, 11 November: the name picked from the suggestions saved as a
+      // customer; "all the bookings done for future dates already should follow ... if possible do for previous as well") become
+      // the academy's: its coaching rate, its account's mobile, on its account. Taken: one with nothing paid or moved on it yet,
+      // and one left on Pending with nothing paid and nothing bought (its bill opened again, then to the account as any academy
+      // slot). One paid, paid in part, with items or money ahead stays as it is. A weekly series in its name books its new weeks
+      // as the academy. Any open screen sends it; nothing to do is not an error and writes nothing.
+      var clubs = academies(state), adopted = 0, reopened = 0, plans = 0;
+      var nameKey = function (v) { return String(v || '').trim().toLowerCase(); };
+      var clubFor = function (name) { return clubs.find(function (c) { return nameKey(c.name) === nameKey(name); }) || null; };
+      var phoneOf = function (club) { return ((state.CreditDetails || []).find(function (d) { return d.id === club.accountId; }) || {}).phone || ''; };
+      booked(state).forEach(function (b, n) {
+        var club = clubFor(b.customer);
+        if (!club || accountOf(state, b.id) || b.split === 'yes' || leadOf(state, b) || players(state, b).length) return;
+        if (moneyMoved(state, b)) {
+          var mainTab = tabOf(state, b.tabId);
+          if (typeof ArenaCorrections === 'undefined' || !mainTab || settlement(state, b).state !== 'pending' || linked(state, b).length || itemsOn(state, mainTab.id) || held(state, mainTab.id)) return;
+          var bills = (state.BillDetails || []).filter(function (d) { return d.tabId === mainTab.id && !ArenaCore.isVoidedBill(state, d.id); });
+          var bill = bills.length === 1 ? (state.Bills || []).find(function (x) { return x.id === bills[0].id; }) : null;
+          if (!bill || Number(bill.paidPaise) !== 0 || (state.CreditTransfers || []).some(function (t) { return t.billId === bill.id; })) return;
+          ArenaCorrections.execute(state, { type: 'VOID_BILL', billId: bill.id, reason: 'Booked for ' + club.name + ', to its account' }, actor, now, id + '-reopen-' + n);
+          reopened++;
+        }
+        b.ratePaise = coachRate(state, club, b.court);
+        b.phone = phoneOf(club) || b.phone;
+        b.updatedMs = now;
+        b.revision = Number(b.revision || 0) + 1;
+        markAccount(state, b.id, { accountId: club.accountId, mode: 'coaching' }, now, id + '-account-' + n);
+        var openTab = tabOf(state, b.tabId);
+        if (openTab && openTab.status === 'open') {
+          openTab.phone = b.phone;
+          sync(state, b, now, id + '-sync-' + n);
+        }
+        adopted++;
+      });
+      (state.Settings || []).filter(function (r) { return String(r.id).indexOf('turfSeries-') === 0; }).forEach(function (r) {
+        var sid = String(r.id).slice(11), plan = seriesPlan(state, sid), club = plan && !plan.academyId ? clubFor(plan.customer) : null;
+        if (!club) return;
+        plan.academyId = club.accountId;
+        plan.phone = phoneOf(club) || plan.phone;
+        saveSeries(state, sid, plan);
+        plans++;
+      });
+      return { adopted: adopted, reopened: reopened, series: plans, noop: !adopted && !plans, message: adopted || plans ? adopted + ' bookings moved to their academy.' : 'Nothing to move.' };
     }
     if (cmd.type === 'TURF_ACCOUNT_DUE') {
       // Academy slots that have ended go to the academy's credit account, with their items named; so do academy players in a
@@ -13412,7 +13457,7 @@ function turfBookingSheet(existing, preset) {
     tone: 'jade',
     focus: false,
     build(ui) {
-      who = who || customerFields(existing ? existing.customer : '', existing ? turfPhone(existing) : '', true, () => late.paint());
+      who = who || customerFields(existing ? existing.customer : '', existing ? turfPhone(existing) : '', true, () => { late.paint(); turfFollowClub(clubs, forWho, who, () => ui.redraw()); });
       late = late || turfLateNote(who);
       late.paint();
       sport = sport || segmented([['Football', 'Football', 'football'], ['Cricket', 'Cricket', 'cricket']], existing ? existing.sport : null);
@@ -13516,6 +13561,22 @@ const turfShareLines = b => state.Orders.filter(o => o.category === 'Turf' && o.
   .filter(x => x && x.m.bookingId === b.id && x.m.part === 'share' && !x.m.account).map(x => ({ amount: x.o.totalPaise, team: x.m.team || '' }));
 const turfSharesOf = b => turfShareLines(b).map(x => x.amount);
 // ---------- Academies: a coaching team on a credit account, with its own rates (the same rules as Turf.gs) ----------
+// An academy picked from the name's suggestions, or its name typed in full, books as that academy (owner, 11 November, as on
+// Manipal: "when i start typing vict, that victoria comes but it saves as normal customer"); another name typed over it is a
+// customer again.
+function turfFollowClub(clubs, forWho, who, redraw) {
+  if (!forWho) return;
+  const typed = who.name.value.trim().toLowerCase();
+  const club = clubs.find(a => a.name.trim().toLowerCase() === typed) || null, chosen = String(forWho.value() || '');
+  if (club && chosen !== club.accountId) {
+    forWho.set(club.accountId);
+    if (creditPhone(club.accountId)) who.phone.value = creditPhone(club.accountId);
+    redraw();
+  } else if (!club && chosen) {
+    forWho.set('');
+    redraw();
+  }
+}
 function turfAcademies() {
   return (state.Settings || []).filter(r => String(r.id).startsWith('academy-')).map(r => {
     let saved = {};
@@ -14382,7 +14443,7 @@ function turfBulkSheet() {
     tone: 'jade',
     focus: false,
     build(ui) {
-      who = who || customerFields('', '', true, () => late.paint());
+      who = who || customerFields('', '', true, () => { late.paint(); turfFollowClub(clubs, forWho, who, () => ui.redraw()); });
       late = late || turfLateNote(who);
       late.paint();
       sport = sport || segmented([['Football', 'Football', 'football'], ['Cricket', 'Cricket', 'cricket']], null);
@@ -14826,6 +14887,23 @@ function postPendingDue() {
   const here = trySaveHere({ type: 'TURF_PENDING_DUE' });
   if (here && !here.refused) render();
 }
+// Bookings already made in an academy's name as a customer's become the academy's (owner, 11 November: "all the bookings done
+// for furture dates already should follow ... if possible do for previous as well"): any open screen sends it while one is
+// left; the server decides which can be taken (TURF_ACADEMY_ADOPT).
+let academyAdoptTried = 0;
+function postAcademyAdopt() {
+  if (!state || outbox.length || flow.saving() || nowMs() - academyAdoptTried < SWEEP_EVERY_MS) return;
+  const names = new Set(turfAcademies().map(a => a.name.trim().toLowerCase()));
+  if (!names.size) return;
+  const named = v => names.has(String(v || '').trim().toLowerCase());
+  const plan = r => { try { const p = JSON.parse(r.value); return !p.academyId && named(p.customer); } catch (e) { return false; } };
+  const due = (state.TurfBookings || []).some(b => b.status === 'booked' && b.split !== 'yes' && named(b.customer) && !turfAccountOf(b.id) && ['open', 'pending'].includes(turfStatusOf(b.id).state))
+    || (state.Settings || []).some(r => String(r.id).startsWith('turfSeries-') && plan(r));
+  if (!due) return;
+  academyAdoptTried = nowMs();
+  const here = trySaveHere({ type: 'TURF_ACADEMY_ADOPT' });
+  if (here && !here.refused) render();
+}
 function postAcademyDue() {
   if (!state || outbox.length || flow.saving() || nowMs() - academyDueTried < SWEEP_EVERY_MS) return;
   const owing = tabId => { const t = tabOf(tabId); return !!t && t.status === 'open' && !stillPlaying(t.id) && ordersOf(t.id).length > 0; };
@@ -15145,7 +15223,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "63bf5e071d16";
+const APP_BUILD = "7a0f8eda580e";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
@@ -15168,6 +15246,7 @@ function applySnapshot(data) {
   if (!data.unchanged || first) render();
   watchArrivals();
   reloadIfOld(data.build);
+  postAcademyAdopt();
   postAcademyDue();
   postPendingDue();
   extendSeries();
