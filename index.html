@@ -1908,6 +1908,98 @@ main[data-page=turf] .turf-board { overflow-x: clip; }
 }
 /* Cash, UPI and CA side by side, the same width. */
 .turf-pay.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+
+/* A balance brought from an earlier bill: what it was, its details behind Show (owner, 15 November, as on Manipal). */
+.carried-line .line-main { display: grid; justify-items: start; gap: 2px; }
+.carried-show { padding: 0; border: 0; background: none; color: var(--primary); font: inherit; font-size: var(--text-xs); font-weight: 600; cursor: pointer; }
+.carried-detail { display: grid; gap: 2px; width: 100%; margin-top: 4px; }
+.carried-row { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); font-size: var(--text-xs); }
+.carried-row.muted { color: var(--ink-3); }
+
+/* A pending bill moved on (owner, 15 November, as on Manipal): Move beside Collect on each pending line, the reservation it waits
+   for, and the amount a reservation brings onto its bill at check-in. */
+.pending-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.pending-held { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--gold); font-size: var(--text-xs); font-weight: 600; }
+.pending-held svg { width: 14px; height: 14px; flex: none; }
+.res-pending { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--gold-line); border-radius: var(--r-sm); background: var(--gold-soft); color: var(--gold); font-size: var(--text-sm); font-weight: 600; }
+.res-pending svg { width: 16px; height: 16px; flex: none; }
+.pending-cancel-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 640px) { .pending-tools { width: 100%; } }
+/* A carried balance ticked on the bill being settled, its pieces under it (owner, 16 November, as on Manipal). */
+.line.carried-pick { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.line.carried-pick > .line-tick { flex: none; }
+.line.carried-piece { margin-left: 24px; }
+.line.carried-piece[aria-pressed=false] .line-main b, .line.carried-piece[aria-pressed=false] .line-amount { color: var(--ink-3); }
+
+/* The Game station in Add Items and on the menu (owner, 16 November, as on Manipal). */
+.game-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; grid-column: 1 / -1; }
+.game-card { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.game-card-head { display: flex; align-items: center; gap: 10px; }
+.game-times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.game-time { display: grid; justify-items: center; gap: 2px; min-height: 52px; padding: 6px 8px; }
+.game-time b { font-size: var(--text-sm); }
+.game-chosen { grid-column: 1 / -1; margin-top: 4px; }
+.game-price-row { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); font-size: var(--text-sm); }
+.game-menu-card { cursor: default; }
+
+/* Shorter bill lines (owner, 16 November, as on Manipal): a timer one low row with its number, name and times, an item its name ·
+   its price with − count + and bin, the amount behind a fine line; a heading's total in a soft chip. */
+.line-main.one { display: grid; gap: 2px; }
+.line-main.one > b { font-size: var(--text-sm); font-weight: 700; line-height: 1.2; }
+.line-main.one .timer-short { color: var(--ink-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.bill-group > .lines > .line:has(.line-main.one) { min-height: 44px; padding: 4px 4px 4px 10px; border: 1px solid var(--line); border-radius: var(--r-sm); background: #ffffff; box-shadow: 0 1px 2px rgba(80, 62, 30, 0.06); }
+.bill-group .line:has(.line-main.one) .seat { width: 26px; height: 26px; border-color: var(--line-strong); background: #ffffff; font-size: var(--text-xs); }
+.bill-group .line:has(.line-main.one) .line-amount { min-width: 52px; padding-left: 10px; border-left: 1px solid var(--line-strong); font-weight: 700; text-align: right; }
+.bill-group .line:has(> .item-tools) { min-height: 40px; padding: 4px 8px 4px 12px; gap: 8px; border: 1px solid var(--line); border-radius: var(--r-sm); background: #ffffff; box-shadow: 0 1px 2px rgba(80, 62, 30, 0.06); }
+.bill-group .line:has(> .item-tools) .line-main { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.bill-group .line:has(> .item-tools) .line-main > b { font-size: var(--text-sm); font-weight: 700; }
+.bill-group .line:has(> .item-tools) .line-main > .muted:not(:empty)::before { content: '· '; }
+.bill-group .line:has(> .item-tools) .line-main > .muted { font-size: var(--text-xs); }
+.bill-group .line:has(> .item-tools) .line-amount { min-width: 52px; padding-left: 10px; border-left: 1px solid var(--line-strong); font-weight: 700; text-align: right; }
+.bill-group > .group-title .group-sum.total { display: inline-flex; align-items: baseline; gap: 6px; margin-left: auto; padding: 2px 10px; border-radius: 999px; background: var(--primary-soft); color: var(--primary-deep); font-size: var(--text-sm); font-weight: 700; }
+.bill-group > .group-title .group-sum.total .sum-label { color: var(--ink-2); font-size: var(--text-xs); font-weight: 600; }
+
+/* Reports, simple (owner, 16 November, as on Manipal): the money received in tiles, what that money is in one strip with its bar, how
+   it came in a row for each way, and the Revenue Mix beside it; on a phone one under another. */
+.rs { display: grid; gap: 16px; margin-bottom: 16px; }
+.rs-tiles { display: grid; grid-template-columns: repeat(var(--tiles, 3), minmax(0, 1fr)); gap: 16px; }
+.rs-tile { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 2px 16px; padding: 20px 22px; border: 1px solid var(--line); border-radius: var(--r-xl); background: var(--surface); box-shadow: var(--shadow); }
+.rs-tile-icon { grid-row: span 3; display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--r-lg); background: var(--primary-soft); color: var(--primary); }
+.rs-tile-icon svg { width: 28px; height: 28px; }
+.rs-tile-label { color: var(--ink-2); font-size: var(--text-md); font-weight: 600; }
+.rs-tile-amount { font-family: var(--display); font-size: var(--text-3xl); line-height: 1.05; color: var(--ink); }
+.rs-tile small { color: var(--ink-3); font-size: var(--text-sm); }
+.rs-card { display: grid; gap: 14px; }
+.rs-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rs-title { display: inline-flex; align-items: center; gap: 10px; color: var(--primary); }
+.rs-title svg { width: 20px; height: 20px; }
+.rs-head h2 { margin: 0; color: var(--ink); font-size: var(--text-lg); }
+.rs-head > b { font-size: var(--text-xl); }
+.rs-bar { display: flex; height: 12px; overflow: hidden; border-radius: 999px; background: var(--line); }
+.rs-bar i { display: block; min-width: 0; }
+.rs-parts { display: grid; grid-template-columns: repeat(var(--parts, 4), minmax(0, 1fr)); gap: 12px; }
+.rs-part { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); }
+.rs-part span { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-2); font-size: var(--text-sm); font-weight: 600; }
+.rs-part span i { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.rs-part b { font-size: var(--text-xl); font-variant-numeric: tabular-nums; }
+.rs-part.zero b { color: var(--ink-3); }
+.rs-today { background: var(--part-pc); }
+.rs-advance { background: var(--part-advance); }
+.rs-pending { background: var(--part-pending); }
+.rs-credit { background: var(--part-credit); }
+.rs-back { background: var(--danger); }
+.rs-owed { margin: 0; color: var(--ink-3); font-size: var(--text-sm); }
+.rs-owed b { color: var(--ink); }
+.rs-rows { display: grid; gap: 8px; }
+.rs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); font-size: var(--text-base); }
+.rs-row span { display: inline-flex; align-items: center; gap: 10px; color: var(--ink-2); font-weight: 600; }
+.rs-row span svg { width: 18px; height: 18px; color: var(--primary); }
+.rs-row b { font-size: var(--text-lg); font-variant-numeric: tabular-nums; }
+.rs-row.zero b { color: var(--ink-3); }
+.rs-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+@media (max-width: 1100px) { .rs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rs-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rs-two { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) { .rs-tiles { grid-template-columns: minmax(0, 1fr); } .rs-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rs-tile { padding: 16px; } }
+.rs-title .rep-when { color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -2067,16 +2159,40 @@ var ArenaCore = (function () {
     return result;
   }
   // A bill whose balance went on to a later turf booking: what it still showed as owing is owed there now.
+  // A carried line taken off again (its ticked part split off, owner, 16 November) no longer counts.
   function carryOf(state, billId) {
-    return (state.Carries || []).find(function (c) { return c.billId === billId; }) || null;
+    return (state.Carries || []).find(function (c) {
+      if (c.billId !== billId) return false;
+      var line = (state.Orders || []).find(function (o) { return o.id === c.orderId; });
+      return !line || line.status === 'active';
+    }) || null;
   }
   // A fresh start after trying the app out: every record goes; the venue's setup stays (stations, rates and settings,
   // festival dates) and, if asked, the menu. Bill and receipt numbers start again at CA-0001 and RC-0001.
-  function freshStart(state, keepMenu) {
+  // Settings that belong to records go with them (owner, 11 November, as on Manipal: an erase keeps the rates and the menu):
+  // numbering, weekly bookings (a Forever series kept would book its weeks again), late cancels, reservation notes, pending bills
+  // held for a reservation and academy statements. Every rate stays; an academy keeps its account, with nothing owed, so its
+  // rates still work; the stock counts stay with the menu and go without it.
+  var RECORD_SETTINGS = ['counter-', 'turfSeries-', 'lateCancel-', 'reservationControllers-', 'pendingFor-', 'academyStatement-'];
+  // keepBookings (owner, 15 November, as on Manipal: "add an option there not to erase turf … bookings"): the turf bookings not yet
+  // over stay, with their weekly series, each without its old bill (the money starts fresh with everything else); an academy's
+  // keep their marker, so they stay on its account.
+  function freshStart(state, keepMenu, keepBookings, now) {
     var out = {};
     Object.keys(state).forEach(function (name) { out[name] = []; });
     out.Equipment = (state.Equipment || []).slice();
-    out.Settings = (state.Settings || []).filter(function (r) { return String(r.id).indexOf('counter-') !== 0; });
+    var at = now || Date.now(), today = new Date(at + 19800000).toISOString().slice(0, 10);
+    var record = function (id) { return (RECORD_SETTINGS.some(function (p) { return id.indexOf(p) === 0; }) && !(keepBookings && id.indexOf('turfSeries-') === 0)) || (!keepMenu && id.indexOf('stock-') === 0); };
+    var stillToCome = function (b) { return Date.parse(String(b.dateKey) + 'T00:00:00+05:30') + (Number(b.startHour) + Number(b.hours)) * 3600000 > at; };
+    if (keepBookings) {
+      out.TurfBookings = (state.TurfBookings || []).filter(function (b) { return b.status === 'booked' && String(b.dateKey) >= today && stillToCome(b); }).map(function (b) { var kept = JSON.parse(JSON.stringify(b)); kept.tabId = ''; kept.split = ''; return kept; });
+      var keptIds = out.TurfBookings.map(function (b) { return JSON.stringify([b.id]); });
+      out.Notes = (state.Notes || []).filter(function (n) { return n.kind === 'TURF_ACCOUNT' && keptIds.indexOf(n.refsJson) >= 0; });
+    }
+    out.Settings = (state.Settings || []).filter(function (r) { return !record(String(r.id)); });
+    var academies = out.Settings.filter(function (r) { return String(r.id).indexOf('academy-') === 0; }).map(function (r) { return String(r.id).slice(8); });
+    out.CreditAccounts = (state.CreditAccounts || []).filter(function (a) { return academies.indexOf(a.id) >= 0; });
+    out.CreditDetails = (state.CreditDetails || []).filter(function (d) { return academies.indexOf(d.id) >= 0; });
     if (keepMenu) out.Products = (state.Products || []).slice();
     return out;
   }
@@ -2106,7 +2222,17 @@ var ArenaCore = (function () {
   function bill(start, end, prices) {
     var duration = end - start;
     check(Number.isSafeInteger(start) && Number.isSafeInteger(end) && duration > 0, 'End time must be after start time.');
-    check(Array.isArray(prices) && prices.length === 4 && prices.every(function(p){return Number.isSafeInteger(p) && p >= 0;}), 'Invalid saved rates.');
+    check(Array.isArray(prices) && (prices.length === 4 || prices.length === 5) && prices.every(function(p){return Number.isSafeInteger(p) && p >= 0;}), 'Invalid saved rates.');
+    // After each full hour, with a 10-minute price set (the fifth; owner, 16 November, as on Manipal: "upto 1.06 remains same 1 hours
+    // from 1.07 to 1:10 → 1 hour + 10 minutes and 1:11 to 1:20 → 1 hour + 15 minutes"): up to 6 minutes over is the hour, 7 to 10
+    // the 10-minute price, 11 to 20 the 15-minute price, and on from there as before. A game started before keeps its prices.
+    var hours = Math.floor(duration / 3600000), over = duration - hours * 3600000;
+    if (prices.length === 5 && prices[4] > 0 && hours >= 1 && over < 1260000) {
+      var step = over < 420000 ? 0 : over < 660000 ? 10 : 15;
+      var stepAmount = hours * prices[3] + (step === 10 ? prices[4] : step === 15 ? prices[0] : 0);
+      check(Number.isSafeInteger(stepAmount), 'Charge exceeds supported amount.');
+      return { actualMilliseconds: duration, billableMinutes: hours * 60 + step, totalPaise: stepAmount };
+    }
     var minutes = 15 * Math.max(1, Math.ceil((duration - 300000) / 900000));
     var remainder = minutes % 60;
     var amount = Math.floor(minutes / 60) * prices[3] + (remainder ? prices[remainder / 15 - 1] : 0);
@@ -2135,7 +2261,8 @@ var ArenaCore = (function () {
     if(cmd.type==='SAVE_RATES'){
       var previous=rateSetting(state,cmd.category);
       check(cmd.revision===previous.revision,'This price setting changed on another device. Refresh before editing.');
-      check(Array.isArray(cmd.rates)&&cmd.rates.length===4&&cmd.rates.every(function(p){return Number.isSafeInteger(p)&&p>0&&p<=100000000;}),'Enter four positive rates in paise.');
+      // A fifth rate, the 10-minute price after an hour, may be left out or 0 until the owner sets it (owner, 16 November: "keep that in the menu so i can update later").
+      check(Array.isArray(cmd.rates)&&(cmd.rates.length===4||cmd.rates.length===5)&&cmd.rates.every(function(p,i){return Number.isSafeInteger(p)&&(i===4?p>=0:p>0)&&p<=100000000;}),'Enter positive rates in paise.');
       state.Settings=state.Settings||[];var setting=state.Settings.find(function(r){return r.id==='gamingRates-'+cmd.category;}),saved={rates:cmd.rates.slice(),revision:previous.revision+1};
       if(setting)setting.value=JSON.stringify(saved);else state.Settings.push({id:'gamingRates-'+cmd.category,value:JSON.stringify(saved)});
       return {message:cmd.category+' rates saved. Existing segments and orders keep their saved prices.',previousRates:previous.rates,rates:saved.rates,revision:saved.revision};
@@ -2605,7 +2732,16 @@ var ArenaLifecycle=(function(){
    var timers=(Array.isArray(c.segments)?c.segments:[]).map(function(gid){var g=row(s.Segments,gid);check(g.tabId===it.id&&g.status==='ended','This time is no longer on the bill. Refresh and try again.');return g;});
    check(new Set(timers.map(function(g){return g.id;})).size===timers.length&&timers.length<=40,'Choose each one once.');
    c=Object.assign({},c,{items:Array.isArray(c.items)?c.items:[]});
-   check((c.items.length>=1||timers.length>=1)&&c.items.length<=40,'Choose what they are paying for.');
+   // A balance carried from an earlier bill, paid during the game (owner, 16 November, as on Manipal: "how the fuck will i pay or
+   // move during the session"): whole, or some of its pieces, split off first; the rest stays carried on the bill.
+   var carriedPay=Array.isArray(c.carried)?c.carried:[];
+   check(carriedPay.length<=20,'Too many lines.');
+   var carriedLines=carriedPay.map(function(p,i){
+    var lineId=p.orderId;
+    if(p.segmentIds||p.orderIds||p.counts){check(typeof ArenaTurf!=='undefined','Pay it whole.');lineId=ArenaTurf.execute(s,{type:'CARRY_SPLIT',orderId:p.orderId,segmentIds:p.segmentIds,orderIds:p.orderIds,counts:p.counts},actor,now,id+'-carry-'+i).tickedOrderId;}
+    var o=row(s.Orders,lineId);check(o.tabId===it.id&&o.status==='active'&&o.category==='Carried','This amount is no longer on the bill. Refresh and try again.');return o;
+   });
+   check((c.items.length>=1||timers.length>=1||carriedLines.length>=1)&&c.items.length<=40,'Choose what they are paying for.');
    var onIt=(s.Orders||[]).filter(function(o){return o.tabId===it.id&&o.status==='active'&&o.category!=='Turf'&&o.category!=='Carried';}),taking=[];
    // Checked first, then taken: a refused payment changes nothing.
    var chosen=c.items.map(function(item){
@@ -2614,7 +2750,7 @@ var ArenaLifecycle=(function(){
     return {order:o,quantity:item.quantity};
    });
    check(new Set(chosen.map(function(x){return x.order.id;})).size===chosen.length,'Choose each item once.');
-   var itemsDue=chosen.reduce(function(n,x){return n+x.order.unitPricePaise*x.quantity;},0)+timers.reduce(function(n,g){return n+Number(g.totalPaise||0);},0);
+   var itemsDue=chosen.reduce(function(n,x){return n+x.order.unitPricePaise*x.quantity;},0)+timers.reduce(function(n,g){return n+Number(g.totalPaise||0);},0)+carriedLines.reduce(function(n,o){return n+Number(o.totalPaise||0);},0);
    check(itemsDue>0,'Choose what they are paying for.');
    check(c.amountPaise===itemsDue,'Collect '+(itemsDue/100)+' for these.');
    chosen.forEach(function(x,i){
@@ -2625,6 +2761,7 @@ var ArenaLifecycle=(function(){
    });
    var own=newTab(s,id+'-items',it.customer,it.phone,now,'individual');
    taking.forEach(function(o){o.tabId=own.id;});
+   carriedLines.forEach(function(o){o.tabId=own.id;o.revision=Number(o.revision||1)+1;(s.Carries||[]).forEach(function(cr){if(cr.orderId===o.id)cr.tabId=own.id;});});
    timers.forEach(function(g){g.tabId=own.id;(s.Endings||[]).forEach(function(e){if(e.segmentId===g.id&&(e.status==='shared'||e.status==='review'))e.status='paid';});});
    s.OrderOwners=(s.OrderOwners||[]).filter(function(w){return !taking.some(function(o){return o.id===w.id;});});
    var paidItems=execute(s,{type:'SETTLE_REVIEW',tabId:own.id,settlement:'pay',discountType:'none',discountValue:0,amountPaise:itemsDue,method:c.method||'cash',payments:c.payments},actor,now,id+'-settle');
@@ -2707,6 +2844,16 @@ var ArenaLifecycle=(function(){
    check(!(s.Advances||[]).some(function(a){return a.tabId===target.id&&a.status==='held';}),'Money was paid in advance on this bill. Settle it as one bill.');var ids=[],groupName=row(s.Tabs,endings[0].originalTabId).customer;endings.forEach(function(e,i){var g=e.segmentId?row(s.Segments,e.segmentId):null,own=newTab(s,id+'-'+i,underGroup(row(s.Tabs,e.originalTabId).customer,g?(g.controller?playerName(g):g.player):'Items'),target.phone,now),owned=JSON.parse(e.lineIdsJson);lines(s,target.id).filter(function(x){return owned.indexOf(x.id)>=0;}).forEach(function(x){x.tabId=own.id;});e.reviewTabId=own.id;ids.push(own.id);});
    if(lines(s,target.id).length)ids.push(target.id);else target.status='merged';return {tabIds:ids,groupName:groupName,message:'Individual charges separated. Shared extras remain on their own tab for assignment.'};
   }
+  // Some pieces of a carried balance ticked (owner, 16 November): it is split first, the ticked part paid with what else is ticked,
+  // the rest staying on this bill.
+  if(c.type==='SETTLE_REVIEW'&&Array.isArray(c.carryParts)&&c.carryParts.length&&typeof ArenaTurf!=='undefined'){
+   check(c.carryParts.length<=20,'Too many lines.');
+   var swapped={};
+   c.carryParts.forEach(function(p,i){swapped[p.orderId]=ArenaTurf.execute(s,{type:'CARRY_SPLIT',orderId:p.orderId,segmentIds:p.segmentIds,orderIds:p.orderIds,counts:p.counts},actor,now,id+'-carry-'+i);});
+   var rest2=JSON.parse(JSON.stringify(c));delete rest2.carryParts;
+   if(rest2.only&&Array.isArray(rest2.only.items))rest2.only.items=rest2.only.items.map(function(x){var sw=swapped[x.orderId];return sw?{orderId:sw.tickedOrderId,quantity:1}:x;});
+   return execute(s,rest2,actor,now,id);
+  }
   if(c.type==='SETTLE_REVIEW'&&c.only&&typeof c.only==='object'){
    // Part of a bill settled now (owner, 21 October: they pay the juice; the controllers' time is moved, or the other way):
    // the lines ticked go to a bill of their own and are settled as asked; the rest stays on this bill, open, to be moved,
@@ -2715,6 +2862,10 @@ var ArenaLifecycle=(function(){
    check(oids.length+oitems.length>0&&oids.length+oitems.length<=60,'Tick what they are paying for.');
    var part=newTab(s,id+'-part',target.customer,target.phone,now,'settlement');
    oids.forEach(function(sid){var g=row(s.Segments,sid);check(g.tabId===target.id&&g.status==='ended','This charge is no longer on the bill. Refresh and try again.');g.tabId=part.id;s.Endings.forEach(function(e){if(e.segmentId===sid&&e.reviewTabId===target.id)e.reviewTabId=part.id;});});
+   // A carried balance ticked goes over whole, with its record (a carried line is one amount).
+   var carriedNow=oitems.filter(function(x){var o=(s.Orders||[]).find(function(y){return y.id===x.orderId;});return !!o&&o.category==='Carried';});
+   carriedNow.forEach(function(x){var o=row(s.Orders,x.orderId);check(o.tabId===target.id&&o.status==='active','This amount is no longer on the bill. Refresh and try again.');o.tabId=part.id;o.revision=Number(o.revision||1)+1;(s.Carries||[]).forEach(function(cr){if(cr.orderId===o.id)cr.tabId=part.id;});});
+   oitems=oitems.filter(function(x){return carriedNow.indexOf(x)<0;});
    if(oitems.length)ArenaSales.execute(s,{type:'TAKE_ITEMS',fromTabId:target.id,tabId:part.id,items:oitems},actor,now,id+'-items');
    check(lines(s,target.id).some(function(x){return x.status!=='void';}),'Everything is ticked: settle the whole bill.');
    var settledPart=execute(s,Object.assign({},c,{tabId:part.id,only:undefined}),actor,now,id+'-pay');
@@ -2731,6 +2882,9 @@ var ArenaLifecycle=(function(){
     check(c.settlement==='pay'&&typeof c.pending==='object','Invalid pending choice.');
     var owner=String(c.pending.name||'').trim(),mobile=String(c.pending.phone||'').trim();check(owner.length<=80&&mobile.length<=30,'Keep the name and mobile short.');
     if(owner)target.customer=owner;if(mobile)target.phone=mobile;
+    // No name typed (owner, 16 November, as on Manipal: "if i do not type name, its okay, just create a random name CUSTOMER A,B,C"):
+    // the next name not on any bill still pending, so each can be found on its own, never all under Walk-in.
+    if(!owner&&(!String(target.customer||'').trim()||/^walk-?in$/i.test(String(target.customer).trim())))target.customer=nextPendingName_(s);
    }
    var accountId=c.accountId;if(c.settlement==='credit'&&c.newAccount){accountId=ArenaCredits.execute(s,{type:'CREATE_CREDIT_ACCOUNT',name:c.newAccount.name,phone:c.newAccount.phone||'',openingPaise:0},actor,now,id+'-account').accountId;}
    var result=ArenaApp.execute(s,{type:'FINALIZE_TAB',tabId:target.id,discountType:c.discountType,discountValue:c.discountValue},actor,now,id+'-bill');
@@ -2760,6 +2914,21 @@ var ArenaLifecycle=(function(){
    return result;
   }
   throw new Error('Unsupported operation.');
+ }
+ // The next name for a pending bill left without one: Customer A, B … Z, then AA, AB …, never a name on a bill still pending.
+ function nextPendingName_(s){
+  var used={},voided={},onCredit={},details={},tabs={};
+  (s.Corrections||[]).forEach(function(c){if(c.kind==='bill_void')voided[c.targetId]=true;});
+  (s.CreditTransfers||[]).forEach(function(t){onCredit[t.billId]=true;});
+  (s.BillDetails||[]).forEach(function(d){details[d.id]=d;});
+  (s.Tabs||[]).forEach(function(t){tabs[t.id]=t;});
+  (s.Bills||[]).forEach(function(bl){
+   if(!(bl.totalPaise>bl.paidPaise)||voided[bl.id]||onCredit[bl.id]||ArenaCore.carryOf(s,bl.id))return;
+   var d=details[bl.id],t=d?tabs[d.tabId]:null;
+   [d&&d.customer,t&&t.customer].forEach(function(n){if(n)used[String(n).trim().toLowerCase()]=true;});
+  });
+  for(var i=0;i<702;i++){var k=i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+i%26);if(!used['customer '+k.toLowerCase()])return 'Customer '+k;}
+  return 'Customer';
  }
  return {handles:function(t){return types.indexOf(t)>=0;},execute:execute,party:party,isTable:table,gameOrders:gameOrders};
 })();
@@ -2810,7 +2979,7 @@ var ArenaReservations=(function(){
   }
   var r=find(s,c.id);
   if(c.type==='RESERVATION_STATUS'){
-   check(c.revision===r.revision,'This reservation changed on another device. Refresh before updating.');check(pending(r),'This reservation has already started or closed.');check(['waiting','cancelled','needs_confirmation','confirmed','no_show'].indexOf(c.status)>=0,'Invalid reservation status.');r.status=c.status;r.revision++;return {reservationId:r.id,message:'Reservation marked '+c.status.replace('_',' ')+'.'};
+   check(c.revision===r.revision,'This reservation changed on another device. Refresh before updating.');check(pending(r),'This reservation has already started or closed.');check(['waiting','cancelled','needs_confirmation','confirmed','no_show'].indexOf(c.status)>=0,'Invalid reservation status.');if(['cancelled','no_show'].indexOf(c.status)>=0&&typeof ArenaTurf!=='undefined')ArenaTurf.setPendingFor(s,r.id,[]);r.status=c.status;r.revision++;return {reservationId:r.id,message:'Reservation marked '+c.status.replace('_',' ')+'.'};
   }
   check(!r.tabId&&pending(r),'This reservation has already been checked in or closed.');check(c.revision===r.revision,'This reservation changed on another device. Refresh before check-in.');
   var unit=s.Equipment.find(function(u){return u.id===c.unitId;});check(unit&&unit.category===r.category,'Invalid check-in unit.');
@@ -2818,7 +2987,9 @@ var ArenaReservations=(function(){
   assertRisk(s,c,unit.id,now,r.id);
   // One atomic operation creates the tab/segments and claims this reservation.
   var result=ArenaApp.execute(s,{type:'OPEN_TAB',unitId:unit.id,customer:r.customer,phone:r.phone,controllers:c.controllers,startMs:c.startMs,confirmTime:c.confirmTime,acknowledge:c.acknowledge,checkedReservationId:r.id,joinExisting:c.joinExisting===true,advance:c.advance,remindAtMs:c.remindAtMs},actor,now,id);
-  r.tabId=result.tabId;r.status='in_progress';r.revision++;r.acknowledgedAt=c.acknowledge===true?now:r.acknowledgedAt;return {reservationId:r.id,tabId:r.tabId,message:'Checked in. Session started for '+r.customer+'.'};
+  // A pending bill moved to this reservation comes onto the new bill (owner, 15 November).
+  var carried=typeof ArenaTurf!=='undefined'?ArenaTurf.carryPendingFor(s,r.id,result.tabId,now,id):0;
+  r.tabId=result.tabId;r.status='in_progress';r.revision++;r.acknowledgedAt=c.acknowledge===true?now:r.acknowledgedAt;return {reservationId:r.id,tabId:r.tabId,carriedPaise:carried,message:'Checked in. Session started for '+r.customer+'.'+(carried?' Pending ₹'+(carried/100)+' added to the bill.':'')};
  }
  function complete(s){(s.Reservations||[]).forEach(function(r){if(r.status==='in_progress'&&r.tabId&&!s.Segments.some(function(g){return g.groupId===r.tabId&&g.status==='active';}))r.status='completed';});}
  return {handles:function(type){return ['RESERVE','EDIT_RESERVATION','RESERVATION_STATUS','CHECK_IN','RESERVATION_SETTINGS'].indexOf(type)>=0;},execute:execute,warnings:warnings,assertRisk:assertRisk,complete:complete,config:config};
@@ -2842,6 +3013,19 @@ var ArenaSales=(function(){
  function setStock(s,pid,v){s.Settings=s.Settings||[];var r=s.Settings.find(function(x){return x.id==='stock-'+pid;}),keep={count:v&&v.count,since:v&&v.since};var value=v?JSON.stringify(keep):'';if(r)r.value=value;else s.Settings.push({id:'stock-'+pid,value:value});}
  function stockLine(s,id,pid,move,before,after,why,actor,now){s.Corrections=s.Corrections||[];s.Corrections.push({id:id,kind:'stock',targetId:pid,field:move,oldValue:before===null?'':String(before),newValue:after===null?'':String(after),reason:why||'',actor:actor&&actor.username||'',createdMs:now});}
  // Sold: taken from the count; beyond it, the rest is recorded as found first.
+ // A game added from the menu's Game station (owner, 16 November, as on Manipal: "during add items when i click ps5, ask for
+ // controllers, and half or 1 hour … put these money counts to their respective thing"; "no bowling but rc gaming and pc"):
+ // game:<PC|PS5|RC|Pool|Snooker>:<30|60>[:<controllers>], at the rates on Settings, its category the game's, so Reports count it as that game.
+ var GAMES=['PC','PS5','RC','Pool','Snooker'],GAME_NAMES={PC:'PC',PS5:'PS5',RC:'RC Gaming',Pool:'Pool',Snooker:'Snooker'};
+ function gameLine(s,id){
+  var part=String(id).split(':'),kind=part[1],minutes=Number(part[2]),count=Number(part[3]||1);
+  check(GAMES.indexOf(kind)>=0,'Choose a game.');
+  check(minutes===30||minutes===60,'Choose half an hour or an hour.');
+  var n=kind==='PS5'?count:1;
+  check(Number.isInteger(n)&&n>=1&&n<=4,'Choose 1 to 4 controllers.');
+  var prices=ArenaCore.pricesFor(s,kind),each=ArenaCore.bill(0,minutes*60000,prices).totalPaise;
+  return {category:kind,label:GAME_NAMES[kind]+' · '+(minutes===60?'1 hour':'Half an hour')+(kind==='PS5'?' · '+n+(n===1?' controller':' controllers'):''),price:each*n,minutes:minutes,rates:JSON.stringify(prices)};
+ }
  function takeStock(s,pid,q,actor,now,id){var st=stockOf(s,pid);if(!st||q<=0)return;if(st.count<q){stockLine(s,id+'-found',pid,'found',st.count,q,'',actor,now);st.count=q;}st.count-=q;setStock(s,pid,st);}
  // Off a bill again (− or the bin): back on the shelf, unless it went on the bill before the count was kept.
  function returnStock(s,pid,q,addedMs){var st=stockOf(s,pid);if(!st||q<=0||Number(addedMs)<Number(st.since))return;st.count+=q;setStock(s,pid,st);}
@@ -2923,8 +3107,10 @@ var ArenaSales=(function(){
    var first=c.items?execute(s,{type:'ADD_ITEMS',tabId:id,items:c.items,purchaser:t.customer},actor,now,id+'-items'):null;
    return {tabId:id,orderIds:first?first.orderIds:[],message:'Quick Sale opened.'};}
   if(c.type==='ADD_ORDER'){
-   var target=tab(s,c.tabId),q=quantity(c.quantity),product=c.productId?row(s.Products,c.productId):null,price,label,category,rates='',duration='';
-   if(product){check(product.available==='yes','This product is unavailable.');price=product.pricePaise;label=product.name;category=product.category;}
+   var game=typeof c.productId==='string'&&c.productId.indexOf('game:')===0?gameLine(s,c.productId):null;
+   var target=tab(s,c.tabId),q=quantity(c.quantity),product=c.productId&&!game?row(s.Products,c.productId):null,price,label,category,rates='',duration='';
+   if(game){price=game.price;label=game.label;category=game.category;duration=game.minutes;rates=game.rates;}
+   else if(product){check(product.available==='yes','This product is unavailable.');price=product.pricePaise;label=product.name;category=product.category;}
    else{
     check(target.kind==='quick_sale','This manual charge belongs in Quick Sale.');category=c.category;
     check(['PC','PS5','RC','Pool','Snooker','Manual'].indexOf(category)>=0,'Invalid gaming category.');label=text(c.label,100);
@@ -3817,10 +4003,14 @@ var ArenaReports = (function () {
         } else if (GAMING.indexOf(o.category) >= 0) { m.gaming += o.totalPaise; add(m.gamingBy, o.category, o.totalPaise); add(m.gamingOn, on(o.category, o.createdMs), o.totalPaise); }
         else { m.products += o.totalPaise; add(m.productBy, o.category, o.totalPaise); add(m.productOn, on(o.category, o.createdMs), o.totalPaise); }
       });
-      var subtotal = m.gaming + m.products + m.turf - m.turfOff, discount = detail.discountPaise || 0;
-      m.gamingShare = subtotal > 0 ? Math.round(discount * m.gaming / subtotal) : 0;
-      m.turfShare = subtotal > 0 ? (m.products > 0 ? Math.round(discount * (m.turf - m.turfOff) / subtotal) : discount - m.gamingShare) : 0;
-      m.productShare = discount - m.gamingShare - m.turfShare;
+      // A bill's discount comes off its games and its turf, never its snacks and drinks, which are always at their full price (owner,
+      // 16 November, as on Manipal: "that is snacks … obviously full right?"); only a discount larger than the games and the turf
+      // reaches them.
+      var discount = detail.discountPaise || 0, turfNet = m.turf - m.turfOff, playOff = Math.min(discount, m.gaming + turfNet);
+      var byRatio = m.gaming + turfNet > 0 ? playOff * m.gaming / (m.gaming + turfNet) : 0, step = playOff % 100 === 0 ? 100 : 1;
+      m.gamingShare = Math.max(playOff - turfNet, Math.min(m.gaming, Math.round(byRatio / step) * step));
+      m.turfShare = playOff - m.gamingShare;
+      m.productShare = discount - playOff;
       // What the bill is made of, after its discount, each part with its day, for sharing out the money paid for it; a balance
       // brought from an earlier bill is pending collected.
       m.parts = {};
@@ -3949,7 +4139,8 @@ var ArenaReports = (function () {
           if (back) billPayments[billOfPayment[c.targetId]].push({ p: back, undoes: c.targetId });
         });
       }
-      return (billPayments[billId] || []).slice().sort(function (a, b) { return a.p.createdMs - b.p.createdMs || (a.p.id < b.p.id ? -1 : a.p.id > b.p.id ? 1 : 0); });
+      // Cash + UPI made together: the UPI fills first, so the snacks (filled last) fall on the cash (owner, 16 November, as on Manipal: cash first).
+      return (billPayments[billId] || []).slice().sort(function (a, b) { return a.p.createdMs - b.p.createdMs || Number(a.p.method === 'cash') - Number(b.p.method === 'cash') || (a.p.id < b.p.id ? -1 : a.p.id > b.p.id ? 1 : 0); });
     };
     var fillOf = function (billId, parts) {
       if (fills[billId]) return fills[billId];
@@ -4103,7 +4294,7 @@ var ArenaReports = (function () {
    their own items, settled through the usual checkout. Every amount is an ordinary order on an ordinary tab. */
 var ArenaTurf = (function () {
   'use strict';
-  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ACADEMY_ADOPT', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
+  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ACADEMY_ADOPT', 'PENDING_MOVE', 'PENDING_ADD_ITEMS', 'PENDING_PART_PAY', 'PENDING_PART_CREDIT', 'CARRY_SPLIT', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
   // Items bought for Team A, Team B or everyone are kept once, as bought, and each player's part is one line on their bill.
   var SHARED = 'Shared items', GROUPS = ['A', 'B', 'all'];
   var COURTS = ['6-a-side', '5-a-side', '1v1'], SPORTS = ['Football', 'Cricket'], TEAMS = ['A', 'B'], OPEN_HOUR = 6, CLOSE_HOUR = 22, DAY_MS = 86400000;
@@ -4323,6 +4514,89 @@ var ArenaTurf = (function () {
     if (!t || t.status === 'open') return null;
     var detail = (state.BillDetails || []).filter(function (d) { return d.tabId === t.id && !ArenaCore.isVoidedBill(state, d.id); }).pop(), bill = detail ? (state.Bills || []).find(function (x) { return x.id === detail.id; }) : null;
     return bill && bill.totalPaise > bill.paidPaise && !ArenaCore.carryOf(state, bill.id) && !(state.CreditTransfers || []).some(function (c) { return c.billId === bill.id; }) ? bill : null;
+  }
+  // A bill still pending: unpaid, not voided, not carried on already, not on a credit account.
+  function pendingBill(state, billId) {
+    var bl = (state.Bills || []).find(function (b) { return b.id === billId; });
+    check(!!bl && bl.totalPaise > bl.paidPaise, 'This bill is already paid.');
+    check(!ArenaCore.isVoidedBill(state, billId), 'This bill was voided.');
+    check(!ArenaCore.carryOf(state, billId), 'This bill was already moved.');
+    check(!(state.CreditTransfers || []).some(function (t) { return t.billId === billId; }), 'This bill is on a credit account.');
+    return bl;
+  }
+  // Part of a pending bill split off as a bill of its own (owner, 15 November, as on Manipal: "pending bills how can i pay move or do
+  // anything for just one like just snooker"): the ticked systems, items and balances go to a new bill under the same name and day;
+  // the rest stays on the bill, its total lowered by the part. Not for a bill with a discount or money already paid on it.
+  // counts: { orderId: how many } takes only some of an item (owner, 16 November: "what if that lays only 1 he wants to pay").
+  function splitPending(state, billId, segmentIds, orderIds, now, id, counts) {
+    var bl = pendingBill(state, billId), d = (state.BillDetails || []).find(function (x) { return x.id === bl.id; });
+    check(!!d, 'This bill was not found.');
+    check(!(Number(bl.paidPaise) > 0) && !(Number(d.discountPaise) > 0), 'A bill with a discount or money paid on it is collected or moved whole.');
+    var from = row(state.Tabs, d.tabId), segIds = Array.isArray(segmentIds) ? segmentIds : [], ordIds = Array.isArray(orderIds) ? orderIds : [];
+    var segs = (state.Segments || []).filter(function (g) { return g.tabId === from.id && g.status !== 'void' && segIds.indexOf(g.id) >= 0; });
+    var some = counts && typeof counts === 'object' ? counts : {};
+    var ords = (state.Orders || []).filter(function (o) { return o.tabId === from.id && o.status === 'active' && (ordIds.indexOf(o.id) >= 0 || (some[o.id] != null && Number(some[o.id]) === Number(o.quantity))); });
+    var partly = (state.Orders || []).filter(function (o) { return o.tabId === from.id && o.status === 'active' && ordIds.indexOf(o.id) < 0 && some[o.id] != null && Number(some[o.id]) !== Number(o.quantity); });
+    partly.forEach(function (o) { var n = Number(some[o.id]); check(Number.isInteger(n) && n > 0 && n < Number(o.quantity), 'Choose how many of ' + o.label + '.'); });
+    check(segs.length + ords.length + partly.length > 0, 'Choose the part.');
+    var part = segs.concat(ords).reduce(function (n, x) { return n + Number(x.totalPaise || 0); }, 0) + partly.reduce(function (n, o) { return n + Number(o.unitPricePaise) * Number(some[o.id]); }, 0);
+    check(part > 0 && part < Number(bl.totalPaise), 'Choose part of the bill, not all of it.');
+    var tabId2 = id + '-part', billId2 = id + '-part-bill', minutes = segs.reduce(function (n, g) { return n + Number(g.billableMinutes || 0); }, 0);
+    state.Tabs.push({ id: tabId2, customer: from.customer, phone: from.phone, status: from.status, createdMs: from.createdMs, kind: from.kind });
+    segs.forEach(function (g) { g.tabId = tabId2; });
+    ords.forEach(function (o) { o.tabId = tabId2; o.revision = Number(o.revision || 1) + 1; });
+    partly.forEach(function (o, k) {
+      var n = Number(some[o.id]);
+      state.Orders.push(Object.assign({}, o, { id: id + '-q-' + k, tabId: tabId2, quantity: n, totalPaise: Number(o.unitPricePaise) * n, revision: 1 }));
+      o.quantity = Number(o.quantity) - n;
+      o.totalPaise = Number(o.unitPricePaise) * o.quantity;
+      o.revision = Number(o.revision || 1) + 1;
+    });
+    (state.Carries || []).forEach(function (c) { if (ords.some(function (o) { return o.id === c.orderId; })) c.tabId = tabId2; });
+    state.Bills.push({ id: billId2, sessionId: tabId2, totalPaise: part, paidPaise: 0, billableMinutes: minutes });
+    state.BillDetails.push({ id: billId2, tabId: tabId2, customer: d.customer, subtotalPaise: part, discountPaise: 0, createdMs: d.createdMs });
+    ArenaCore.nextNumber(state, 'bill', billId2, now);
+    bl.totalPaise = Number(bl.totalPaise) - part;
+    bl.billableMinutes = Math.max(0, Number(bl.billableMinutes || 0) - minutes);
+    d.subtotalPaise = Number(d.subtotalPaise || 0) - part;
+    return billId2;
+  }
+  // A pending bill's balance onto another bill, named by where it was played ("Pool 2 · Balance of bill CA-0012").
+  function carryPending(state, bl, into, now, lineId, carryId) {
+    var d = (state.BillDetails || []).find(function (x) { return x.id === bl.id; }) || {}, units = [];
+    (state.Segments || []).forEach(function (g) { if (g.tabId === d.tabId && g.status !== 'void') { var u = (state.Equipment || []).find(function (e) { return e.id === g.unitId; }); if (u && units.indexOf(u.name) < 0) units.push(u.name); } });
+    carryBalance(state, bl, into, d.customer || into.customer, units.length ? units.join(', ') + ' · ' : '', dateKeyOf(d.createdMs || now), '', now, lineId, carryId);
+  }
+  // The pending bills held for a reservation, to come onto its bill at check-in (Settings pendingFor-<reservation>).
+  function pendingFor(state, reservationId) {
+    var saved = (state.Settings || []).find(function (r) { return r.id === 'pendingFor-' + reservationId; });
+    try { return saved && saved.value ? JSON.parse(saved.value).billIds || [] : []; } catch (e) { return []; }
+  }
+  function setPendingFor(state, reservationId, billIds) {
+    state.Settings = state.Settings || [];
+    var saved = state.Settings.find(function (r) { return r.id === 'pendingFor-' + reservationId; }), value = billIds.length ? JSON.stringify({ billIds: billIds }) : '';
+    if (saved) saved.value = value; else if (value) state.Settings.push({ id: 'pendingFor-' + reservationId, value: value });
+  }
+  // Bills moved elsewhere leave any reservation they were held for (but the one named).
+  function unlinkPending(state, billIds, keepFor) {
+    (state.Settings || []).forEach(function (r) {
+      if (String(r.id).indexOf('pendingFor-') !== 0 || !r.value || r.id === 'pendingFor-' + keepFor) return;
+      var left = pendingFor(state, String(r.id).slice(11)).filter(function (b) { return billIds.indexOf(b) < 0; });
+      r.value = left.length ? JSON.stringify({ billIds: left }) : '';
+    });
+  }
+  // At check-in: the reservation's pending bills onto its new bill, those still pending; the hold let go.
+  function carryPendingFor(state, reservationId, tabId, now, id) {
+    var into = tabOf(state, tabId), held = pendingFor(state, reservationId), moved = 0;
+    if (!into || !held.length) return 0;
+    held.forEach(function (bid, i) {
+      var bl = (state.Bills || []).find(function (b) { return b.id === bid; });
+      if (!bl || !(bl.totalPaise > bl.paidPaise) || ArenaCore.isVoidedBill(state, bid) || ArenaCore.carryOf(state, bid) || (state.CreditTransfers || []).some(function (t) { return t.billId === bid; })) return;
+      carryPending(state, bl, into, now, id + '-pending-line-' + i, id + '-pending-carry-' + i);
+      moved += bl.totalPaise - bl.paidPaise;
+    });
+    setPendingFor(state, reservationId, []);
+    return moved;
   }
   // That balance as one line on another bill, and a record that it went there.
   function carryBalance(state, bill, into, purchaser, prefix, dateKey, bookingId, now, lineId, carryId) {
@@ -4716,6 +4990,96 @@ var ArenaTurf = (function () {
       if (their && their.status === 'open') their.customer = (player.name + ' · Turf').slice(0, 80);
       turfLines(state, owner.id).filter(function (o) { return meta(o).playerId === player.id; }).forEach(function (o) { o.purchaser = player.name; });
       return { bookingId: owner.id, playerId: player.id, message: 'Player updated.' };
+    }
+    if (cmd.type === 'PENDING_ADD_ITEMS') {
+      // Items added to a pending bill (owner, 15 November, as on Manipal: "that pending bills, just keep add item … 100 was there, i
+      // will add items of 20, then it should show 120, when i open let it show the breakdown"): onto the same bill, its total raised
+      // by what was added, the bill and its number kept.
+      check(Array.isArray(cmd.items) && cmd.items.length >= 1, 'Choose what to add.');
+      var owes = pendingBill(state, cmd.billId);
+      var owesDetail = (state.BillDetails || []).find(function (d) { return d.id === owes.id; });
+      check(!!owesDetail, 'This bill was not found.');
+      var owesTab = row(state.Tabs, owesDetail.tabId), wasStatus = owesTab.status;
+      var onTab = function () { return (state.Orders || []).filter(function (o) { return o.tabId === owesTab.id && o.status === 'active'; }).reduce(function (n, o) { return n + Number(o.totalPaise || 0); }, 0); };
+      var before = onTab();
+      owesTab.status = 'open';
+      try { ArenaSales.execute(state, { type: 'ADD_ITEMS', tabId: owesTab.id, items: cmd.items, purchaser: owesTab.customer }, actor, now, id + '-items'); }
+      finally { owesTab.status = wasStatus; }
+      var added = onTab() - before;
+      check(added > 0, 'Nothing was added.');
+      owes.totalPaise = Number(owes.totalPaise) + added;
+      owesDetail.subtotalPaise = Number(owesDetail.subtotalPaise || 0) + added;
+      return { billId: owes.id, addedPaise: added, message: 'Added ₹' + (added / 100) + '. ' + (owesDetail.customer || owesTab.customer || 'Pending') + ' owes ₹' + ((owes.totalPaise - owes.paidPaise) / 100) + '.' };
+    }
+    if (cmd.type === 'CARRY_SPLIT') {
+      // Part of a balance carried onto a bill still open (owner, 16 November, as on Manipal: "full checkbox next to snooker if he is
+      // paying everything. if he is paying for some of it … i will untick which he is not paying"): its own bill split into the
+      // pieces ticked and the rest, each carried onto the same bill as a line of its own, so the ticked one is paid now and the rest
+      // stays on the bill with whatever else is not paid now.
+      var splitLine = row(state.Orders, cmd.orderId), splitCarry = (state.Carries || []).find(function (c) { return c.orderId === splitLine.id; });
+      check(splitLine.category === 'Carried' && splitLine.status === 'active' && !!splitCarry, 'This balance is no longer on the bill.');
+      var splitHost = tabOf(state, splitLine.tabId);
+      check(!!splitHost && splitHost.status === 'open', 'This bill is already closed.');
+      splitLine.status = 'void';
+      splitLine.revision = Number(splitLine.revision || 1) + 1;
+      var tickedBill = splitPending(state, splitCarry.billId, cmd.segmentIds, cmd.orderIds, now, id + '-split', cmd.counts);
+      carryPending(state, row(state.Bills, tickedBill), splitHost, now, id + '-ticked', id + '-ticked-carry');
+      carryPending(state, row(state.Bills, splitCarry.billId), splitHost, now, id + '-rest', id + '-rest-carry');
+      return { tickedOrderId: id + '-ticked', restOrderId: id + '-rest', message: 'Split.' };
+    }
+    if (cmd.type === 'PENDING_PART_CREDIT') {
+      // Part of a pending bill moved to a credit account; the rest stays pending.
+      var creditPart = splitPending(state, cmd.billId, cmd.segmentIds, cmd.orderIds, now, id + '-split', cmd.counts);
+      var movedCredit = ArenaCore.engineFor('TRANSFER_CREDIT_INLINE').execute(state, { type: 'TRANSFER_CREDIT_INLINE', billId: creditPart, accountId: cmd.accountId, newAccount: cmd.newAccount }, actor, now, id + '-credit');
+      return Object.assign({}, movedCredit, { billId: creditPart, message: 'Moved to credit. The rest stays pending.' });
+    }
+    if (cmd.type === 'PENDING_PART_PAY') {
+      // Part of a pending bill paid now; the rest stays pending.
+      var partBill = splitPending(state, cmd.billId, cmd.segmentIds, cmd.orderIds, now, id + '-split', cmd.counts);
+      var partRow = (state.Bills || []).find(function (bl) { return bl.id === partBill; });
+      var partPaid = ArenaCore.engineFor('PAY').execute(state, { type: 'PAY', billId: partBill, amountPaise: partRow.totalPaise, method: cmd.method || 'cash' }, actor, now, id + '-pay');
+      var restRow = (state.Bills || []).find(function (bl) { return bl.id === cmd.billId; });
+      return { billId: partBill, receiptNumber: partPaid.receiptNumber, method: cmd.method || 'cash', amountPaise: partRow.totalPaise, message: 'Paid ₹' + (partRow.totalPaise / 100) + '. ₹' + ((restRow.totalPaise - restRow.paidPaise) / 100) + ' still pending.' };
+    }
+    if (cmd.type === 'PENDING_MOVE') {
+      // A pending bill moved on (owner, 15 November, as on Manipal: "a person played snooker and i put it to pending, now once
+      // bowling is free, he will play there, so i need an option to move the pending bill … to systems or turf … also to the
+      // reservation list"): onto a bill running on a system, a free system they start on now, a turf booking's bill, or a
+      // reservation, whose check-in brings it onto the new bill. Each bill's balance goes as one line, at its own amount.
+      // Part of a pending bill moved: split off first, in the same save.
+      var moveIds = cmd.split && typeof cmd.split === 'object' ? [splitPending(state, cmd.split.billId, cmd.split.segmentIds, cmd.split.orderIds, now, id + '-split', cmd.split.counts)] : cmd.billIds;
+      check(Array.isArray(moveIds) && moveIds.length >= 1 && moveIds.length <= 20, 'Choose the pending bills.');
+      var owing = moveIds.map(function (bid) { return pendingBill(state, bid); });
+      var firstDetail = (state.BillDetails || []).find(function (d) { return d.id === owing[0].id; }) || {}, firstTab = tabOf(state, firstDetail.tabId) || {};
+      var payer = firstDetail.customer || firstTab.customer || 'Walk-in', payerPhone = firstTab.phone || '';
+      var owedAll = owing.reduce(function (n, bl) { return n + bl.totalPaise - bl.paidPaise; }, 0);
+      if (cmd.reservationId) {
+        var res = (state.Reservations || []).find(function (r) { return r.id === cmd.reservationId; });
+        check(!!res && ['upcoming', 'confirmed', 'waiting', 'needs_confirmation'].indexOf(res.status) >= 0, 'This reservation has already started or closed.');
+        var held2 = pendingFor(state, res.id);
+        owing.forEach(function (bl) { if (held2.indexOf(bl.id) < 0) held2.push(bl.id); });
+        unlinkPending(state, owing.map(function (bl) { return bl.id; }), res.id);
+        setPendingFor(state, res.id, held2);
+        return { reservationId: res.id, message: '₹' + (owedAll / 100) + ' pending comes onto ' + res.customer + '’s bill at check-in.' };
+      }
+      var into;
+      if (cmd.unitId) {
+        var started = ArenaApp.execute(state, { type: 'OPEN_TAB', unitId: cmd.unitId, customer: payer, phone: payerPhone, controllers: cmd.controllers || 1, startMs: cmd.startMs, confirmTime: cmd.confirmTime, acknowledge: cmd.acknowledge }, actor, now, id + '-open');
+        into = tabOf(state, started.tabId);
+      } else if (cmd.bookingId) {
+        var onto = find(state, cmd.bookingId);
+        check(onto.split !== 'yes', 'Move it to a player’s card on that booking.');
+        check(!accountOf(state, onto.id), 'That slot goes to the academy’s account.');
+        into = ensureMain(state, onto, now, id);
+        sync(state, onto, now, id);
+      } else {
+        into = tabOf(state, cmd.tabId);
+        check(!!into && (state.Segments || []).some(function (g) { return g.tabId === into.id && g.status === 'active'; }), 'Choose a bill on a system that is in use.');
+      }
+      check(!!into && into.status === 'open', 'That bill is closed. Refresh and choose again.');
+      owing.forEach(function (bl, i) { carryPending(state, bl, into, now, id + '-line-' + i, id + '-carry-' + i); });
+      unlinkPending(state, owing.map(function (bl) { return bl.id; }), '');
+      return { tabId: into.id, message: '₹' + (owedAll / 100) + ' pending moved to ' + (into.customer || payer) + '’s bill.' };
     }
     if (cmd.type === 'TURF_MOVE') {
       // What is owed goes onto a bill already running on a system, chosen by name: one player's, or a one-payer booking's
@@ -5293,7 +5657,7 @@ var ArenaTurf = (function () {
     return { accountId: mark.accountId, name: club ? club.name : 'the academy' };
   }
   return {
-    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, coachingTab: coachingTab, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
+    handles: function (type) { return types.indexOf(type) >= 0; }, execute: execute, live: live, pendingFor: pendingFor, setPendingFor: setPendingFor, carryPendingFor: carryPendingFor, coachingTab: coachingTab, livePlayers: livePlayers, settlement: settlement, range: range, day: day, importRows: importRows, exportRows: exportRows,
     clash: clash, linked: linked, holdOf: holdOf, maybeOf: maybeOf, dateKeyOf: dateKeyOf, feeOf: feeOf, rateFor: rateFor, locked: locked, meta: meta, COURTS: COURTS, SPORTS: SPORTS, OPEN_HOUR: OPEN_HOUR, CLOSE_HOUR: CLOSE_HOUR
   };
 })();
@@ -7920,6 +8284,13 @@ function timerWords(g, pauses, quote) {
     charged: quote ? 'Charged so far ' + inWords(quote.billableMinutes) : running ? '' : 'Charged ' + inWords(g.billableMinutes)
   };
 }
+// A timer in one short line, not a sentence (owner, 16 November, as on Manipal: "because its written like a sentence, this box
+// looks big"): "6:36–7:07 PM · 30 minutes", any pause after it.
+function timerShort(g, said) {
+  const when = g.status === 'active' ? 'Since ' + timeOn(g.startMs) : period(g.startMs, g.endMs);
+  const charged = said.charged.replace(/^Charged so far (.*)$/, '$1 so far').replace(/^Charged /, '');
+  return [when, charged, said.paused.toLowerCase()].filter(Boolean).join(' · ');
+}
 function istInput(ms) { return new Date(ms + 19800000).toISOString().slice(0, 16); }
 function stamp(value) { return value ? Date.parse(value + ':00+05:30') : null; }
 
@@ -7957,6 +8328,7 @@ const ICONS = {
   users: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2', 'c:9,7,4', 'M22 21v-2a4 4 0 0 0-3-3.87', 'M16 3.13a4 4 0 0 1 0 7.75'],
   // Session controls
   clock: ['c:12,12,10', 'M12 6v6l4 2'],
+  pending: ['c:12,12,10', 'M12 6v6l4 2'],
   pause: ['r:14,4,4,16,1', 'r:6,4,4,16,1'],
   play: ['M6 3l14 9-14 9V3z'],
   stop: ['r:5,5,14,14,2.5'],
@@ -8065,7 +8437,16 @@ function segmented(options, initial, onchange) {
 
 // The kinds of product on the menu, each with its icon. Reports show what each kind earned.
 const PRODUCT_KINDS = [['Snacks', 'Snacks', 'snack'], ['Beverages', 'Beverages', 'drink'], ['Ice cream', 'Ice cream', 'icecream']];
-const productIcon = category => (PRODUCT_KINDS.find(k => k[0] === category) || PRODUCT_KINDS[0])[2];
+const productIcon = category => (GAME_KINDS.includes(category) ? category : (PRODUCT_KINDS.find(k => k[0] === category) || PRODUCT_KINDS[0])[2]);
+// The Game station's games on a bill (owner, 16 November, as on Manipal; no bowling here, RC Gaming and PC instead), counted as those
+// games: half an hour or an hour at the rates on Settings, a PS5 by its controllers (gameLine in Sales.gs).
+const GAME_KINDS = ['PC', 'PS5', 'RC', 'Pool', 'Snooker'];
+const GAME_NAMES = { PC: 'PC', PS5: 'PS5', RC: 'RC Gaming', Pool: 'Pool', Snooker: 'Snooker' };
+function gamePrice(kind, minutes, count) {
+  return ArenaCore.bill(0, minutes * 60000, ArenaCore.pricesFor(state, kind)).totalPaise * (kind === 'PS5' ? count || 1 : 1);
+}
+const gameName = id => { const [, kind, minutes, count] = String(id).split(':'), n = Number(count) || 1; return GAME_NAMES[kind] + ' · ' + (Number(minutes) === 60 ? '1 hour' : 'Half an hour') + (kind === 'PS5' ? ' · ' + n + (n === 1 ? ' controller' : ' controllers') : ''); };
+const gameCost = id => { const [, kind, minutes, count] = String(id).split(':'); return gamePrice(kind, Number(minutes), Number(count) || 1); };
 
 // An optional comment on a move (to credit, to someone's bill, to a system or the turf): a tick opens a box to write in,
 // with the cursor in it. The same element is kept through redraws, so what was written stays.
@@ -8161,14 +8542,16 @@ function payChoice(store, onchange = () => {}, options = {}) {
 }
 
 // "Starts now · Change time": the time field appears only when it is needed.
-function timeChoice(label, initialMs) {
+// held: the time stays at initialMs ("Ends 7:05 PM") unless changed, and that moment is its value.
+function timeChoice(label, initialMs, held) {
   let custom = false;
   const input = h('input', { type: 'datetime-local', value: istInput(initialMs || nowMs()), 'aria-label': label + ' time' });
-  const summary = h('span', { text: label + ' now' });
+  const still = held && initialMs ? label + ' ' + clock(initialMs) : label + ' now';
+  const summary = h('span', { text: still });
   const lead = h('span', 'time-lead', icon('clock'), summary);
-  const toggle = btn('Change time', () => { custom = !custom; input.hidden = !custom; toggle.textContent = custom ? 'Use now' : 'Change time'; summary.textContent = custom ? label + ' at' : label + ' now'; if (custom) input.focus(); }, 'quiet');
+  const toggle = btn('Change time', () => { custom = !custom; input.hidden = !custom; toggle.textContent = custom ? 'Use now' : 'Change time'; summary.textContent = custom ? label + ' at' : still; if (custom) input.focus(); }, 'quiet');
   input.hidden = true;
-  return { node: h('div', null, h('div', 'time-row', lead, toggle), h('div', { class: 'field' }, input)), value: () => (custom ? stamp(input.value) : null), input };
+  return { node: h('div', null, h('div', 'time-row', lead, toggle), h('div', { class: 'field' }, input)), value: () => (custom ? stamp(input.value) : held && initialMs ? initialMs : null), input };
 }
 
 // A time as the owner's picture of 5 November: the hour and the minutes each in a box of their own ("10" : "30"; owner,
@@ -9229,7 +9612,10 @@ function productPicker(onchange) {
   const products = state.Products.filter(p => p.available === 'yes'), cart = new Map();
   const grid = h('div', 'tiles');
   const first = PRODUCT_KINDS.find(k => products.some(p => p.category === k[0])) || PRODUCT_KINDS[0];
-  const category = segmented(PRODUCT_KINDS, first[0], () => draw());
+  // The Game station after Ice cream (owner, 16 November, as on Manipal): PS5, Table, RC Gaming and PC, asked quickly, added at the rates.
+  const category = segmented([...PRODUCT_KINDS, ['Game', 'Game station', 'PS5']], first[0], () => draw());
+  const isGame = id => String(id).indexOf('game:') === 0, nameOf = id => (isGame(id) ? gameName(id) : (products.find(p => p.id === id) || {}).name), priceOf = id => (isGame(id) ? gameCost(id) : (products.find(p => p.id === id) || {}).pricePaise || 0);
+  let pads = 0, table = '';
   function change(id, quantity) {
     if (quantity <= 0) cart.delete(id); else cart.set(id, Math.min(999, quantity));
     draw();
@@ -9237,6 +9623,7 @@ function productPicker(onchange) {
   }
   function draw() {
     grid.replaceChildren();
+    if (category.value() === 'Game') { drawGames(); return; }
     const list = products.filter(p => p.category === category.value());
     if (!list.length) grid.append(h('p', { class: 'muted', text: 'Nothing in this category.' }));
     for (const p of list) {
@@ -9251,22 +9638,117 @@ function productPicker(onchange) {
       h('span', 'tile-head', glyph(productIcon(p.category), quantity ? 'jade' : ''), h('span', 'tile-text', h('span', { class: 'tile-name', text: p.name }), h('span', { class: 'tile-price', text: money(p.pricePaise) }), stockNote(p, quantity))), stepper));
     }
   }
+  // PS5: how many controllers, then half an hour or an hour; Table: pool or snooker, then half an hour or an hour; RC Gaming and PC:
+  // half an hour or an hour. A choice adds it at once; what is added is listed under them with − and +.
+  function drawGames() {
+    const quick = (label, id, ready) => h('button', { type: 'button', class: 'btn game-time', disabled: !ready, data: { game: id || '' }, onclick: () => ready && change(id, (cart.get(id) || 0) + 1) },
+      h('span', { text: label }), ready ? h('b', { text: money(gameCost(id)) }) : null);
+    const chips = (options, chosen, pick, field) => h('div', { class: 'chips', data: { field } }, options.map(([v, label]) => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen === v), onclick: () => { pick(v); draw(); } }, label)));
+    const card = (glyphName, title, ...rows) => h('div', { class: 'game-card', data: { gameCard: title } }, h('div', 'game-card-head', glyph(glyphName, ''), h('b', { text: title })), ...rows);
+    const times = kind => h('div', 'game-times', quick('Half an hour', 'game:' + kind + ':30', true), quick('1 hour', 'game:' + kind + ':60', true));
+    grid.append(h('div', 'game-cards',
+      card('PS5', 'PS5', h('span', { class: 'small muted', text: 'Controllers' }), chips([1, 2, 3, 4].map(n => [n, String(n)]), pads, v => { pads = v; }, 'game-pads'),
+        h('div', 'game-times', quick('Half an hour', pads ? 'game:PS5:30:' + pads : '', !!pads), quick('1 hour', pads ? 'game:PS5:60:' + pads : '', !!pads))),
+      card('Pool', 'Table', chips([['Pool', 'Pool'], ['Snooker', 'Snooker']], table, v => { table = v; }, 'game-table'),
+        h('div', 'game-times', quick('Half an hour', table ? 'game:' + table + ':30' : '', !!table), quick('1 hour', table ? 'game:' + table + ':60' : '', !!table))),
+      card('RC', 'RC Gaming', times('RC')),
+      card('PC', 'PC', times('PC'))));
+    const chosen = [...cart].filter(([id]) => isGame(id));
+    if (chosen.length) grid.append(h('div', { class: 'lines game-chosen', data: { gameChosen: '' } }, chosen.map(([id, quantity]) => h('div', { class: 'line', data: { gameLine: id } },
+      h('div', 'line-main', h('b', { text: gameName(id) }), h('span', { class: 'small muted', text: money(gameCost(id)) + (quantity > 1 ? ' each' : '') })),
+      h('span', 'step', h('button', { type: 'button', 'aria-label': 'One fewer', onclick: () => change(id, quantity - 1) }, icon('minus')), h('b', { text: String(quantity) }), h('button', { type: 'button', 'aria-label': 'One more', onclick: () => change(id, quantity + 1) }, icon('plus'))),
+      h('span', { class: 'line-amount', text: money(gameCost(id) * quantity) })))));
+  }
   draw();
   return {
     empty: !products.length,
     node: h('div', null, h('div', { class: 'field' }, category.node), grid),
     items: () => [...cart].map(([productId, quantity]) => ({ productId, quantity })),
     // What is in the basket, for showing it back: name, how many, and what that comes to.
-    lines: () => [...cart].map(([id, quantity]) => { const p = products.find(p => p.id === id); return { id, name: p.name, quantity, unitPaise: p.pricePaise, totalPaise: p.pricePaise * quantity }; }),
+    lines: () => [...cart].map(([id, quantity]) => ({ id, name: nameOf(id), quantity, unitPaise: priceOf(id), totalPaise: priceOf(id) * quantity })),
     change,
     count: () => [...cart.values()].reduce((a, b) => a + b, 0),
-    total: () => [...cart].reduce((sum, [id, quantity]) => sum + products.find(p => p.id === id).pricePaise * quantity, 0),
+    total: () => [...cart].reduce((sum, [id, quantity]) => sum + priceOf(id) * quantity, 0),
     clear() { cart.clear(); draw(); }
   };
 }
 
 // Snacks and drinks on a bill (not the turf fee or a balance carried in): only these can move or be named as unpaid.
 const goodsOf = orders => orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
+// What a balance brought from an earlier bill was (owner, 15 November, as on Manipal: "what can you understand with that 40 …
+// mention clearly if its pool, ps5 whatever, bill name and all not required, date also. if i click show"): its systems by name,
+// or its items; its timers, items, bill and day behind Show.
+function carriedOf(o) {
+  const billId = turfMeta(o).carryOf || '', d = (state.BillDetails || []).find(x => x.id === billId), tabId = d ? d.tabId : '';
+  const segs = tabId ? segmentsOf(tabId).filter(g => g.status !== 'void') : [], items = tabId ? goodsOf(ordersOf(tabId)) : [];
+  const units = [...new Set(segs.map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))];
+  const itemWords = items.map(x => x.label + (Number(x.quantity) > 1 ? ' × ' + x.quantity : '')).join(', ');
+  const named = String(o.label || '').indexOf(' · Balance of bill') > 0 ? String(o.label).split(' · Balance of bill')[0] : '';
+  return { billId, segs, items, what: units.join(', ') || itemWords || named || 'Earlier bill', number: billId ? numberOf(billId) : '', day: String(o.reason || '').replace('Carried from ', '') };
+}
+function carriedLine(o) {
+  // A line carried as it was (an item or the turf from an earlier booking) already says what it is: its name and day.
+  if (!turfMeta(o).carryOf) return h('div', { class: 'line', data: { order: o.id } },
+    h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && o.category !== 'Turf' ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: String(o.reason || '').replace('Carried from ', 'from ') })),
+    h('span', { class: 'line-amount', text: money(o.totalPaise) }));
+  const c = carriedOf(o), more = [];
+  for (const g of c.segs) {
+    const said = timerWords(g, state.Pauses || []);
+    more.push(h('div', 'carried-row', h('span', { text: [(unitOf(g.unitId) || {}).name, timerShort(g, said)].filter(Boolean).join(' · ') }), h('span', { class: 'num', text: money(g.totalPaise) })));
+  }
+  if (c.segs.length) for (const x of c.items) more.push(h('div', 'carried-row', h('span', { text: x.label + (Number(x.quantity) > 1 ? ' × ' + x.quantity : '') }), h('span', { class: 'num', text: money(x.totalPaise) })));
+  more.push(h('div', 'carried-row muted', h('span', { text: ['Bill ' + c.number, c.day].filter(t => t && t !== 'Bill ').join(' · ') })));
+  const detail = h('div', { class: 'carried-detail', hidden: true }, more);
+  const toggle = h('button', { type: 'button', class: 'carried-show', data: { action: 'carried-show' }, onclick: e => { e.stopPropagation(); detail.hidden = !detail.hidden; toggle.textContent = detail.hidden ? 'Show' : 'Hide'; } }, 'Show');
+  return h('div', { class: 'line carried-line', data: { order: o.id } },
+    h('div', 'line-main', h('b', { text: c.what }), toggle, detail),
+    h('span', { class: 'line-amount', text: money(o.totalPaise) }));
+}
+// The pieces of a carried balance that can be paid one by one (owner, 16 November, as on Manipal): its systems (each with its
+// time) and items, when its own bill has nothing paid and no discount and the pieces add up to it; otherwise it goes whole.
+function carryPieces(o) {
+  const c = carriedOf(o);
+  if (!c.billId) return [];
+  const bl = (state.Bills || []).find(b => b.id === c.billId), d = (state.BillDetails || []).find(x => x.id === c.billId) || {};
+  if (!bl || Number(bl.paidPaise) > 0 || Number(d.discountPaise) > 0) return [];
+  const units = new Map();
+  for (const g of c.segs) {
+    const name = (unitOf(g.unitId) || {}).name || 'Game', said = timerWords(g, state.Pauses || []);
+    if (!units.has(name)) units.set(name, { key: 'u:' + g.id, name, detail: [], segmentIds: [], orderIds: [], paise: 0 });
+    const x = units.get(name);
+    x.segmentIds.push(g.id);
+    x.paise += Number(g.totalPaise || 0);
+    x.detail.push(timerShort(g, said));
+  }
+  const pieces = [...units.values(), ...c.items.map(x => ({ key: 'o:' + x.id, name: x.label, most: Number(x.quantity), unit: Number(x.unitPricePaise || 0), detail: [money(x.unitPricePaise) + ' each'], segmentIds: [], orderIds: [x.id], paise: Number(x.totalPaise || 0) }))];
+  const sum = pieces.reduce((n, x) => n + x.paise, 0);
+  return sum === Number(o.totalPaise) && (pieces.length > 1 || (pieces[0] && (pieces[0].most || 1) > 1)) ? pieces : [];
+}
+// A carried balance on the bill being settled, with its tick; + opens its pieces, each ticked, an item of more than one by count.
+// api: { worth(o), count(o, piece), set(o, piece, n), whole(o, on), open: Set }.
+function carriedTickLine(o, api, redraw) {
+  const c = carriedOf(o), pieces = carryPieces(o), worth = api.worth(o), all = worth === Number(o.totalPaise), none = worth === 0;
+  const box = h('input', { type: 'checkbox', class: 'line-tick', checked: all, tabindex: '-1', 'aria-hidden': 'true' });
+  box.indeterminate = !all && !none;
+  const opened = api.open.has(o.id);
+  const rows = [h('div', { class: 'line carried-pick carried-line', role: 'button', tabindex: '0', 'aria-pressed': String(all), data: { order: o.id, carriedTick: '1' }, onclick: () => { api.whole(o, !all); redraw(); } },
+    box,
+    h('div', 'line-main', h('b', { text: c.what }), h('span', { class: 'small muted', text: pieces.length ? pieces.map(x => x.name + ((x.most || 1) > 1 ? ' × ' + x.most : '')).join(', ') : 'From earlier · ' + c.day })),
+    h('span', { class: 'line-amount', text: money(o.totalPaise) }),
+    pieces.length ? h('button', { type: 'button', class: 'icon-btn bill-open', 'aria-label': opened ? 'Hide' : 'Show what it was', data: { action: 'carried-open' }, onclick: e => { e.stopPropagation(); if (opened) api.open.delete(o.id); else api.open.add(o.id); redraw(); } }, icon(opened ? 'minus' : 'plus')) : null)];
+  if (opened) for (const x of pieces) {
+    const n = api.count(o, x), most = x.most || 1, value = n <= 0 || n >= most ? x.paise : (x.unit || 0) * n;
+    rows.push(h('div', { class: 'line carried-pick carried-piece', role: 'button', tabindex: '0', 'aria-pressed': String(n > 0), data: { carriedPiece: x.key }, onclick: () => { api.set(o, x, n > 0 ? 0 : most); redraw(); } },
+      h('input', { type: 'checkbox', class: 'line-tick', checked: n > 0, tabindex: '-1', 'aria-hidden': 'true' }),
+      h('div', 'line-main', h('b', { text: x.name }), h('span', { class: 'small muted', text: x.detail.join(' · ') })),
+      ...[most > 1 ? h('span', { class: 'step', data: { field: 'carried-count' } },
+        h('button', { type: 'button', disabled: n <= 0, 'aria-label': 'One fewer', onclick: e => { e.stopPropagation(); api.set(o, x, n - 1); redraw(); } }, icon('minus')),
+        h('b', { text: n + ' of ' + most }),
+        h('button', { type: 'button', disabled: n >= most, 'aria-label': 'One more', onclick: e => { e.stopPropagation(); api.set(o, x, n + 1); redraw(); } }, icon('plus'))) : null].filter(Boolean),
+      h('span', { class: 'line-amount', text: money(value) })));
+  }
+  return rows;
+}
 // Items already on a bill, each with a stepper from none up to how many are on it. counts survives a redraw.
 function itemChooser(orders, counts, onchange) {
   const node = h('div', 'lines');
@@ -9335,10 +9817,7 @@ function addItemsSheet(tab, options = {}) {
       // On a pool or snooker table, items belong to the game being played, so they are collected with it.
       const game = options.unit && isTable(options.unit) ? players.find(g => g.unitId === options.unit.id) : null;
       if (game) forSegment = game.id;
-      if (target.kind === 'group' && players.length > 1) {
-        const who = segmented([['', 'Whole group'], ...players.map(g => [g.id, controllerLabel(g)])], forSegment, v => { forSegment = v; });
-        ui.body.append(h('div', 'field', h('span', { text: 'For' }), who.node));
-      }
+      // No For choice: the items go on the bill (owner, 16 November, as on Manipal: "remove this okay").
       const paint = () => { ui.foot.replaceChildren(); const n = picker.count(); ui.primary(n ? 'Add ' + n + (n === 1 ? ' item' : ' items') + ' · ' + money(picker.total()) : 'Add Items', !n); };
       picker = picker || productPicker(() => paint());
       ui.body.append(picker.node);
@@ -9372,20 +9851,23 @@ function closedEarlier(segments) {
   return state.Segments.filter(g => left.has(g.id) && tabs.has(g.tabId) && g.status === 'ended');
 }
 // What each running timer on these units would bill if it stopped now, worked out here with the server's rules.
-function quoteNow(unitIds) {
-  const out = {};
+function quoteNow(unitIds, at) {
+  const out = {}, moment = at || nowMs();
   for (const unitId of unitIds) {
     let quote;
-    try { quote = viewHere(view => ArenaViews.runningCost(view, unitId, nowMs())) || ArenaViews.runningCost(state, unitId, nowMs()); }
+    try { quote = viewHere(view => ArenaViews.runningCost(view, unitId, moment)) || ArenaViews.runningCost(state, unitId, moment); }
     catch (e) { quote = null; }
     if (quote) Object.assign(out, quote.quotes);
   }
   return out;
 }
 // memory: the ticks as they were, when the bill after End goes Back to it.
+// The moment End Session is tapped the time stops (owner, 15 November, as on Manipal: "the movement i click end session, let the
+// time pause, and only once the payment is collected, moved or pending etc etc only then let the system close"): every timer
+// and cost here is held at that moment, and the End is made at it unless another time is chosen.
 function endSheet(segments, memory = null) {
   if (!segments.length) return;
-  const unit = unitOf(segments[0].unitId);
+  const unit = unitOf(segments[0].unitId), pausedAt = (memory && memory.pausedAt) || nowMs();
   const ps5 = unit.category === 'PS5', units = [...new Set(segments.map(g => g.unitId))];
   // A group over several consoles ends all of them together (owner, 20 October).
   const title = units.length > 1 ? 'End Group · ' + units.length + ' consoles' : !ps5 ? 'End ' + unit.name : segments.length === 1 ? 'End Controller ' + segments[0].controller : 'End ' + segments.length + ' controllers';
@@ -9395,26 +9877,39 @@ function endSheet(segments, memory = null) {
   // the system. Something ticked: Collect. Their own time not ticked is asked for (Others will pay, Credit or Pending); with
   // Credit or Pending it goes on the bill too, the amount received set to what is ticked and the rest asked there.
   // own: their controllers paying now. rows: the rest; picks: how many of each. rest: their unticked time.
-  let time, rows = [], rest = memory ? memory.rest : 'others', paidNow = 0, whole = null;
+  let time, rows = [], rest = memory ? memory.rest : 'others', paidNow = 0, whole = null, othersAsked = false;
   const own = new Set(memory ? memory.own : []), picks = new Map(memory ? memory.picks : []);
   const ids = new Set(segments.map(g => g.id)), tabs = new Set(segments.map(g => g.tabId));
   const others = () => state.Segments.filter(g => g.status === 'active' && tabs.has(g.tabId) && !ids.has(g.id));
   const shared = () => pickedLines(rows, picks);
   const controllerLabel = g => ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player;
   // Each one's cost so far beside its time (owner, 27 October: "let it show their cost as well").
-  const cost = g => { const quote = quoteNow([g.unitId])[g.id]; return h('span', { class: 'line-amount', data: { cost: g.id }, text: quote ? money(quote.totalPaise) : '' }); };
+  const cost = g => { const quote = quoteNow([g.unitId], pausedAt)[g.id]; return h('span', { class: 'line-amount', data: { cost: g.id }, text: quote ? money(quote.totalPaise) : '' }); };
+  const held = g => { const node = timer(g, true); if (!node.dataset.since) node.dataset.since = String(pausedAt); return node; };
+  // Others will pay is asked there and then, as on Manipal (owner, 15 November: "even others will pay option, when i click it ask
+  // for confirmation"); Yes ends them with their time left on the system.
+  const othersAsk = () => {
+    const anchor = current && current.primaryButton;
+    if (!anchor) return;
+    const who = ps5 ? (segments.length === 1 ? 'Controller ' + segments[0].controller : segments.length + ' controllers') : segments.map(g => (tabOf(g.tabId) || {}).customer || g.player).join(', ');
+    popover(anchor, h('b', { class: 'popover-title', text: 'End ' + who + '?' }), h('span', { class: 'muted', text: 'Their time stays on ' + units.map(id => (unitOf(id) || {}).name).join(', ') + ' for the others to pay.' }),
+      h('div', 'popover-foot',
+        btn([icon('users'), 'Yes, others will pay'], () => { closePopover(); othersAsked = true; $('sheetForm').requestSubmit(); }, 'primary', { data: { action: 'others-pay-yes' } }),
+        btn('No', closePopover, 'quiet', { data: { action: 'others-pay-no' } })));
+  };
   openSheet({
     title,
     sub: ps5 ? groupNames(segments) : '',
     icon: unit.category,
     focus: false,
     build(ui) {
-      time = time || timeChoice('Ends');
+      othersAsked = false;
+      time = time || timeChoice('Ends', pausedAt, true);
       if (!others().length) {
         // Everyone stops: the same cards as on the bill, each unit on top, then who is stopping there.
         for (const unitId of units) {
           const card = h('div', 'lines'), here = unitOf(unitId);
-          for (const g of segments.filter(x => x.unitId === unitId)) card.append(h('div', 'line', ps5 ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, h('div', 'line-main', h('b', null, ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player), h('span', { class: 'small muted', text: 'since ' + when(g.startMs) })), timer(g, true), cost(g)));
+          for (const g of segments.filter(x => x.unitId === unitId)) card.append(h('div', 'line', ps5 ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, h('div', 'line-main', h('b', null, ps5 ? controllerNode(g) : (tabOf(g.tabId) || {}).customer || g.player), h('span', { class: 'small muted', text: 'since ' + when(g.startMs) })), held(g), cost(g)));
           ui.body.append(h('section', 'bill-group', h('div', 'group-title', icon(here.category), here.name), card));
         }
         ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
@@ -9435,7 +9930,7 @@ function endSheet(segments, memory = null) {
       // Stopping now: a tick each for the ones who pay their own time now.
       section(unit.category, 'Stopping now', segments.map(g => h('div', { class: 'line pick', role: 'button', tabindex: '0', 'aria-pressed': String(own.has(g.id)), data: { segment: g.id }, onclick: () => { if (own.has(g.id)) own.delete(g.id); else own.add(g.id); ui.redraw(); } },
         h('input', { type: 'checkbox', checked: own.has(g.id), tabindex: '-1', 'aria-hidden': 'true' }),
-        h('div', 'line-main', h('b', null, controllerLabel(g)), h('span', { class: 'small muted', text: (units.length > 1 ? (unitOf(g.unitId) || {}).name + ' · ' : '') + 'since ' + when(g.startMs) })), timer(g, true), cost(g))), 'end-pick');
+        h('div', 'line-main', h('b', null, controllerLabel(g)), h('span', { class: 'small muted', text: (units.length > 1 ? (unitOf(g.unitId) || {}).name + ' · ' : '') + 'since ' + when(g.startMs) })), held(g), cost(g))), 'end-pick');
       section('history', 'Closed earlier', pickLines(closed, picks, redraw), 'end-closed');
       section('snack', ownItemsTitle(tabOf(segments[0].tabId)), pickLines(parts.items, picks, redraw, bin), 'end-items');
       if (parts.closed.length) ui.body.append(h('div', 'group-title', icon('transfer'), 'Moved here'), ...pickBoxes(parts.closed, picks, redraw, null, whole, 'end-moved'));
@@ -9455,6 +9950,7 @@ function endSheet(segments, memory = null) {
       if (!others().length) return { type: 'END_SELECTION', segmentIds, endMs: time.value() };
       const picksNow = shared(), paying = own.size > 0 || !!picksNow;
       paidNow = rows.reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
+      if (!paying && !othersAsked) { othersAsk(); return null; }
       if (!paying) return { type: 'END_SELECTION', segmentIds, endMs: time.value(), keep: true };
       // Credit or Pending for their own time: all of it on the bill, the rest asked there.
       const leave = rest === 'others' ? segmentIds.filter(id => !own.has(id)) : [];
@@ -9469,9 +9965,11 @@ function endSheet(segments, memory = null) {
       if (result.kept && !result.restTabId) { closeSheet(); return null; }
       const asking = rest !== 'others' && own.size < segments.length;
       const ownPaid = segments.filter(g => own.has(g.id)).reduce((total, g) => total + ((state.Segments.find(x => x.id === g.id) || g).totalPaise || 0), 0);
-      const billId = result.restTabId || result.tabId, memo = { own: [...own], picks: [...picks], rest };
+      const billId = result.restTabId || result.tabId, memo = { own: [...own], picks: [...picks], rest, pausedAt };
+      endsOpen.set(billId, { segmentIds: segments.map(g => g.id), names: [...new Set(segments.map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ') });
       // Back (owner, 27 October): the End taken back while nothing is paid, and this screen again with the same ticks.
       const back = () => runCommand({ type: 'REOPEN_END', tabId: billId, segmentIds: segments.map(g => g.id) }, () => {
+        endsOpen.delete(billId);
         endSheet(segments.map(g => state.Segments.find(x => x.id === g.id)).filter(g => g && g.status === 'active'), memo);
         return null;
       });
@@ -9860,6 +10358,9 @@ function movedOnto(tabId, segments, orders) {
     .filter(Boolean).map(m => ({ segments: segments.filter(g => (m.segments || []).includes(g.id) && here.has(g.id)), orders: orders.filter(o => (m.orders || []).includes(o.id) && items.has(o.id)) }))
     .filter(m => m.segments.length);
 }
+// A heading's total reads as a total, never as one more line beside the amounts under it (owner, 16 November, as on Manipal:
+// "this 240 looks like an item along with controllers rather than total").
+const headTotal = paise => h('span', { class: 'group-sum total' }, h('span', { class: 'sum-label', text: 'Total' }), h('b', { text: money(paise) }));
 function drawLines(body, lines) {
   const { segments: shown, orders: all, customer, tab, editable, detail } = lines, byUnit = new Map();
   // A system moved onto this bill (owner, 4 November: "lets not waste the space"): one timer alone is one line, its time and
@@ -9888,17 +10389,15 @@ function drawLines(body, lines) {
     // On "so far" the ones still playing are a section of their own beside those closed earlier (owner, 27 October).
     const playing = list.some(g => g.status === 'active'), part = closedEarlierHere ? ' · Closed earlier' : byUnit.has(unitId + ':earlier') ? (playing ? ' · Playing' : ' · Ended now') : '';
     const worth = g => (g.status !== 'active' ? Number(g.totalPaise || 0) : lines.quotes && lines.quotes[g.id] ? lines.quotes[g.id].totalPaise : null);
-    const partTotal = part && list.every(g => worth(g) !== null) ? h('span', { class: 'group-sum', text: money(list.reduce((total, g) => total + worth(g), 0)) }) : null;
+    // With more than one timer the system's total stands on its heading, as a total (owner, 16 November, as on Manipal).
+    const partTotal = (part || list.length > 1) && list.every(g => worth(g) !== null) ? headTotal(list.reduce((total, g) => total + worth(g), 0)) : null;
     for (const g of list) {
       const running = g.status === 'active', quote = running && lines.quotes ? lines.quotes[g.id] : null;
       // Started, paused, ended and charged, in words (owner, 24 October), so a question about the time is answered here.
-      const said = timerWords(g, lines.pauses || state.Pauses || [], quote), earlier = '';
-      const span = [said.started, said.ended].filter(Boolean).join(' · ');
-      const billed = [said.paused, said.charged, earlier].filter(Boolean).join(' · ');
+      const said = timerWords(g, lines.pauses || state.Pauses || [], quote);
       // A controller is named by its number; a PC or table line is named by its time, with the player if it is someone else's.
-      const main = g.controller
-        ? h('div', 'line-main', h('b', null, controllerNode(g)), h('span', { class: 'small muted', text: [said.started, said.paused, said.ended, said.charged, earlier].filter(Boolean).join(' · ') }))
-        : h('div', 'line-main', h('b', { text: span }), h('span', { class: 'small muted', text: [billed, g.player && g.player !== customer ? g.player : ''].filter(Boolean).join(' · ') }));
+      // One short line (owner, 16 November, as on Manipal): the controller or the player, then the times and what was charged.
+      const main = h('div', 'line-main one', g.controller ? h('b', null, controllerNode(g)) : g.player && g.player !== customer ? h('b', { text: g.player }) : null, h('span', { class: 'timer-short', text: timerShort(g, said) }));
       card.append(h('div', { class: 'line', data: { segment: g.id } }, tickBox([g.id]), g.controller ? h('span', { class: 'seat', 'aria-hidden': 'true', text: String(g.controller) }) : null, main,
         quote ? h('span', { class: 'line-amount', text: money(quote.totalPaise) }) : running ? timer(g, true) : h('span', { class: 'line-amount', text: money(g.totalPaise) }),
         editable ? sessionMenu(g) : null));
@@ -9916,9 +10415,7 @@ function drawLines(body, lines) {
   }
   // The turf fee or a player's share of it: its own heading, and it follows the booking, so it has no edit menu here.
   const turf = orders.filter(o => o.category === 'Turf'), brought = orders.filter(o => o.category === 'Carried'), goods = orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
-  if (brought.length) own.append(h('section', 'bill-group', h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(o => h('div', { class: 'line', data: { order: o.id } },
-    h('div', 'line-main', h('b', { text: o.label }), h('span', { class: 'small muted', text: o.reason.replace('Carried from ', 'from ') })),
-    h('span', { class: 'line-amount', text: money(o.totalPaise) }))))));
+  if (brought.length) own.append(h('section', 'bill-group', h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.flatMap(o => (lines.ticks && lines.ticks.carried && turfMeta(o).carryOf ? lines.ticks.carried(o) : [carriedLine(o)])))));
   if (turf.length) {
     const card = h('div', 'lines');
     for (const o of turf) card.append(h('div', { class: 'line', data: { order: o.id } },
@@ -9972,7 +10469,7 @@ function drawLines(body, lines) {
         open ? itemTools(o.label, qty, change, product) : null,
         h('span', { class: 'line-amount', text: money(total) })));
     }
-    own.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size ? h('span', { class: 'group-sum', text: money(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) }) : null), card));
+    own.append(h('section', 'bill-group', h('div', 'group-title', icon('sales'), 'Snacks & beverages', byUnit.size && card.querySelectorAll('[data-order]').length > 1 ? headTotal(goods.reduce((total, o) => total + Number(o.totalPaise || 0), 0)) : null), card));
   }
   // The own part in its outline (left out when it holds nothing), then each moved bill.
   if (hasMoved) body.append(...[own.childNodes.length ? own : null].filter(Boolean), ...movedOut);
@@ -10024,9 +10521,26 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
   // Lines not paid now (unticked): they stay on this bill, to be moved, put on credit or kept pending after.
   // skip: time unticked; payCount: how many of an item are paid now (all of it unless lowered).
   const skip = new Set(), payCount = new Map();
-  const paying = o => Math.min(Number(o.quantity), payCount.has(o.id) ? payCount.get(o.id) : Number(o.quantity));
-  const partly = () => skip.size > 0 || ordersOf(tab.id).some(o => paying(o) < Number(o.quantity));
-  const subtotal = () => tabTotal(tab.id) - segmentsOf(tab.id).filter(g => skip.has(g.id)).reduce((total, g) => total + g.totalPaise, 0) - ordersOf(tab.id).reduce((total, o) => total + (Number(o.quantity) - paying(o)) * o.unitPricePaise, 0);
+  // A carried balance (owner, 16 November, as on Manipal): ticked whole, or piece by piece (carryCut: how many of a piece, none
+  // unticks it); what is not ticked stays on this bill with the rest.
+  const carryCut = new Map(), carryOpen = new Set(), carryKey = (o, x) => o.id + '|' + x.key;
+  const carryCount = (o, x) => (carryCut.has(carryKey(o, x)) ? carryCut.get(carryKey(o, x)) : x.most || 1);
+  const carryWorth = o => {
+    const pieces = carryPieces(o);
+    if (!pieces.length) return payCount.get(o.id) === 0 ? 0 : Number(o.totalPaise);
+    return pieces.reduce((n, x) => { const k = carryCount(o, x); return n + (k <= 0 ? 0 : k >= (x.most || 1) ? x.paise : (x.unit || 0) * k); }, 0);
+  };
+  const carryPart = o => {
+    const pieces = carryPieces(o), worth = carryWorth(o);
+    if (!pieces.length || worth <= 0 || worth >= Number(o.totalPaise)) return null;
+    const whole = pieces.filter(x => carryCount(o, x) >= (x.most || 1)), some = pieces.filter(x => carryCount(o, x) > 0 && carryCount(o, x) < (x.most || 1));
+    return { orderId: o.id, segmentIds: whole.flatMap(x => x.segmentIds), orderIds: whole.flatMap(x => x.orderIds), ...(some.length ? { counts: Object.fromEntries(some.map(x => [x.orderIds[0], carryCount(o, x)])) } : {}) };
+  };
+  const isCarry = o => o.category === 'Carried' && !!turfMeta(o).carryOf;
+  const paying = o => (isCarry(o) ? (carryWorth(o) > 0 ? 1 : 0) : Math.min(Number(o.quantity), payCount.has(o.id) ? payCount.get(o.id) : Number(o.quantity)));
+  const unpaidOf = o => (isCarry(o) ? Number(o.totalPaise) - carryWorth(o) : (Number(o.quantity) - paying(o)) * o.unitPricePaise);
+  const partly = () => skip.size > 0 || ordersOf(tab.id).some(o => unpaidOf(o) > 0);
+  const subtotal = () => tabTotal(tab.id) - segmentsOf(tab.id).filter(g => skip.has(g.id)).reduce((total, g) => total + g.totalPaise, 0) - ordersOf(tab.id).reduce((total, o) => total + unpaidOf(o), 0);
   // Charges from earlier on this bill (owner, 20 October): players who stopped and left their charge for the others, and a
   // table's games closed with Close & Open; with what was paid towards them. Shown apart from this session.
   const earlier = (() => {
@@ -10064,19 +10578,26 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
     focus: discountFirst ? '[data-field=discount]' : false,
     // Closing one player's bill returns to the list of players still to settle, when there is one; Back only shows then
     // (owner, 27 October: Back on a bill opened after End closed everything).
-    onClose: returnsTo(tab.id) ? () => returnToSplit(tab.id) : undefined,
+    onClose: returnsTo(tab.id) ? () => returnToSplit(tab.id) : endOpen(tab.id) ? () => resumeEnd(tab.id) : undefined,
     // After End: Back takes the End back, until something is paid here.
     onBack: preset && preset.back && !heldFor([tab.id]) ? preset.back : undefined,
     build(ui) {
       // An item changed here redraws this bill in place, so the ticks and what was typed stay (owner, 21 October).
       // Ticks when there is more than one line and nothing that must go with the bill (a turf fee, a carried amount).
-      const all = segmentsOf(tab.id).concat(ordersOf(tab.id)), tickable = all.length > 1 && !stillPlaying(tab.id) && !all.some(x => x.category === 'Turf' || x.category === 'Carried');
+      const all = segmentsOf(tab.id).concat(ordersOf(tab.id)), tickable = (all.length > 1 || all.some(x => isCarry(x) && carryPieces(x).length)) && !stillPlaying(tab.id) && !all.some(x => x.category === 'Turf' || (x.category === 'Carried' && !isCarry(x)));
       const ticks = tickable ? {
         off: skip,
         toggle: ids => { const on = ids.some(lid => skip.has(lid)); ids.forEach(lid => { if (on) skip.delete(lid); else skip.add(lid); }); draft.edited = false; ui.redraw(); },
         count: paying,
         setCount: (o, n) => { payCount.set(o.id, Math.max(0, Math.min(Number(o.quantity), n))); draft.edited = false; ui.redraw(); },
-        full: o => { payCount.delete(o.id); draft.edited = false; }
+        full: o => { payCount.delete(o.id); draft.edited = false; },
+        carried: o => carriedTickLine(o, {
+          worth: carryWorth,
+          count: carryCount,
+          open: carryOpen,
+          set: (c, x, n) => { const most = x.most || 1, k = Math.max(0, Math.min(most, n)); if (k >= most) carryCut.delete(carryKey(c, x)); else carryCut.set(carryKey(c, x), k); },
+          whole: (c, on) => { const pieces = carryPieces(c); if (!pieces.length) { if (on) payCount.delete(c.id); else payCount.set(c.id, 0); return; } for (const x of pieces) { if (on) carryCut.delete(carryKey(c, x)); else carryCut.set(carryKey(c, x), 0); } }
+        }, () => { draft.edited = false; ui.redraw(); })
       } : null;
       // Discount: one flat rupee amount, typed straight in; the figure below changes as it is typed. On a turf bill it sits in
       // the turf card under the charge, as on a split booking (owner, 22 October: the discount is given on the turf);
@@ -10216,7 +10737,8 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
         ...(asking && draft.rest === 'pending' ? { pending: { name: draft.pendingName.trim(), phone: draft.pendingPhone.trim() } } : {}),
         ...(mode === 'credit' ? { ...picker.value(), note: comment.value(), unpaidItems: itemsOnCredit(ordersOf(tab.id), due - paid) } : {}),
         // Some lines unticked: only the ticked ones are settled now; the rest stays on this bill.
-        ...(partly() ? { only: { ids: segmentsOf(tab.id).filter(g => !skip.has(g.id)).map(g => g.id), items: ordersOf(tab.id).filter(o => paying(o) > 0).map(o => ({ orderId: o.id, quantity: paying(o) })) } } : {}) };
+        ...(partly() ? { only: { ids: segmentsOf(tab.id).filter(g => !skip.has(g.id)).map(g => g.id), items: ordersOf(tab.id).filter(o => paying(o) > 0).map(o => ({ orderId: o.id, quantity: paying(o) })) } } : {}),
+        ...(partly() && ordersOf(tab.id).some(o => isCarry(o) && carryPart(o)) ? { carryParts: ordersOf(tab.id).filter(isCarry).map(carryPart).filter(Boolean) } : {}) };
     },
     // Paid in full: nothing more to look at. The sheet closes to where the receptionist was (the floor, the list of players
     // still to settle, or the turf booking), with a short note and the receipt one tap away. Anything still owing shows the bill.
@@ -10249,6 +10771,21 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
 // After "Settle players separately": one list of who has paid and who has not.
 // It comes back after each bill, so the next player can be settled without going to Open tabs.
 let splitQueue = null;
+// Bills an End opened on this screen, until they are collected, left pending, put on credit or moved (owner, 15 November, as on
+// Manipal: "if i click end session, it goes to collect, pedning, move page and i close the window, the system should not close
+// rather continue … anything any system same"). Closed with nothing settled, the End is taken back: the timers play on from
+// when they started, as ← Back does, and whatever the End brought onto the bill goes back.
+const endsOpen = new Map();
+function endOpen(tabId) {
+  const t = tabOf(tabId), mine = endsOpen.get(tabId);
+  return !!mine && !!t && t.status === 'open' && !heldFor([tabId]) && mine.segmentIds.every(id => { const g = state.Segments.find(x => x.id === id); return g && g.status === 'ended' && state.Endings.some(e => e.segmentId === id && (e.status === 'review' || e.status === 'shared')); });
+}
+function resumeEnd(tabId) {
+  const mine = endsOpen.get(tabId), still = endOpen(tabId);
+  endsOpen.delete(tabId);
+  if (!mine || !still) return;
+  runCommand({ type: 'REOPEN_END', tabId, segmentIds: mine.segmentIds }, () => { render(); return { text: (mine.names || 'The system') + ' plays on. Nothing was ended.' }; });
+}
 // A turf bill (the booking's own or a player's) goes back to its booking.
 // Where a bill made apart from somewhere else goes back to (an academy's items taken off its slot: back to the booking).
 const tabReturns = new Map();
@@ -10375,7 +10912,7 @@ async function costSheet(unit) {
   const tabs = [...new Set(players.map(g => g.tabId))].map(tabOf).filter(Boolean);
   // Controllers that stopped earlier and left their time for the others: a section of their own (owner, 27 October).
   const earlier = new Set(closedEarlier(players).map(g => g.id)), back = () => costSheet(unit);
-  const payable = tabs.filter(t => payableItems(t).length || payableTimers(t).length);
+  const payable = tabs.filter(t => payableItems(t).length || payableTimers(t).length || payableCarried(t).length);
   const made = tabs.filter(t => madeGroup(t, tabs)), people = tabs.filter(t => !made.includes(t));
   openSheet({
     title: unit.name + ' · so far',
@@ -10411,6 +10948,8 @@ async function costSheet(unit) {
 
 // Items on a bill, apart from the turf and what was carried from earlier.
 const payableItems = tab => ordersOf(tab.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried');
+// A balance carried from an earlier bill, payable during the game too (owner, 16 November).
+const payableCarried = tab => ordersOf(tab.id).filter(o => o.category === 'Carried' && turfMeta(o).carryOf);
 // Systems already closed on a bill that can be paid on their own (owner, 4 November): time moved onto it and controllers that
 // stopped earlier; a table's own closed games keep their own Collect.
 const payableTimers = tab => { const playing = new Set(unitsOfTab(tab.id)); return segmentsOf(tab.id).filter(g => g.status === 'ended' && !(isTable(unitOf(g.unitId) || {}) && playing.has(g.unitId))); };
@@ -10420,7 +10959,29 @@ const payableTimers = tab => { const playing = new Set(unitsOfTab(tab.id)); retu
 function payItemsSheet(tab, back) {
   const picks = new Map(), pay = { method: 'cash' };
   let rows = [], timeRows = [], how = null, ticked = false, whole = null;
-  const owed = () => timeRows.concat(rows).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0);
+  // A balance carried from an earlier bill, paid now or not (owner, 16 November, as on Manipal): nothing ticked at first; whole or
+  // piece by piece (carryTake: how many of a piece).
+  const carried = () => ordersOf(tab.id).filter(o => o.category === 'Carried' && turfMeta(o).carryOf);
+  const carryTake = new Map(), carryOpen = new Set(), carryKey = (o, x) => o.id + '|' + x.key;
+  const carryCount = (o, x) => carryTake.get(carryKey(o, x)) || 0;
+  const carryWorth = o => {
+    const pieces = carryPieces(o);
+    if (!pieces.length) return carryTake.get(o.id) ? Number(o.totalPaise) : 0;
+    return pieces.reduce((n, x) => { const k = carryCount(o, x); return n + (k <= 0 ? 0 : k >= (x.most || 1) ? x.paise : (x.unit || 0) * k); }, 0);
+  };
+  const carryApi = {
+    worth: carryWorth,
+    count: carryCount,
+    open: carryOpen,
+    set: (o, x, n) => carryTake.set(carryKey(o, x), Math.max(0, Math.min(x.most || 1, n))),
+    whole: (o, on) => { const pieces = carryPieces(o); if (!pieces.length) carryTake.set(o.id, on); else for (const x of pieces) carryTake.set(carryKey(o, x), on ? x.most || 1 : 0); }
+  };
+  const carriedPaying = () => carried().filter(o => carryWorth(o) > 0).map(o => {
+    if (carryWorth(o) >= Number(o.totalPaise)) return { orderId: o.id };
+    const pieces = carryPieces(o), full = pieces.filter(x => carryCount(o, x) >= (x.most || 1)), some = pieces.filter(x => carryCount(o, x) > 0 && carryCount(o, x) < (x.most || 1));
+    return { orderId: o.id, segmentIds: full.flatMap(x => x.segmentIds), orderIds: full.flatMap(x => x.orderIds), ...(some.length ? { counts: Object.fromEntries(some.map(x => [x.orderIds[0], carryCount(o, x)])) } : {}) };
+  });
+  const owed = () => timeRows.concat(rows).reduce((total, row) => total + row.worth(picks.get(row.key) || 0), 0) + carried().reduce((n, o) => n + carryWorth(o), 0);
   openSheet({
     title: 'Pay Items',
     sub: tab.customer,
@@ -10437,7 +10998,7 @@ function payItemsSheet(tab, back) {
       if (!ticked) for (const row of timeRows) picks.set(row.key, row.most);
       ticked = true;
       for (const row of timeRows.concat(rows)) if ((picks.get(row.key) || 0) > row.most) picks.set(row.key, row.most);
-      if (!rows.length && !timeRows.length) {
+      if (!rows.length && !timeRows.length && !carried().length) {
         ui.body.append(h('p', { class: 'muted', text: 'No items on this bill.' }));
         return;
       }
@@ -10446,6 +11007,7 @@ function payItemsSheet(tab, back) {
       // Its own items first, then what is closed or moved onto it (owner, 4 November).
       if (rows.length) ui.body.append(h('div', 'group-title', icon('snack'), ownItemsTitle(tab)), h('div', { class: 'lines end-pick', data: { field: 'pay-items' } }, pickLines(rows, picks, () => ui.redraw(), o => removeOne(o, () => { ui.redraw(); return null; }))));
       if (timeRows.length) ui.body.append(h('div', 'group-title', icon('history'), 'Closed'), ...pickBoxes(timeRows, picks, () => ui.redraw(), null, whole, 'pay-closed'));
+      if (carried().length) ui.body.append(h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', { class: 'lines', data: { field: 'pay-carried' } }, carried().flatMap(o => carriedTickLine(o, carryApi, () => ui.redraw()))));
       const due = owed();
       const paint = () => {
         const button = current.primaryButton, split = how.paid(), blank = how.blank();
@@ -10461,8 +11023,9 @@ function payItemsSheet(tab, back) {
     },
     command() {
       const closed = pickedLines(timeRows, picks) || { ids: [], items: [] }, items = (pickedLines(rows, picks) || { items: [] }).items.concat(closed.items), segments = closed.ids;
-      if (!items.length && !segments.length) throw new Error('Choose what they pay for.');
-      return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items, ...(segments.length ? { segments } : {}), amountPaise: owed(), ...how.value() };
+      const carriedNow = carriedPaying();
+      if (!items.length && !segments.length && !carriedNow.length) throw new Error('Choose what they pay for.');
+      return { type: 'TABLE_ITEMS_PAY', tabId: tab.id, items, ...(segments.length ? { segments } : {}), ...(carriedNow.length ? { carried: carriedNow } : {}), amountPaise: owed(), ...how.value() };
     },
     then(result, command) {
       render();
@@ -10830,7 +11393,7 @@ function printReceipt(data) {
   }
   const turf = data.orders.filter(o => o.category === 'Turf'), brought = data.orders.filter(o => o.category === 'Carried'), goods = data.orders.filter(o => o.category !== 'Turf' && o.category !== 'Carried');
   if (brought.length) area.append(el('p-head', 'Carried from earlier'));
-  for (const o of brought) area.append(row(o.label, money(o.totalPaise)), el('p-sub', o.reason));
+  for (const o of brought) { const c = carriedOf(o); area.append(row(turfMeta(o).carryOf ? c.what : o.label, money(o.totalPaise)), el('p-sub', turfMeta(o).carryOf ? ['Bill ' + c.number, c.day].filter(t => t && t !== 'Bill ').join(' · ') : o.reason)); }
   if (turf.length) area.append(el('p-head', 'Turf'));
   for (const o of turf) area.append(row(o.label, money(o.totalPaise)), ...(o.quantity > 1 ? [el('p-sub', o.quantity + ' × ' + money(o.unitPricePaise))] : []));
   if (goods.length) area.append(el('p-head', 'Snacks & beverages'));
@@ -10875,6 +11438,22 @@ async function receiptSheet(billId, back) {
   const paidHere = data.transfer ? data.payments.reduce((sum, p) => sum + p.amountPaise, 0) : bill.paidPaise;
   const payStore = { method: 'cash' };
   let amount, how;
+  // A pending bill of more than one part (nothing paid on it, no discount): each part with a tick, all ticked at first; Collect, Move
+  // to Credit and Move act on what is ticked, each in one save (the ticked part becomes a bill of its own, the rest stays pending).
+  const onTurf = data.tab ? turfBookingForTab(data.tab.id) : null, groups = payable && !onTurf && !(bill.paidPaise > 0) && !((detail || {}).discountPaise > 0) ? billParts(data) : [];
+  const parts = groups.flatMap(r => r.pieces), ticking = groups.length > 1 || (groups.length === 1 && parts.length > 1), off = new Set(), opened = new Set();
+  // counts: an item of more than one paid for only some (owner, 16 November: "what if that lays only 1 he wants to pay").
+  const counts = new Map(), most = x => x.most || 1;
+  const countOf = x => (off.has(x.key) ? 0 : counts.has(x.key) ? counts.get(x.key) : most(x)), worth = x => (countOf(x) <= 0 ? x.paise : countOf(x) === most(x) ? x.paise : (x.unit || 0) * countOf(x));
+  const setCount = (x, n) => { counts.delete(x.key); off.delete(x.key); if (n <= 0) off.add(x.key); else if (n < most(x)) counts.set(x.key, n); };
+  const ticked = () => parts.filter(x => countOf(x) > 0), tickedSum = () => ticked().reduce((n, x) => n + worth(x), 0), partly = () => ticking && (off.size > 0 || counts.size > 0);
+  // Tick what is dealt with now (owner, 16 November, as on Manipal: "i will click the items, it will show same collect move pending etc"); what is left
+  // is shown again after each step.
+  const sentHere = () => false, goesTo = () => '';
+  const splitOf = () => {
+    const whole = ticked().filter(x => countOf(x) === most(x)), some = ticked().filter(x => countOf(x) < most(x));
+    return { billId, segmentIds: whole.flatMap(x => x.segmentIds), orderIds: whole.flatMap(x => x.orderIds), ...(some.length ? { counts: Object.fromEntries(some.map(x => [x.orderIds[0], countOf(x)])) } : {}) };
+  };
   openSheet({
     title: 'Bill ' + data.number,
     sub: data.tab && data.tab.kind === 'quick_sale' ? 'Counter sale' : '',
@@ -10906,7 +11485,32 @@ async function receiptSheet(billId, back) {
             : [...(correctable(data) && data.payments.length ? [] : [['Correct charges', () => reasonSheet({ title: 'Correct charges · Bill ' + data.number, sub: 'The visit opens again to be corrected and settled.', action: 'Open to correct', icon: 'pencil', command: reason => ({ type: 'VOID_BILL', billId, reason }), then: result => (result.tabId && tabOf(result.tabId) ? settleSheet(result.tabId) : closeSheet()) }), false, 'pencil']]),
               ['Void bill', () => reasonSheet({ title: 'Void bill ' + data.number, sub: 'Cancelled completely: nothing is charged.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_BILL', billId, reason, whole: true }), then: result => { closeSheet(); render(); return { text: result.message }; } }), true, 'ban']]) : [])
         ], 'Bill actions'))));
-      drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, tab: data.tab || null, editable: false, detail: true, pauses: data.pauses });
+      if (ticking) {
+        const lines = [];
+        for (const r of groups) {
+          const keys = r.pieces.map(x => x.key), on = r.pieces.filter(x => countOf(x) === most(x)).length, any = r.pieces.some(x => countOf(x) > 0);
+          const box = h('input', { type: 'checkbox', checked: on === keys.length, tabindex: '-1', 'aria-hidden': 'true' });
+          box.indeterminate = any && on < keys.length;
+          const opens = r.pieces.length > 1, fixed = r.pieces.some(sentHere);
+          box.disabled = fixed;
+          lines.push(h('div', { class: 'line pick bill-group-row' + (fixed ? ' fixed' : ''), role: 'button', tabindex: '0', 'aria-pressed': String(on === keys.length), data: { part: r.key }, onclick: () => { if (fixed) return; keys.forEach(k => counts.delete(k)); if (on === keys.length) keys.forEach(k => off.add(k)); else keys.forEach(k => off.delete(k)); ui.redraw(); } },
+            box,
+            h('div', 'line-main', h('b', { text: r.name + (!opens && sentHere(r.pieces[0]) ? goesTo(r.pieces[0]) : '') }), h('span', { class: 'small muted', text: r.detail })),
+            h('span', { class: 'line-amount', text: money(r.paise) }),
+            opens ? h('button', { type: 'button', class: 'icon-btn bill-open', 'aria-label': opened.has(r.key) ? 'Hide' : 'Show what it was', data: { action: 'bill-group-open' }, onclick: e => { e.stopPropagation(); if (opened.has(r.key)) opened.delete(r.key); else opened.add(r.key); ui.redraw(); } }, icon(opened.has(r.key) ? 'minus' : 'plus')) : null));
+          // Each piece its tick; an item of more than one also − how many of N +.
+          if (opens && opened.has(r.key)) for (const x of r.pieces) lines.push(h('div', { class: 'line pick bill-part' + (sentHere(x) ? ' fixed moving' : ''), role: 'button', tabindex: '0', 'aria-pressed': String(countOf(x) > 0), data: { part: x.key }, onclick: () => { if (sentHere(x)) return; setCount(x, countOf(x) > 0 ? 0 : most(x)); ui.redraw(); } },
+            h('input', { type: 'checkbox', checked: countOf(x) > 0, disabled: sentHere(x), tabindex: '-1', 'aria-hidden': 'true' }),
+            h('div', 'line-main', h('b', { text: x.name + goesTo(x) }), h('span', { class: 'small muted', text: x.detail.join(' · ') })),
+            ...[most(x) > 1 ? h('span', { class: 'step', data: { field: 'bill-count' } },
+              h('button', { type: 'button', disabled: sentHere(x) || countOf(x) <= 0, 'aria-label': 'One fewer', onclick: e => { e.stopPropagation(); setCount(x, countOf(x) - 1); ui.redraw(); } }, icon('minus')),
+              h('b', { text: countOf(x) + ' of ' + most(x) }),
+              h('button', { type: 'button', disabled: sentHere(x) || countOf(x) >= most(x), 'aria-label': 'One more', onclick: e => { e.stopPropagation(); setCount(x, countOf(x) + 1); ui.redraw(); } }, icon('plus'))) : null].filter(Boolean),
+            h('span', { class: 'line-amount', text: money(worth(x)) })));
+        }
+        ui.body.append(h('div', { class: 'lines end-pick bill-parts', data: { field: 'bill-parts' } }, lines));
+      }
+      else drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, tab: data.tab || null, editable: false, detail: true, pauses: data.pauses });
       const notes = notesBlock([billId, data.tab ? data.tab.id : '']);
       if (notes) ui.body.append(notes);
 
@@ -10921,7 +11525,8 @@ async function receiptSheet(billId, back) {
         else if (data.carry) summary.append(kv('Moved to the booking on ' + turfDayName(data.carry.dateKey), money(data.carry.amountPaise), 'gold'));
         else if (data.payments.length || due !== bill.totalPaise) summary.append(kv('Outstanding', money(due), 'due ' + (due > 0 ? 'owing' : 'clear'), { data: { balance: '1' } }));
       }
-      section('Bill summary', summary);
+      // The whole-bill line already says the total; nothing else to sum up then (nothing paid, no discount).
+      if (!ticking) section('Bill summary', summary);
       for (const c of data.corrections.filter(c => c.kind === 'bill_void')) ui.body.append(h('p', { class: 'small muted', style: 'margin-top:10px', text: 'Voided: ' + c.reason + ' (was ' + money(Number(c.oldValue)) + ')' }));
 
       // 2. Each payment made towards this bill, with its receipt number.
@@ -10958,20 +11563,33 @@ async function receiptSheet(billId, back) {
       }
 
       if (payable) {
-        amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String(due / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
+        const owing = ticking ? tickedSum() : due;
+        amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String(owing / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
         const receivedBox = field('Received (₹)', amount);
-        const primary = () => { const b = current.primaryButton, split = how ? how.paid() : null, paise = split != null ? split : toPaise(amount.value || 0), label = 'Collect Payment · ' + money(paise); b.dataset.label = label; b.textContent = label; b.disabled = !(paise > 0 && paise <= due); };
+        const primary = () => {
+          const b = current.primaryButton, split = how ? how.paid() : null, paise = split != null ? split : toPaise(amount.value || 0);
+          const label = !owing ? 'Tick what he pays for' : 'Collect Payment · ' + money(paise);
+          b.dataset.label = label;
+          b.textContent = label;
+          b.disabled = !(paise > 0 && paise <= due) || (partly() && paise !== owing);
+        };
         amount.oninput = primary;
         ui.foot.append(
-          h('div', 'foot-row', h('div', { class: 'foot-label', text: 'Outstanding' }), h('div', { class: 'foot-total', text: money(due) })),
-          h('div', 'foot-row pay-foot', receivedBox, (how = payChoice(payStore, () => primary(), { amount, due: () => due })).node));
+          h('div', 'foot-row', h('div', { class: 'foot-label', text: partly() ? 'Ticked' : 'Outstanding' }), h('div', { class: 'foot-total', text: money(owing) })),
+          h('div', 'foot-row pay-foot', receivedBox, (how = payChoice(payStore, () => primary(), { amount, due: () => owing, splittable: !partly() })).node));
         ui.primary('');
         primary();
         // A turf bill can also go to the team's next booking: the turf chooser offers both.
         const turfOwner = data.tab ? turfBookingForTab(data.tab.id) : null, turfPlayer = turfOwner ? (state.TurfPlayers || []).find(x => x.tabId === data.tab.id) || null : null;
         // A turf bill's balance can also go onto a bill running on a system (owner, 2 November: "where is it??").
         const toSystem = turfOwner && !turfAccountOf(turfPlayer ? turfPlayer.id : turfOwner.id) && !(turfOwner.split === 'yes' && !turfPlayer) ? btn([icon('transfer'), 'Move to System'], () => turfMoveSheet(turfOwner, turfPlayer), 'quiet', { data: { action: 'bill-move-system' } }) : null;
-        ui.foot.append(h('div', 'foot-links', btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, due, goodsOf(data.orders))), 'quiet', { data: { action: 'bill-credit' } }), toSystem, btn('Close', dismissSheet, 'quiet')));
+        // Any other bill left pending can go onto a system, a booking or a reservation (owner, 15 November).
+        // Move what is ticked; what is left of the bill is shown again after.
+        const again = () => { const left = state.Bills.find(x => x.id === billId); if (left && left.totalPaise > left.paidPaise && !ArenaCore.carryOf(state, billId) && !state.CreditTransfers.some(t => t.billId === billId)) receiptSheet(billId, back); else closeSheet(); };
+        const toPlace = !turfOwner && !ArenaCore.carryOf(state, billId) && owing > 0 ? btn([icon('transfer'), 'Move'], () => pendingMoveSheet([billId], (data.tab || {}).customer, owing, () => receiptSheet(billId, back), partly() ? { split: splitOf(), after: again } : {}), 'quiet', { data: { action: 'bill-move-pending' } }) : null;
+        // Keep pending: nothing changes; what is not dealt with stays in Pending bills.
+        const keep = data.status !== 'paid' && !turfOwner ? btn([icon('clock'), 'Keep pending'], dismissSheet, 'quiet', { data: { action: 'bill-keep-pending' } }) : null;
+        ui.foot.append(h('div', 'foot-links', owing > 0 ? btn([icon('credits'), 'Move to Credit'], () => (turfOwner ? turfCreditSheet(turfOwner, turfPlayer, { owedPaise: due, billId }) : creditTransferSheet(billId, data.number, owing, goodsOf(data.orders), partly() ? splitOf() : null)), 'quiet', { data: { action: 'bill-credit' } }) : null, toSystem, toPlace, keep || btn('Close', dismissSheet, 'quiet')));
       } else {
         // Nothing left to collect: say so plainly, then offer the receipt.
         const done = data.status === 'paid' ? ['', 'checkCircle', 'Paid in full', money(bill.totalPaise) + ' settled' + (extras.length ? ' · ' + money(receivedAll) + ' received in all' : '')]
@@ -10983,16 +11601,59 @@ async function receiptSheet(billId, back) {
         ui.foot.append(h('div', 'foot-row', btn([icon('printer'), 'Print Receipt'], () => printReceipt(data), 'block', { data: { action: 'print' } }), btn([icon('check'), 'Done'], dismissSheet, 'primary block', { data: { action: 'done' } })));
       }
     },
-    command: () => { if (!payable) return null; const split = how.paid(), paise = split != null ? split : toPaise(amount.value); return { type: 'PAY', billId, amountPaise: paise, ...how.value() }; },
+    command: () => {
+      if (!payable) return null;
+      // What is ticked paid now; the rest stays on the bill and is shown again.
+      if (partly()) { if (!ticked().length) throw new Error('Tick what he pays for.'); return { type: 'PENDING_PART_PAY', ...splitOf(), method: how.value(tickedSum()).method }; }
+      const split = how.paid(), paise = split != null ? split : toPaise(amount.value);
+      return { type: 'PAY', billId, amountPaise: paise, ...how.value() };
+    },
     // Paid off now: back to where the bill was opened from, with a note. Still owing: the bill again.
     then: result => {
       const after = state.Bills.find(x => x.id === billId);
       if (!after || after.totalPaise > after.paidPaise) return receiptSheet(billId, back);
       closeSheet();
       if (back) back(); else returnToSplit(data.tab ? data.tab.id : '');
-      return { text: 'Paid ' + [money(result.amountPaise), methodText(result.method), result.receiptNumber].filter(Boolean).join(' · ') + '.', action: { label: 'Print receipt', run: async () => { try { printReceipt(await rpc('rpcBill', token, billId)); } catch (e) { notify('error', e.message); } } } };
+      const paidNow = result.amountPaise != null ? result.amountPaise : result.paidPaise || 0;
+      if (!paidNow) return { text: result.message };
+      return { text: 'Paid ' + [money(paidNow), methodText(result.method), result.receiptNumber].filter(Boolean).join(' · ') + '.', action: { label: 'Print receipt', run: async () => { try { printReceipt(await rpc('rpcBill', token, billId)); } catch (e) { notify('error', e.message); } } } };
     }
   });
+}
+
+// A pending bill's parts to tick (owner, 15 November, as on Manipal: "that bill had 2 right?? snooker and bowling, club those 2 …
+// dont breakdown the snooker bill, because it was previous pending moved to this, and if i need i will open it"): one row the
+// bill's own lines (its systems and items), one each bill moved onto it, one each balance from earlier; each opens to its pieces
+// (a system with its time, an item), each with its own tick.
+function billParts(data) {
+  const segs = (data.segments || []).filter(g => g.status !== 'void'), orders = (data.orders || []).filter(o => o.status === 'active');
+  const pauses = data.pauses || state.Pauses || [];
+  const timeWords = g => timerShort(g, timerWords(g, pauses));
+  const piecesOf = (gs, os) => {
+    const units = new Map();
+    for (const g of gs) {
+      const unit = unitOf(g.unitId) || {}, name = unit.name || 'Game';
+      if (!units.has(name)) units.set(name, { key: 'u:' + g.id, name, detail: [], segmentIds: [], orderIds: [], paise: 0 });
+      const x = units.get(name);
+      x.segmentIds.push(g.id);
+      x.paise += Number(g.totalPaise || 0);
+      x.detail.push(timeWords(g));
+    }
+    return [...units.values(), ...os.map(o => ({ key: 'o:' + o.id, name: o.category === 'Carried' ? carriedOf(o).what : o.label, most: o.category === 'Carried' ? 1 : Number(o.quantity), unit: Number(o.unitPricePaise || 0), detail: [o.category === 'Carried' ? 'From earlier' : money(o.unitPricePaise) + ' each'], segmentIds: [], orderIds: [o.id], paise: Number(o.totalPaise || 0) }))];
+  };
+  const row = (key, name, detail, pieces) => ({ key, name, detail, pieces, paise: pieces.reduce((n, x) => n + x.paise, 0) });
+  const moves = data.tab ? movedOnto(data.tab.id, segs, orders) : [], inMove = new Set(moves.flatMap(m => m.segments.map(g => g.id).concat(m.orders.map(o => o.id))));
+  const ownSegs = segs.filter(g => !inMove.has(g.id)), ownOrders = orders.filter(o => !inMove.has(o.id) && o.category !== 'Carried'), carried = orders.filter(o => !inMove.has(o.id) && o.category === 'Carried');
+  const rows = [];
+  // Only items (what was left unpaid of a bill): each item a row of its own, to tick at once.
+  if (!ownSegs.length && ownOrders.length) piecesOf([], ownOrders).forEach(x => rows.push(row(x.key, x.name, x.detail.join(' · '), [x])));
+  else if (ownSegs.length || ownOrders.length) {
+    const pieces = piecesOf(ownSegs, ownOrders);
+    rows.push(row('own', [...new Set(ownSegs.map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ') || pieces.map(x => x.name).join(', '), pieces.length > 1 ? pieces.map(x => x.name).join(', ') : pieces[0].detail.join(' · '), pieces));
+  }
+  moves.forEach((m, i) => { const pieces = piecesOf(m.segments, m.orders); rows.push(row('move' + i, [...new Set(m.segments.map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', '), 'Moved here', pieces)); });
+  carried.forEach(o => { const pieces = piecesOf([], [o]); rows.push(row('carry:' + o.id, carriedOf(o).what, 'From earlier', pieces)); });
+  return rows;
 }
 
 // The items a move to credit names on the statement, by themselves (owner, 21 October: nothing to fill in): every item on the
@@ -11001,7 +11662,8 @@ function itemsOnCredit(orders, creditPaise) {
   const goods = goodsOf(orders), total = goods.reduce((sum, o) => sum + o.totalPaise, 0);
   return goods.length && total <= creditPaise ? goods.map(o => ({ orderId: o.id, quantity: Number(o.quantity) })) : undefined;
 }
-function creditTransferSheet(billId, number, due, goods = []) {
+// split: part of a pending bill moved to credit (PENDING_PART_CREDIT), in one save.
+function creditTransferSheet(billId, number, due, goods = [], split = null) {
   const store = newAccountStore(), comment = commentField();
   let picker;
   openSheet({
@@ -11016,6 +11678,7 @@ function creditTransferSheet(billId, number, due, goods = []) {
       ui.primary('Move to credit');
     },
     command() {
+      if (split) return { type: 'PENDING_PART_CREDIT', ...split, ...picker.value() };
       return { type: 'TRANSFER_CREDIT_INLINE', billId, ...picker.value(), note: comment.value(), unpaidItems: itemsOnCredit(goods, due) };
     },
     then: () => receiptSheet(billId)
@@ -11244,6 +11907,10 @@ function settingValue(key, fallback) { const row = state.Settings.find(r => r.id
 let tabSearch = '';
 // When an open bill is of: its first game, its first item, or its turf slot (owner, 4 November: "i opened all dates, and then
 // the bill how will i know which date it is??").
+// When a bill stopped playing: its last timer's end (owner, 16 November, as on Manipal: "this order, should be the time they
+// closed, not when the time they started"); 0 while it plays on or has no timer.
+const closedAt = t => (stillPlaying(t.id) ? 0 : Math.max(0, ...segmentsOf(t.id).map(g => Number(g.endMs) || 0)));
+const closedWords = t => { const at = closedAt(t); return at ? 'Ended ' + (dayKey(at) === dayKey(openedAt(t)) ? '' : day(at) + ', ') + clock(at) : ''; };
 function openedAt(t) {
   const booking = turfBookingForTab(t.id), starts = segmentsOf(t.id).map(g => Number(g.startMs)).concat(ordersOf(t.id).filter(o => o.category !== 'Turf' && o.category !== 'Carried').map(o => Number(o.createdMs)), [booking ? hourStart(booking.dateKey, Number(booking.startHour)) : 0]).filter(n => n > 0);
   return starts.length ? Math.min(...starts) : Number(t.createdMs);
@@ -11263,13 +11930,15 @@ const tabsPage = {
     const open = openBills().filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
     // The dates chosen, by the day each bill is of; newest first (owner, 4 November: "all dates everywhere i hope it starts
     // from recent").
-    const tabs = open.filter(t => !(fromMs && openedAt(t) < fromMs) && !(toMs && openedAt(t) >= toMs)).sort((a, b) => openedAt(b) - openedAt(a));
+    // Newest first by when each closed, one still playing by when it started (owner, 16 November, as on Manipal).
+    const order = t => closedAt(t) || openedAt(t);
+    const tabs = open.filter(t => !(fromMs && openedAt(t) < fromMs) && !(toMs && openedAt(t) >= toMs)).sort((a, b) => order(b) - order(a));
     page.append(table(
       [{ label: 'Customer' }, { label: 'Where', class: 'hide-s' }, { label: 'Status' }, { label: 'So far', class: 'r' }],
       tabs.map(t => {
         const units = [...new Set(segmentsOf(t.id).map(g => (unitOf(g.unitId) || {}).name || g.unitId))];
         return h('tr', { class: 'click', data: { tab: t.id }, onclick: () => settleSheet(t.id) },
-          h('td', null, person(t.customer, [t.phone, openedWords(t)].filter(Boolean).join(' · '))),
+          h('td', null, person(t.customer, [t.phone, openedWords(t), closedWords(t)].filter(Boolean).join(' · '))),
           h('td', { class: 'hide-s muted', text: units.join(', ') || (t.kind === 'quick_sale' ? 'Quick Sale' : '') }),
           h('td', null, stillPlaying(t.id) ? h('span', { class: 'badge good', text: 'Playing' }) : h('span', { class: 'badge warn', text: 'Ready to settle' })),
           h('td', { class: 'r num', text: money(tabTotal(t.id)) }));
@@ -11411,6 +12080,8 @@ function checkInSheet(r) {
     sub: (r.unitId ? (unitOf(r.unitId) || {}).name : 'Any ' + r.category) + ' · booked for ' + when(r.arrivalMs),
     focus: false,
     build(ui) {
+      const heldNow = pendingHeldFor(r);
+      if (heldNow.owed) ui.body.append(h('div', { class: 'res-pending', style: 'margin-bottom:16px', data: { resPending: String(heldNow.owed) } }, icon('wallet'), money(heldNow.owed) + ' pending comes onto this bill'));
       if (!free.length) ui.body.append(h('p', { class: 'muted', style: 'margin-bottom:16px', text: 'No ' + r.category + ' is free right now.' }), h('p', { style: 'margin-bottom:16px' }, btn('Mark as waiting', () => runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status: 'waiting' }))));
       if (candidates.length) ui.body.append(h('div', 'field', h('span', { text: 'Unit' }), h('div', 'chips', candidates.map(u => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen === u.id), data: { unit: u.id }, onclick: () => { chosen = u.id; acked = false; current.ack.reservation = false; ui.redraw(); } }, u.name + (inUse(u) ? ' · in use' : ''))))));
       const unit = chosen && unitOf(chosen), clashes = unit ? bookingClash(unit, r.id) : [];
@@ -11458,7 +12129,15 @@ const reservationsPage = {
 // One booking: when and how it stands, who, which unit, and Check In.
 function reservationCard(r) {
   const pending = RES_PENDING.includes(r.status);
-  const setStatus = status => runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status });
+  // Pending bills that were to come onto this booking: asked about once it is cancelled or a no-show (owner, 15 November).
+  const setStatus = status => {
+    const heldBefore = ArenaTurf.pendingFor(state, r.id);
+    runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status }, () => {
+      if (heldBefore.length && (status === 'cancelled' || status === 'no_show')) pendingCancelSheet(r, heldBefore);
+      return null;
+    });
+  };
+  const held = pending ? pendingHeldFor(r) : { owed: 0 };
   return h('div', { class: 'res-card', data: { reservation: r.id } },
     h('div', 'res-top', h('b', { class: 'num', text: when(r.arrivalMs) }), reservationStatus(r)),
     person(r.customer, [r.phone, r.notes].filter(Boolean).join(' · ')),
@@ -11470,7 +12149,8 @@ function reservationCard(r) {
         ['Edit', () => reservationSheet(r), false, 'pencil'],
         ['No-show', () => setStatus('no_show'), false, 'ban'],
         ['Cancel booking', () => setStatus('cancelled'), true, 'close']
-      ], 'Reservation actions')) : null);
+      ], 'Reservation actions')) : null,
+    held.owed ? h('div', { class: 'res-pending', data: { resPending: String(held.owed) } }, icon('wallet'), money(held.owed) + ' pending comes onto their bill') : null);
 }
 
 // ---------- Snacks & beverages over the counter, and the menu ----------
@@ -11599,10 +12279,7 @@ const menuPage = {
   // "make beautiful cards for each item").
   render(target) {
     const items = state.Products.filter(p => p.available !== 'removed');
-    if (!items.length) {
-      target.append(emptyState('menu', 'The menu is empty. Add your first item.'));
-      return;
-    }
+    if (!items.length) target.append(emptyState('menu', 'The menu is empty. Add your first item.'));
     for (const [kind, label, glyphName] of PRODUCT_KINDS) {
       const mine = items.filter(p => p.category === kind).sort((a, b) => a.name.localeCompare(b.name));
       if (!mine.length) continue;
@@ -11610,6 +12287,16 @@ const menuPage = {
         h('div', 'group-title', glyph(glyphName), label, h('span', { class: 'group-sum', text: mine.length + (mine.length === 1 ? ' item' : ' items') })),
         h('div', 'menu-cards', mine.map(menuCard))));
     }
+    // The Game station after Ice cream (owner, 16 November, as on Manipal): what Add Items charges for each, from the rates on Settings.
+    const half = kind => money(gamePrice(kind, 30, 1)), hour = kind => money(gamePrice(kind, 60, 1));
+    const game = (glyphName, name, lines) => h('div', { class: 'menu-card game-menu-card', data: { gameMenu: name } }, h('div', 'menu-card-top', h('span', { class: 'menu-card-icon game' }, icon(glyphName)), h('div', 'menu-card-text', h('b', { class: 'menu-card-name', text: name }), ...lines.map(([what, price]) => h('div', 'game-price-row', h('span', { text: what }), h('b', { class: 'num', text: price }))))));
+    target.append(h('section', { class: 'menu-group', data: { menuKind: 'Game' } },
+      h('div', 'group-title', glyph('PS5'), 'Game station', h('span', { class: 'group-sum', text: '4 games' })),
+      h('div', 'menu-cards',
+        game('PS5', 'PS5', [['Half an hour · each controller', half('PS5')], ['1 hour · each controller', hour('PS5')]]),
+        game('Pool', 'Table', [['Pool · half an hour', half('Pool')], ['Pool · 1 hour', hour('Pool')], ['Snooker · half an hour', half('Snooker')], ['Snooker · 1 hour', hour('Snooker')]]),
+        game('RC', 'RC Gaming', [['Half an hour', half('RC')], ['1 hour', hour('RC')]]),
+        game('PC', 'PC', [['Half an hour', half('PC')], ['1 hour', hour('PC')]]))));
   }
 };
 // Put the counter basket on a credit account.
@@ -12104,6 +12791,7 @@ function pendingRows() {
     const owed = bill.totalPaise - bill.paidPaise, booking = turfBookingForTab(d.tabId);
     if (booking) {
       const row = byBooking.get(booking.id) || { booking, parts: [], owed: 0, at: d.createdMs };
+      row.at = Math.max(row.at, d.createdMs);
       row.parts.push({ name: ((state.TurfPlayers || []).find(p => p.tabId === d.tabId) || {}).name || '', owed, billId: bill.id });
       row.owed += owed;
       byBooking.set(booking.id, row);
@@ -12111,9 +12799,9 @@ function pendingRows() {
     }
     rows.push({ bill, detail: d, tab: tabOf(d.tabId), owed, at: d.createdMs });
   }
-  // Newest first by the day each was played (a turf booking by its slot's day), then by when it was closed (owner, 4 November:
-  // "all dates everywhere i hope it starts from recent").
-  return [...rows, ...byBooking.values()].sort((a, b) => (pendingDay(a) < pendingDay(b) ? 1 : pendingDay(a) > pendingDay(b) ? -1 : b.at - a.at));
+  // Newest first by when each bill was closed (owner, 4 November: "all dates everywhere i hope it starts from recent"; 16 November,
+  // as on Manipal: "even pending please follow the same order, the time a bill is closed not the time they started").
+  return [...rows, ...byBooking.values()].sort((a, b) => b.at - a.at);
 }
 // A turf booking's pending money, said directly (owner, 20 October): the game, the day, the court and the time, then only the
 // people still owing, each with their own Collect. The whole booking is not opened again.
@@ -12159,14 +12847,155 @@ function pendingLine(r, back) {
       glyph('turf', '', 'sm'),
       h('div', 'line-main', h('b', { text: 'Turf · ' + courtLabel(b.court) }), h('span', { class: 'small muted', text: turfRange(b) })),
       h('span', { class: 'line-amount', text: money(r.owed) }),
-      btn([icon('wallet'), 'Collect'], () => turfPendingSheet(r), 'go', { data: { action: 'pending-collect-one' } }));
+      h('div', 'pending-tools', btn([icon('plus'), 'Add Items'], () => pendingItemsSheet(r.parts[0].billId, b.customer, r.owed, back), 'quiet', { data: { action: 'pending-items' } }),
+        btn([icon('transfer'), 'Move'], () => pendingMoveSheet(r.parts.map(x => x.billId), b.customer, r.owed, back), 'quiet', { data: { action: 'pending-move' } }),
+        btn([icon('wallet'), 'Collect'], () => turfPendingSheet(r), 'go', { data: { action: 'pending-collect-one' } })));
   }
   const where = [...new Set(segmentsOf(r.detail.tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ');
+  const heldBy = pendingHeldBy(r.bill.id);
   return h('div', { class: 'line', data: { pending: r.bill.id } },
     glyph('bills', '', 'sm'),
-    h('div', 'line-main', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: [clock(r.detail.createdMs), where ? numberOf(r.bill.id) : ''].filter(Boolean).join(' · ') })),
+    h('div', 'line-main', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: [clock(r.detail.createdMs), where ? numberOf(r.bill.id) : ''].filter(Boolean).join(' · ') }),
+      heldBy ? h('span', { class: 'pending-held', data: { pendingHeld: heldBy.id } }, icon('reservations'), 'Comes with ' + heldBy.customer + ' · ' + reservationWhat(heldBy) + ' ' + when(heldBy.arrivalMs)) : null),
     h('span', { class: 'line-amount', text: money(r.owed) }),
-    btn([icon('wallet'), 'Collect'], () => receiptSheet(r.bill.id, back), 'go', { data: { action: 'pending-collect-one' } }));
+    h('div', 'pending-tools', btn([icon('plus'), 'Add Items'], () => pendingItemsSheet(r.bill.id, (r.tab || {}).customer || r.detail.customer, r.owed, back), 'quiet', { data: { action: 'pending-items' } }),
+      btn([icon('transfer'), 'Move'], () => pendingMoveSheet([r.bill.id], (r.tab || {}).customer || r.detail.customer, r.owed, back), 'quiet', { data: { action: 'pending-move' } }),
+      btn([icon('wallet'), 'Collect'], () => receiptSheet(r.bill.id, back), 'go', { data: { action: 'pending-collect-one' } })));
+}
+// Add Items to a pending bill (owner, 15 November, as on Manipal): onto the same bill, what it then owes on the button.
+function pendingItemsSheet(billId, name, owed, back) {
+  let picker;
+  const say = () => { const sum = picker.total(); return sum ? 'Add ' + money(sum) + ' · owes ' + money(owed + sum) : 'Choose what to add'; };
+  openSheet({
+    title: 'Add Items',
+    sub: (name || 'Walk-in') + ' · owes ' + money(owed),
+    icon: 'plus',
+    focus: false,
+    onClose: back || null,
+    build(ui) {
+      picker = picker || productPicker(() => { const b = current.primaryButton; if (b) { b.textContent = say(); b.dataset.label = say(); b.disabled = !picker.total(); } });
+      ui.body.append(picker.node);
+      ui.primary(say(), !picker.total());
+    },
+    command() {
+      const items = picker.items();
+      if (!items.length) throw new Error('Choose what to add.');
+      return { type: 'PENDING_ADD_ITEMS', billId, items };
+    },
+    then(result) { closeSheet(); render(); return { text: result.message }; }
+  });
+}
+// What a reservation is for: its unit, or any of its kind.
+const reservationWhat = r => (r.unitId ? (unitOf(r.unitId) || {}).name || catName(r.category) : 'Any ' + catName(r.category));
+// The reservation a pending bill is held for, to come onto its bill at check-in (owner, 15 November).
+function pendingHeldBy(billId) {
+  return state.Reservations.find(r => RES_PENDING.includes(r.status) && ArenaTurf.pendingFor(state, r.id).includes(billId)) || null;
+}
+// What a reservation brings with it: its held bills still pending, and how much.
+function pendingHeldFor(r) {
+  const voided = new Set((state.Corrections || []).filter(c => c.kind === 'bill_void').map(c => c.targetId)), onCredit = new Set((state.CreditTransfers || []).map(t => t.billId)), carried = new Set((state.Carries || []).map(c => c.billId));
+  const bills = ArenaTurf.pendingFor(state, r.id).map(id => state.Bills.find(x => x.id === id)).filter(x => x && x.totalPaise > x.paidPaise && !voided.has(x.id) && !onCredit.has(x.id) && !carried.has(x.id));
+  return { bills, owed: bills.reduce((n, x) => n + x.totalPaise - x.paidPaise, 0) };
+}
+// Move a pending bill (owner, 15 November, as on Manipal: "a person played snooker and i put it to pending, now once bowling is
+// free, he will play there … move the pending bill to systems or turf … also to the reservation list"): onto a system playing
+// now, a free system they start on, a turf booking, or a reservation, whose check-in brings it onto the new bill. The balance
+// goes as one line.
+// opts.split: a ticked part of a pending bill, split off and moved in the same save; opts.after: what opens after.
+function pendingMoveSheet(billIds, name, owed, back, opts = {}) {
+  const running = playingBills({ id: '' }), free = CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && !inUse(u)));
+  const today = dayKey(nowMs()), bookings = turfTakers({ kind: '' }).filter(x => x.dateKey >= today && x.split !== 'yes' && !turfAccountOf(x.id));
+  const reservations = state.Reservations.filter(r => RES_PENDING.includes(r.status)).sort((x, y) => x.arrivalMs - y.arrivalMs);
+  let to = null, controllers = 1, time, acked = false, sheet = null;
+  const pick = target => { to = target; acked = false; current.ack.reservation = false; sheet.redraw(); };
+  const chosen = kind => key => !!to && to.kind === kind && to.key === key;
+  openSheet({
+    title: 'Move pending',
+    sub: (name || 'Walk-in') + ' · ' + money(owed),
+    icon: 'transfer',
+    focus: false,
+    onClose: back || null,
+    build(ui) {
+      sheet = ui;
+      if (!running.length && !free.length && !bookings.length && !reservations.length) { ui.body.append(h('p', { class: 'muted', text: 'No system is playing or free, and no booking or reservation is open.' })); return; }
+      if (running.length) ui.body.append(h('div', 'group-title', icon('users'), 'Playing now · add to their bill'), systemRows(running.map(entry => ({ category: entry.category, text: entry.name, selected: chosen('bill')(entry.origin), data: { moveBill: entry.origin }, onclick: () => pick({ kind: 'bill', key: entry.origin, tabId: (entry.home || entry.members[0] || {}).id, name: entry.name }) }))));
+      if (free.length) ui.body.append(h('div', 'group-title', icon('play'), 'Free · start playing'), systemRows(free.map(u => ({ category: u.category, text: u.name, selected: chosen('unit')(u.id), data: { moveUnit: u.id }, onclick: () => pick({ kind: 'unit', key: u.id, unitId: u.id, name: u.name }) }))));
+      if (bookings.length) ui.body.append(h('div', 'group-title', icon('turf'), 'Turf · pay with the booking'),
+        h('div', 'chips', bookings.map(x => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen('booking')(x.id)), data: { moveBooking: x.id }, onclick: () => pick({ kind: 'booking', key: x.id, bookingId: x.id, name: x.customer }) }, turfTakerText(x, true)))));
+      if (reservations.length) ui.body.append(h('div', 'group-title', icon('reservations'), 'Reservation · comes onto their bill at check-in'),
+        h('div', 'chips', reservations.map(r => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen('reservation')(r.id)), data: { moveReservation: r.id }, onclick: () => pick({ kind: 'reservation', key: r.id, reservationId: r.id, name: r.customer }) }, r.customer + ' · ' + reservationWhat(r) + ' ' + when(r.arrivalMs)))));
+      const unit = to && to.kind === 'unit' ? unitOf(to.unitId) : null;
+      if (unit) {
+        // A free system: a PS5's controllers, and when they start.
+        if (unit.category === 'PS5') ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented([1, 2, 3, 4].map(n => [n, String(n)]), controllers, v => { controllers = Number(v); }).node));
+        const clashes = bookingClash(unit);
+        if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
+        time = time || timeChoice('Starts');
+        ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
+        ui.primary('Start ' + unit.name + ' · Move ' + money(owed), clashes.length > 0 && !acked);
+        return;
+      }
+      ui.primary(!to ? 'Choose where it goes' : to.kind === 'reservation' ? 'Move ' + money(owed) + ' to ' + to.name + '’s reservation' : 'Move ' + money(owed) + ' to ' + to.name, !to);
+    },
+    command() {
+      if (!to) throw new Error('Choose where it goes.');
+      const base = { type: 'PENDING_MOVE', billIds, ...(opts.split ? { split: opts.split } : {}) };
+      if (to.kind === 'unit') return { ...base, unitId: to.unitId, startMs: time.value(), ...(unitOf(to.unitId).category === 'PS5' ? { controllers } : {}) };
+      if (to.kind === 'booking') return { ...base, bookingId: to.bookingId };
+      if (to.kind === 'reservation') return { ...base, reservationId: to.reservationId };
+      return { ...base, tabId: to.tabId };
+    },
+    then(result) { if (opts.after) opts.after(); else closeSheet(); return { text: result.message }; }
+  });
+}
+// A reservation cancelled while pending bills were held for it (owner, 15 November: "remind me that they have so and so pending and
+// if i need to clear the payment or put to pending or credit or move somewhere else"): what they owe, and Collect, Move to Credit,
+// Move or Keep pending.
+function pendingCancelSheet(r, billIds) {
+  const bills = billIds.map(id => state.Bills.find(x => x.id === id)).filter(x => x && x.totalPaise > x.paidPaise && !(state.Carries || []).some(c => c.billId === x.id) && !(state.CreditTransfers || []).some(t => t.billId === x.id));
+  if (!bills.length) return;
+  const owed = bills.reduce((n, x) => n + x.totalPaise - x.paidPaise, 0), again = () => pendingCancelSheet(r, billIds);
+  openSheet({
+    title: r.customer + ' still owes ' + money(owed),
+    sub: 'Their booking is closed · this was to come onto it',
+    icon: 'clock',
+    tone: 'gold',
+    focus: false,
+    build(ui) {
+      ui.body.append(h('div', 'lines', bills.map(x => {
+        const d = state.BillDetails.find(y => y.id === x.id) || {}, where = [...new Set(segmentsOf(d.tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ');
+        return h('div', { class: 'line', data: { pending: x.id } }, glyph('bills', '', 'sm'),
+          h('div', 'line-main', h('b', { text: where || numberOf(x.id) || 'Bill' }), h('span', { class: 'small muted', text: [day(d.createdMs || nowMs()), numberOf(x.id)].filter(Boolean).join(' · ') })),
+          h('span', { class: 'line-amount', text: money(x.totalPaise - x.paidPaise) }),
+          btn([icon('wallet'), 'Collect'], () => receiptSheet(x.id, again), 'go', { data: { action: 'pending-collect-one' } }));
+      })));
+      ui.foot.append(h('div', 'foot-row pending-cancel-tools',
+        btn([icon('transfer'), 'Move'], () => pendingMoveSheet(bills.map(x => x.id), r.customer, owed, again), '', { data: { action: 'pending-move' } }),
+        btn([icon('credits'), 'Move to Credit'], () => pendingCreditSheet(bills.map(x => x.id), r.customer, owed, again), '', { data: { action: 'pending-credit' } }),
+        btn('Keep pending', closeSheet, 'quiet', { data: { action: 'pending-keep' } })));
+    }
+  });
+}
+// Pending bills onto a credit account, each bill as it is moved to credit from its own sheet.
+function pendingCreditSheet(billIds, name, owed, back) {
+  const store = { name: name || '' };
+  let picker;
+  openSheet({
+    title: 'Move to Credit',
+    sub: (name || 'Walk-in') + ' · ' + money(owed),
+    icon: 'credits',
+    tone: 'gold',
+    onClose: back || null,
+    build(ui) { picker = picker || accountPicker(store); ui.body.append(picker.node); ui.primary('Move ' + money(owed) + ' to Credit'); },
+    command() { const account = picker.value(); return { type: 'TRANSFER_CREDIT_INLINE', billId: billIds[0], ...account }; },
+    then(result) {
+      const rest = billIds.slice(1);
+      if (!rest.length) { closeSheet(); return { text: result.message }; }
+      const made = state.CreditTransfers.find(t => t.billId === billIds[0]), account = { accountId: (made || {}).accountId || picker.value().accountId };
+      saveAll(rest.map(id => ({ type: 'TRANSFER_CREDIT_INLINE', billId: id, ...account })), 'Moved to credit.').then(closeSheet);
+      return { text: result.message };
+    }
+  });
 }
 // One person's pending money: today's bills one by one, each day before one line with its total, opened out to its bills
 // (as a credit account's days are), each with its own Collect; the reminder says each day.
@@ -12209,7 +13038,8 @@ function pendingPersonSheet(group) {
 }
 // The Pending list's dates (owner, 4 November: "can we add dates here to filter???"): All dates at first, so nothing owed is
 // out of sight, then Today, one date or a date range, by the day each was played (a turf booking by its slot's day).
-const pendingQuery = { range: 'all', from: '', to: '' };
+// Today's at first (owner, 16 November, as on Manipal: "by default pending should show todays date's okay").
+const pendingQuery = { range: 'today', from: '', to: '' };
 function pendingInDates(r) {
   const key = pendingDay(r);
   if (pendingQuery.range === 'today') return key === dayKey(nowMs());
@@ -12261,6 +13091,8 @@ function pendingList(page) {
           h('td', { class: 'num owing', text: money(r.owed) }),
           h('td', { class: 'r' }, h('div', 'row-tools',
             iconButton('whatsapp', 'Remind ' + b.customer + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(b.phone, pendingReminderText(b.customer, r.owed, turfPendingWhat(b), detail)); }, { data: { action: 'pending-remind' } }),
+            h('button', { type: 'button', class: 'btn', data: { action: 'pending-items' }, onclick: e => { e.stopPropagation(); pendingItemsSheet(r.parts[0].billId, b.customer, r.owed); } }, icon('plus'), h('span', { class: 'hide-s', text: 'Add Items' })),
+            h('button', { type: 'button', class: 'btn', data: { action: 'pending-move' }, onclick: e => { e.stopPropagation(); pendingMoveSheet(r.parts.map(x => x.billId), b.customer, r.owed); } }, icon('transfer'), h('span', { class: 'hide-s', text: 'Move' })),
             h('button', { type: 'button', class: 'btn', data: { action: 'pending-collect' }, onclick: e => { e.stopPropagation(); turfPendingSheet(r); } }, icon('wallet'), h('span', { class: 'hide-s', text: 'Collect' })))));
       }
       const phone = (r.tab || {}).phone || '', where = [...new Set(segmentsOf(r.detail.tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ');
@@ -12271,23 +13103,31 @@ function pendingList(page) {
         h('td', { class: 'num owing', text: money(r.owed) }),
         h('td', { class: 'r' }, h('div', 'row-tools',
           phone ? iconButton('whatsapp', 'Remind ' + r.detail.customer + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(phone, pendingReminderText(r.detail.customer, r.owed, what)); }, { data: { action: 'pending-remind' } }) : null,
+          h('button', { type: 'button', class: 'btn', data: { action: 'pending-items' }, onclick: e => { e.stopPropagation(); pendingItemsSheet(r.bill.id, r.detail.customer, r.owed); } }, icon('plus'), h('span', { class: 'hide-s', text: 'Add Items' })),
+          h('button', { type: 'button', class: 'btn', data: { action: 'pending-move' }, onclick: e => { e.stopPropagation(); pendingMoveSheet([r.bill.id], r.detail.customer, r.owed); } }, icon('transfer'), h('span', { class: 'hide-s', text: 'Move' })),
           h('button', { type: 'button', class: 'btn', data: { action: 'pending-collect' }, onclick: e => { e.stopPropagation(); receiptSheet(r.bill.id); } }, icon('wallet'), h('span', { class: 'hide-s', text: 'Collect' })))));
     }),
     'Nothing is pending.', 'clock'));
 }
-let creditMode = 'accounts';
-const creditsPage = {
-  get title() { return creditMode === 'pending' ? 'Pending' : 'Credit accounts'; },
-  subtitle: () => (creditMode === 'pending' ? 'Money to be cleared in a day or two.' : 'Manage customer credit accounts, track outstanding balances and add items.'),
+// Pending bills, a section of its own below Bills (owner, 16 November, as on Manipal: "remove pending from credit and put it below"),
+// today's at first.
+const pendingPage = {
+  title: 'Pending bills',
+  subtitle: 'Money to be cleared in a day or two.',
   bar(bar) {
-    const waiting = pendingGroups(pendingRows()).length;
-    bar.append(segmented([['accounts', 'Credit', 'credits'], ['pending', 'Pending' + (waiting ? ' · ' + waiting : ''), 'clock']], creditMode, v => { creditMode = v; render(); }).node);
-    if (creditMode === 'pending') bar.append(h('button', { type: 'button', class: 'stock-when-button', data: { action: 'pending-dates' }, onclick: e => pendingDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: pendingDatesWords() })));
-    bar.append(searchBox(creditSearch, creditMode === 'pending' ? 'Search pending' : 'Search accounts', v => { creditSearch = v; redrawKeepingFocus(); }));
-    if (creditMode === 'accounts') bar.append(btn([icon('download'), 'Export'], exportCredit, '', { data: { action: 'export-credit' } }), btn([icon('plus'), 'New account'], newAccountSheet, 'primary', { data: { action: 'new-account' } }));
+    bar.append(h('button', { type: 'button', class: 'stock-when-button', data: { action: 'pending-dates' }, onclick: e => pendingDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: pendingDatesWords() })));
+    bar.append(searchBox(creditSearch, 'Search pending', v => { creditSearch = v; redrawKeepingFocus(); }));
+  },
+  render(page) { pendingList(page); }
+};
+const creditsPage = {
+  title: 'Credit accounts',
+  subtitle: 'Manage customer credit accounts, track outstanding balances and add items.',
+  bar(bar) {
+    bar.append(searchBox(creditSearch, 'Search accounts', v => { creditSearch = v; redrawKeepingFocus(); }));
+    bar.append(btn([icon('download'), 'Export'], exportCredit, '', { data: { action: 'export-credit' } }), btn([icon('plus'), 'New account'], newAccountSheet, 'primary', { data: { action: 'new-account' } }));
   },
   render(page) {
-    if (creditMode === 'pending') { pendingList(page); return; }
     const text = creditSearch.trim().toLowerCase();
     const accounts = state.CreditAccounts.filter(a => !text || (a.name + ' ' + creditPhone(a.id)).toLowerCase().includes(text))
       .sort((a, b) => creditSummary(b.id).outstandingPaise - creditSummary(a.id).outstandingPaise);
@@ -12576,68 +13416,38 @@ const reportsPage = {
 
     // Received: the one large figure, the money taken in the dates, and what it was for: the floor, the turf and the counter
     // for that day's bills, then Advance, Pending and Credit, each under its own name.
-    const mix = [['Gaming floor', gaming, 'pc'], ['Turf', amount('Turf'), 'turf'], ['Snacks & drinks', products, 'snacks'], ['Advance', collected.advance, 'advance'], ['Pending', collected.pending, 'pending'], ['Credit', collected.credit, 'credit']];
-    const lead = h('section', { class: 'rep-card rep-lead', data: { figure: 'received' } },
-      h('div', 'rep-kicker', h('span', { text: 'Received' }), h('span', { class: 'rep-when', text: period })),
-      h('div', { class: 'rep-big num', text: money(total) }),
-      h('div', 'rep-stack' + (total > 0 ? '' : ' none'), mix.filter(m => m[1] > 0).map(m => h('i', { style: 'flex:' + m[1] + ';background:var(--part-' + m[2] + ')' }))),
-      h('ul', 'rep-legend inline', mix.filter(m => m[1] || m[2] === 'pc' || m[2] === 'turf' || m[2] === 'snacks').map(([label, value, tone]) => h('li', { data: { mix: tone } }, h('i', { style: 'background:var(--part-' + tone + ')' }), h('span', { text: label }), h('b', { class: 'num', text: money(value) })))),
-      collected.reversed ? h('p', { class: 'small muted', data: { reversed: '1' }, text: 'Reversed ' + money(collected.reversed) + ' (taken back)' }) : null);
-    // How the money came in: the drawer and UPI. Plain UPI and UPI to the CA scanner, apart (owner, 20 October).
-    const received = h('section', { class: 'rep-card', data: { figure: 'cash-upi' } },
-      h('div', 'rep-kicker', h('span', { text: 'Cash & UPI' })),
-      line('Cash', money(s.cashPaise)), line('UPI', money(s.upiPaise - caPaise(s))), ...(caPaise(s) ? [line('CA UPI', money(caPaise(s)))] : []));
-    // Credit: owed at the start, what went on credit (nothing received until it is paid), what was collected, owed at the end.
-    const creditCard = h('section', { class: 'rep-card rep-credit', data: { figure: 'credit' } },
-      h('div', 'rep-kicker', h('span', { text: 'Credit' })),
-      line('Opening balance', money(credit.openingPaise)),
-      line('Credit given', '+ ' + money(credit.givenPaise), 'gold'),
-      credit.otherPaise ? line('Other credit charges', '+ ' + money(credit.otherPaise)) : null,
-      line('Collected', '− ' + money(credit.collectedPaise), 'good'),
-      line('Closing balance', money(credit.closingPaise), 'total'));
-
-    // Each part: what it earned, how much it was used, and a bar of its share.
-    const usageText = k => {
-      const u = use[k] || { sessions: 0, groups: 0, minutes: 0 }, time = minutes(u.minutes * 60000);
-      if (k === 'Turf') return turfUse.bookings ? plural(turfUse.bookings, 'booking', 'bookings') + ' · ' + plural(turfUse.hours, 'hour', 'hours') : 'No bookings';
-      if (k === 'Manual') return 'Charged at the counter';
-      if (!u.sessions) return 'Not played';
-      // A session is one start for a customer or group, however many controllers (owner, 20 October: "groups" and
-      // "controllers" read as confusing). Tables count games.
-      if (k === 'PS5') return [plural(u.groups, 'session', 'sessions'), time].join(' · ');
-      return [k === 'PC' || k === 'RC' ? plural(u.sessions, 'session', 'sessions') : plural(u.sessions, 'game', 'games'), time].join(' · ');
-    };
-    const rows = (keys, sub) => {
-      const top = Math.max(1, ...keys.map(amount));
-      return h('div', 'rep-rows', keys.map(k => h('div', { class: 'rep-row', data: { part: k } },
-        h('span', { class: 'rep-icon', style: 'color:var(--part-' + REPORT_PARTS[k].tone + ')' }, icon(REPORT_PARTS[k].icon)),
-        h('div', 'rep-row-main', h('b', { text: REPORT_PARTS[k].label }), sub ? h('span', { class: 'rep-use', text: sub(k) }) : null),
-        h('b', { class: 'rep-amount num', text: money(amount(k)) }),
-        h('div', 'rep-bar', h('i', { style: 'width:' + (amount(k) / top) * 100 + '%;background:var(--part-' + REPORT_PARTS[k].tone + ');color:var(--part-' + REPORT_PARTS[k].tone + ')' })))));
-    };
-    const floorPanel = h('section', { class: 'rep-card', data: { panel: 'floor' } }, head('Gaming floor & turf', 'PS5'), rows([...gamingKeys, 'Turf'], usageText));
-    const counterPanel = h('section', { class: 'rep-card', data: { panel: 'counter' } }, head('Snacks & drinks', 'drink'), rows(productKeys, null));
-    // Advance, Pending and Credit, each under its own name (owner, 1 November): paid ahead of a booking or a game, paid for a
-    // bill of an earlier day, paid into a credit account.
-    const otherLines = [['advance', 'Advance', 'clock'], ['pending', 'Pending collected', 'bills'], ['credit', 'Credit collected', 'credits']];
-    const otherPanel = h('section', { class: 'rep-card', data: { panel: 'collected' } }, head('Advance, pending & credit', 'wallet'),
-      h('div', 'rep-rows', otherLines.map(([key, label, glyphName]) => h('div', { class: 'rep-row', data: { collected: key } },
-        h('span', { class: 'rep-icon', style: 'color:var(--part-' + key + ')' }, icon(glyphName)),
-        h('div', 'rep-row-main', h('b', { text: label })),
-        h('b', { class: 'rep-amount num', text: money(collected[key]) })))));
-
-    // Which part of the floor is used most (time played), and where the earnings come from (the turf left out).
-    const floorParts = CATEGORIES.map(k => ({ key: k, label: REPORT_PARTS[k].label, tone: REPORT_PARTS[k].tone, value: (use[k] || {}).minutes || 0 }));
-    const playedMinutes = floorParts.reduce((sum, p) => sum + p.value, 0);
-    const earnParts = [...gamingKeys, ...productKeys].map(k => ({ key: k, label: REPORT_PARTS[k].label, tone: REPORT_PARTS[k].tone, value: amount(k) }));
-    // In the middle: the time played (whole hours once it is long), and the part that earns most (its amount is in the rows).
-    const played = playedMinutes >= 600 ? Math.round(playedMinutes / 60) + ' h' : playedMinutes ? minutes(playedMinutes * 60000) : '—';
+    // Reports, simple (owner, 16 November, as on Manipal: "only thing what he wants from the report is … money received from gaming
+    // floor today, money received from turf today, money received from snacks/beverages/ice cream today … next … how much money is
+    // received in cash, and how much in all those UPI … keep revenue mix"; "out of the money received today how much is advance,
+    // pending collected like that … just so the inflated figures we can understand"): the money received for the day's play in a
+    // tile for each source, then what all the money received is, how it came in, and the Revenue Mix.
+    const playedMin = CATEGORIES.reduce((sum, k) => sum + ((use[k] || {}).minutes || 0), 0);
+    const tile = (key, glyphName, label, paise, sub) => h('section', { class: 'rs-tile', data: { reportTile: key } },
+      h('span', 'rs-tile-icon', icon(glyphName)), h('span', { class: 'rs-tile-label', text: label }), h('b', { class: 'rs-tile-amount num', text: money(paise) }), sub ? h('small', { text: sub }) : null);
+    const tiles = h('div', { class: 'rs-tiles', style: '--tiles:3' },
+      tile('floor', 'PS5', 'Gaming floor', gaming, playedMin ? inWords(playedMin) + ' played' : 'Not played'),
+      tile('turf', 'turf', 'Turf', amount('Turf'), turfUse.bookings ? plural(turfUse.hours, 'hour', 'hours') + ' booked' : 'No bookings'),
+      tile('snacks', 'drink', 'Snacks & drinks', products));
+    // What this money is: the same total, by what each rupee was; what is still owed is said apart, not in it.
+    const forToday = gaming + amount('Turf') + products;
+    const parts = [['today', 'For ' + (single && reportFrom === businessToday() ? 'today' : 'these days'), forToday], ['advance', 'Advance', collected.advance], ['pending', 'Pending collected', collected.pending], ['credit', 'Credit collected', collected.credit], ...(collected.reversed ? [['back', 'Taken back', -collected.reversed]] : [])];
+    const owedPending = pendingRows().reduce((sum, r) => sum + r.owed, 0), owedCredit = credit.closingPaise || 0;
+    const what = h('section', { class: 'rep-card rs-card', data: { reportWhat: '' } },
+      h('div', 'rs-head', h('span', 'rs-title', icon('wallet'), h('h2', { text: 'What this money is' }), h('span', { class: 'rep-when', text: period })), h('b', { class: 'num', data: { figure: 'received' }, text: money(total) })),
+      h('div', 'rs-bar' + (total > 0 ? '' : ' none'), parts.filter(x => x[2] > 0).map(([key, , paise]) => h('i', { class: 'rs-' + key, style: 'flex:' + paise }))),
+      h('div', { class: 'rs-parts', style: '--parts:' + parts.length }, parts.map(([key, label, paise]) => h('div', { class: 'rs-part' + (paise ? '' : ' zero'), data: { reportPart: key } },
+        h('span', null, h('i', { class: 'rs-' + key }), label), h('b', { class: 'num', text: money(paise) })))),
+      owedPending || owedCredit ? h('p', { class: 'rs-owed', data: { reportOwed: '' } }, 'Still to come, not in this money: ', ...[owedPending ? ['Pending ', owedPending] : null, owedCredit ? ['On credit ', owedCredit] : null].filter(Boolean)
+        .flatMap(([label, paise], i) => [i ? ' · ' : '', label, h('b', { class: 'num', text: money(paise) })]).filter(Boolean)) : null);
+    // How it came in: Cash, UPI and CA UPI.
+    const ways = [['cash', 'Cash', s.cashPaise, 'cash'], ['upi', 'UPI', s.upiPaise - caPaise(s), 'upi'], ['ca', 'CA UPI', caPaise(s), 'upi']];
+    const how = h('section', { class: 'rep-card rs-card', data: { figure: 'cash-upi' } },
+      h('div', 'rs-head', h('span', 'rs-title', icon('cash'), h('h2', { text: 'How it came in' }))),
+      h('div', 'rs-rows', ways.map(([key, label, paise, glyphName]) => h('div', { class: 'rs-row' + (paise ? '' : ' zero'), data: { reportWay: key } }, h('span', null, icon(glyphName), label), h('b', { class: 'num', text: money(paise) })))));
+    // The Revenue Mix: the money received for the day's play, every game, the turf and the snacks, each once.
+    const earnParts = [...gamingKeys, 'Turf', ...productKeys].map(k => ({ key: k, label: REPORT_PARTS[k].label, tone: REPORT_PARTS[k].tone, value: amount(k) }));
     const best = earnParts.reduce((top, p) => (p.value > top.value ? p : top), { label: '—', value: 0 });
 
-    // Stock Report, as the owner's picture (1 November): the boxes icon, Stock Report with Daily item movement summary under it,
-    // the date button at the right (Today, Yesterday, Custom); the table in its own rounded box with each heading in words
-    // under its icon tile, the numbers centred, zeros quiet, found green and missing red; the calculation in a box below.
-    // Its dates are its own: the report's figures when they match, read from the server when they do not.
     const [sFrom, sTo] = stockDates(), sameDates = sFrom === reportFrom && sTo === reportTo;
     if (!sameDates && stockCache.key !== stockKey()) loadStock(stockKey());
     const stockRows = sameDates ? reportCache.data.stock || [] : stockCache.rows;
@@ -12658,9 +13468,7 @@ const reportsPage = {
       stockTable,
       h('p', 'stock-sum', icon('info'), h('span', { text: 'Closing Stock = Opening Stock + New Stock Added + Extra Stock Found − Missing Stock − Total Sold' }))) : null;
     page.append(...[
-      h('div', 'rep-top', lead, received, creditCard),
-      h('div', 'rep-main', floorPanel, h('div', 'rep-side', counterPanel, otherPanel)),
-      h('div', 'rep-charts', donut('Floor usage', floorParts, played, 'played', 'By time played', 'reports'), donut('Earnings mix', earnParts, best.label, best.value ? 'earns most' : 'nothing yet', 'Without turf', 'cash')),
+      h('div', 'rs', tiles, what, h('div', 'rs-two', how, donut('Revenue Mix', earnParts, money(forToday), 'received', best.value ? best.label + ' earns most' : 'Nothing yet', 'wallet'))),
       stockPanel].filter(Boolean));
   }
 };
@@ -12711,20 +13519,23 @@ function passwordSheet() {
 }
 const setupPage = {
   render(page) {
-    const durations = [15, 30, 45, 60], inputs = {};
+    // The fifth row, the 10-minute price after an hour, empty until it is set (owner, 16 November).
+    const durations = [15, 30, 45, 60, 10], inputs = {};
     const saved = category => { const row = state.Settings.find(r => r.id === 'gamingRates-' + category); return row ? JSON.parse(row.value) : { rates: RATE_DEFAULTS[category], revision: 0 }; };
     const grid = h('table', 'rates',
       h('thead', null, h('tr', null, h('th'), CATEGORIES.map(c => h('th', null, h('span', null, icon(c), catName(c)))))),
-      h('tbody', null, durations.map((d, i) => h('tr', null, h('th', { text: d + ' min' }), CATEGORIES.map(c => {
-        const input = h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(saved(c).rates[i] / 100), 'aria-label': c + ' ' + d + ' minutes', data: { rate: c + '-' + i } });
+      h('tbody', null, durations.map((d, i) => h('tr', null, h('th', { text: i === 4 ? '10 min after an hour' : d + ' min' }), CATEGORIES.map(c => {
+        const value = saved(c).rates[i];
+        const input = h('input', { type: 'number', min: i === 4 ? '0' : '1', step: '1', inputmode: 'decimal', value: value ? String(value / 100) : '', placeholder: i === 4 ? 'Not set' : '', 'aria-label': c + ' ' + (i === 4 ? '10 minutes after an hour' : d + ' minutes'), data: { rate: c + '-' + i } });
         (inputs[c] = inputs[c] || []).push(input);
         return h('td', null, input);
       })))));
     const saveRates = () => {
       const commands = [];
       for (const c of CATEGORIES) {
-        const rates = inputs[c].map(i => toPaise(i.value)), before = saved(c);
-        if (rates.some(r => !(r > 0))) { notify('error', 'Every rate must be more than zero.'); return; }
+        const typed = inputs[c].map(i => toPaise(i.value || 0)), rates = typed[4] > 0 ? typed : typed.slice(0, 4), before = saved(c);
+        if (rates.slice(0, 4).some(r => !(r > 0))) { notify('error', 'Every rate must be more than zero.'); return; }
+        if (rates.length === 4 && before.rates.length === 4 && JSON.stringify(rates) === JSON.stringify(before.rates)) continue;
         if (JSON.stringify(rates) !== JSON.stringify(before.rates)) commands.push({ type: 'SAVE_RATES', category: c, revision: before.revision, rates });
       }
       if (!commands.length) { notify('success', 'Rates are unchanged.'); return; }
@@ -12921,7 +13732,7 @@ function festivalSheet(f) {
 }
 // Erase all data: the password and the word ERASE; the menu kept unless unticked. Waits for saves still on their way.
 function eraseAllSheet() {
-  let password, word, keepMenu;
+  let password, word, keepMenu, keepBookings;
   openSheet({
     title: 'Erase all data',
     sub: 'This cannot be undone from the app',
@@ -12931,11 +13742,13 @@ function eraseAllSheet() {
       password = password || h('input', { type: 'password', autocomplete: 'current-password', 'aria-label': 'Manager password', data: { field: 'erase-password' } });
       word = word || textInput({ 'aria-label': 'Type ERASE', autocapitalize: 'characters', data: { field: 'erase-word' } });
       keepMenu = keepMenu || h('input', { type: 'checkbox', checked: true, data: { field: 'erase-keep-menu' } });
+      keepBookings = keepBookings || h('input', { type: 'checkbox', checked: true, data: { field: 'erase-keep-bookings' } });
       const list = (title, items) => h('div', 'field', h('span', { text: title }), h('p', { class: 'small', text: items }));
       ui.body.append(
         list('Erased', 'Every bill, payment and receipt, gaming session, turf booking, reservation, credit account, customer, report day and comment. Bill numbers start again at CA-0001.'),
         list('Kept', 'Stations, gaming and turf rates, settings, festival dates and the sign-in. A private backup copy of everything is made first.'),
         h('label', 'check', keepMenu, h('span', { text: 'Keep the snacks and beverages menu' })),
+        h('label', 'check', keepBookings, h('span', { text: 'Keep turf bookings still to come' })),
         field('Manager password', password),
         field('Type ERASE to confirm', word));
       const go = h('button', { type: 'button', class: 'btn danger block', data: { action: 'erase-confirm' } }, icon('trash'), 'Erase everything');
@@ -12949,7 +13762,7 @@ function eraseAllSheet() {
         sheetStatus('pending', 'Making a backup copy, then erasing…');
         try {
           await outboxDrained();
-          await rpc('rpcEraseAll', token, password.value, keepMenu.checked, word.value.trim());
+          await rpc('rpcEraseAll', token, password.value, keepMenu.checked, word.value.trim(), keepBookings.checked);
           password.value = '';
           closeSheet();
           await refresh(true);
@@ -13752,9 +14565,7 @@ function turfDetailSheet(id) {
       else turfOnePayerBody(ui, b, status, main, mainOpen, mainPart);
       // Brought from an earlier booking of this customer, to be paid with this one.
       const brought = main && main.status === 'open' ? ordersOf(main.id).filter(turfCarried) : [];
-      if (brought.length) ui.body.append(h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(o => h('div', { class: 'line', data: { order: o.id } },
-        h('div', 'line-main', h('b', { text: o.label + (o.quantity > 1 && o.category !== 'Turf' ? ' × ' + o.quantity : '') }), h('span', { class: 'small muted', text: o.reason.replace('Carried from ', 'from ') })),
-        h('span', { class: 'line-amount', text: money(o.totalPaise) })))));
+      if (brought.length) ui.body.append(h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(carriedLine)));
       const notes = notesBlock([b.id, b.tabId, ...turfPlayersOf(b).map(x => x.tabId)]);
       if (notes) ui.body.append(notes);
       // Play brought from the gaming floor (a group that played before the turf), at its saved price.
@@ -15058,8 +15869,8 @@ function viewHere(read) {
 
 // ---------- Sections ----------
 // Seven in the menu. Open and closed bills share one section; customers, reports and the menu live inside Settings.
-const PAGES = { floor: floorPage, turf: turfPage, reservations: reservationsPage, sales: salesPage, bills: allBillsPage, credits: creditsPage, settings: settingsPage };
-const NAV = [['floor', 'Gaming floor'], ['turf', 'Turf'], ['reservations', 'Reservations'], ['sales', 'Snacks & beverages'], ['bills', 'Bills'], ['credits', 'Credit'], ['settings', 'Settings']];
+const PAGES = { floor: floorPage, turf: turfPage, reservations: reservationsPage, sales: salesPage, bills: allBillsPage, pending: pendingPage, credits: creditsPage, settings: settingsPage };
+const NAV = [['floor', 'Gaming floor'], ['turf', 'Turf'], ['reservations', 'Reservations'], ['sales', 'Snacks & beverages'], ['bills', 'Bills'], ['pending', 'Pending bills'], ['credits', 'Credit'], ['settings', 'Settings']];
 // Phones get the everyday sections and a More screen for the rest. Turf is booked by phone as often as at the desk.
 const PHONE_NAV = [['floor', 'Floor'], ['turf', 'Turf'], ['sales', 'Snacks'], ['bills', 'Bills'], ['credits', 'Credit'], ['more', 'More']];
 // Names for places inside a section, so a link can say go('history') or go('menu').
@@ -15082,6 +15893,8 @@ PAGES.more = {
 function navBadge(id) {
   if (!state) return null;
   if (id === 'bills') { const ready = openBills().filter(t => !stillPlaying(t.id)).length; return ready ? String(ready) : null; }
+  // Pending bills count the people owing (owner, 16 November).
+  if (id === 'pending') { const people = pendingGroups(pendingRows()).length; return people ? String(people) : null; }
   if (id === 'reservations') { const waiting = state.Reservations.filter(r => r.status === 'waiting' || (RES_PENDING.includes(r.status) && r.arrivalMs < nowMs())).length; return waiting ? String(waiting) : null; }
   return null;
 }
@@ -15223,7 +16036,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "7a0f8eda580e";
+const APP_BUILD = "296d1a100c8d";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
