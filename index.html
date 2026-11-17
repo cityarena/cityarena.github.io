@@ -2000,6 +2000,16 @@ main[data-page=turf] .turf-board { overflow-x: clip; }
 @media (max-width: 1100px) { .rs-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rs-parts { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rs-two { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 640px) { .rs-tiles { grid-template-columns: minmax(0, 1fr); } .rs-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rs-tile { padding: 16px; } }
 .rs-title .rep-when { color: var(--ink-3); font-size: var(--text-sm); font-weight: 600; }
+
+/* A pending bill on a person's sheet (owner, 17 November, as on Manipal: "how bad it looks man"): what it is, when and its amount on one
+   line, its buttons on a line of their own under it. People already pending offered under a pending name, and what picking one adds to. */
+.line.pending-line { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 12px; row-gap: 8px; align-items: center; }
+.line.pending-line > .pending-tools { grid-column: 2 / -1; justify-content: flex-end; }
+@media (max-width: 640px) { .line.pending-line > .pending-tools { justify-content: flex-start; } }
+.pending-suggest { margin: 8px 0 0; }
+.pending-suggest:empty { display: none; }
+.pending-joined { display: flex; align-items: center; gap: 6px; margin: 8px 0 0; color: var(--gold); font-weight: 600; }
+.pending-joined svg { width: 14px; height: 14px; flex: none; }
 </style>
 </head>
 <body>
@@ -10061,10 +10071,37 @@ function focusRest(ui) {
   if (box) { box.focus({ preventScroll: true }); box.scrollIntoView({ block: 'nearest' }); }
 }
 // Who will clear a pending amount: a name and a mobile, filled in from the bill and changed if someone else will pay.
+// As the name (or mobile) is typed, the people already pending are offered (owner, 17 November, as on Manipal: "imran has some pending
+// balance … when i type im let it come i will click and let it add to that"): tapping one fills their name and mobile exactly, so this
+// goes onto their Pending row, and says what they already owe. Only people still owing are offered: once all of someone's pending is
+// cleared they are no longer there.
 function pendingFields(draft) {
-  const name = textInput({ value: draft.pendingName, 'aria-label': 'Pending in the name of', data: { field: 'pending-name' }, oninput: () => { draft.pendingName = name.value; } });
-  const phone = h('input', { type: 'tel', value: draft.pendingPhone, 'aria-label': 'Their mobile', data: { field: 'pending-phone' }, oninput: () => { draft.pendingPhone = phone.value; } });
-  return { node: h('div', 'foot-row pending-who', field('Name', name), field('Mobile (optional)', phone)), name, phone };
+  const suggestions = h('div', { class: 'suggest pending-suggest', data: { field: 'pending-suggest' } }), joined = h('p', { class: 'small pending-joined', data: { field: 'pending-joined' } });
+  const owing = () => pendingGroups(pendingRows()).filter(g => g.owed > 0 && g.name && !/^walk-?in$/i.test(g.name.trim()));
+  const same = g => {
+    const digits = String(draft.pendingPhone || '').replace(/\D/g, ''), mine = String(g.phone || '').replace(/\D/g, '');
+    return digits ? digits === mine : !mine && String(draft.pendingName || '').trim().toLowerCase() === g.name.trim().toLowerCase();
+  };
+  const say = () => {
+    const g = owing().find(same);
+    joined.replaceChildren(...(g ? [icon('clock'), 'Adds to ' + g.name + '’s pending · ' + money(g.owed) + ' already'] : []));
+    joined.hidden = !g;
+  };
+  const draw = () => {
+    const text = name.value.trim().toLowerCase(), digits = phone.value.replace(/\D/g, '');
+    const found = text.length < 2 && digits.length < 4 ? [] : owing().filter(g => !same(g) && ((text.length >= 2 && g.name.toLowerCase().includes(text)) || (digits.length >= 4 && String(g.phone).replace(/\D/g, '').includes(digits)))).slice(0, 3);
+    suggestions.replaceChildren(...found.map(g => h('button', { type: 'button', data: { pendingPick: g.key }, onclick: () => {
+      name.value = draft.pendingName = g.name;
+      phone.value = draft.pendingPhone = g.phone || '';
+      suggestions.replaceChildren();
+      say();
+    } }, h('span', 'suggest-who', avatar(g.name), h('span', { text: g.name })), h('span', { class: 'muted small', text: [g.phone, money(g.owed) + ' pending'].filter(Boolean).join(' · ') }))));
+    say();
+  };
+  const name = textInput({ value: draft.pendingName, 'aria-label': 'Pending in the name of', data: { field: 'pending-name' }, oninput: () => { draft.pendingName = name.value; draw(); } });
+  const phone = h('input', { type: 'tel', value: draft.pendingPhone, 'aria-label': 'Their mobile', data: { field: 'pending-phone' }, oninput: () => { draft.pendingPhone = phone.value; draw(); } });
+  say();
+  return { node: h('div', 'pending-who-box', h('div', 'foot-row pending-who', field('Name', name), field('Mobile (optional)', phone)), suggestions, joined), name, phone };
 }
 // One closed game, collected on its own: in full, or in part with the rest kept on the table, to credit or pending.
 // What can be paid with a closed game (owner, 21 October): every item on the table, whichever game it was added during (a
@@ -12838,7 +12875,7 @@ function pendingGroups(rows) {
 function pendingLine(r, back) {
   if (r.booking) {
     const b = r.booking;
-    return h('div', { class: 'line', data: { pending: b.id } },
+    return h('div', { class: 'line pending-line', data: { pending: b.id } },
       glyph('turf', '', 'sm'),
       h('div', 'line-main', h('b', { text: 'Turf · ' + courtLabel(b.court) }), h('span', { class: 'small muted', text: turfRange(b) })),
       h('span', { class: 'line-amount', text: money(r.owed) }),
@@ -12848,7 +12885,7 @@ function pendingLine(r, back) {
   }
   const where = [...new Set(segmentsOf(r.detail.tabId).map(g => (unitOf(g.unitId) || {}).name).filter(Boolean))].join(', ');
   const heldBy = pendingHeldBy(r.bill.id);
-  return h('div', { class: 'line', data: { pending: r.bill.id } },
+  return h('div', { class: 'line pending-line', data: { pending: r.bill.id } },
     glyph('bills', '', 'sm'),
     h('div', 'line-main', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: [clock(r.detail.createdMs), where ? numberOf(r.bill.id) : ''].filter(Boolean).join(' · ') }),
       heldBy ? h('span', { class: 'pending-held', data: { pendingHeld: heldBy.id } }, icon('reservations'), 'Comes with ' + heldBy.customer + ' · ' + reservationWhat(heldBy) + ' ' + when(heldBy.arrivalMs)) : null),
@@ -12877,7 +12914,8 @@ function pendingItemsSheet(billId, name, owed, back) {
       if (!items.length) throw new Error('Choose what to add.');
       return { type: 'PENDING_ADD_ITEMS', billId, items };
     },
-    then(result) { closeSheet(); render(); return { text: result.message }; }
+    // What they owe in all, as the sheet said it (owner, 17 November, as on Manipal: from a person's row, not the one bill the items went onto).
+    then() { const sum = picker.total(); closeSheet(); render(); return { text: 'Added ' + money(sum) + '. ' + (name || 'Walk-in') + ' owes ' + money(owed + sum) + '.' }; }
   });
 }
 // What a reservation is for: its unit, or any of its kind.
@@ -13042,25 +13080,11 @@ function pendingInDates(r) {
   if (pendingQuery.range === 'custom') return key >= pendingQuery.from && key <= pendingQuery.to;
   return true;
 }
-function pendingDatesWords() {
-  if (pendingQuery.range === 'today') return 'Today';
-  if (pendingQuery.range === 'yesterday') return 'Yesterday';
-  if (pendingQuery.range === 'all') return 'All dates';
-  return pendingQuery.from === pendingQuery.to ? turfDayName(pendingQuery.from) : turfDayName(pendingQuery.from) + ' – ' + turfDayName(pendingQuery.to);
-}
-function pendingDatesAsk(anchor) {
-  datesAsk(anchor, {
-    presets: [['all', 'All dates'], ['today', 'Today'], ['yesterday', 'Yesterday']],
-    chosen: pendingQuery.range,
-    from: pendingQuery.from,
-    to: pendingQuery.to,
-    oneDay: true,
-    choose(range, from, to) {
-      pendingQuery.range = range;
-      if (range === 'custom') [pendingQuery.from, pendingQuery.to] = [from, to];
-      render();
-    }
-  });
+// A person's latest pending bill, where items added from their row go: the one of the latest day, the latest made that day.
+function pendingLatestBill(group) {
+  const at = r => (r.booking ? (state.BillDetails.find(d => d.id === r.parts[0].billId) || {}).createdMs || 0 : r.detail.createdMs || 0);
+  const latest = group.rows.slice().sort((a, b) => pendingDay(b).localeCompare(pendingDay(a)) || at(b) - at(a))[0];
+  return latest.booking ? latest.parts[0].billId : latest.bill.id;
 }
 function pendingList(page) {
   const text = creditSearch.trim().toLowerCase(), list = pendingRows().filter(pendingInDates).filter(r => !text || (r.booking ? r.booking.customer + ' ' + r.booking.phone : r.detail.customer + ' ' + ((r.tab || {}).phone || '')).toLowerCase().includes(text));
@@ -13075,6 +13099,10 @@ function pendingList(page) {
           h('td', { class: 'num owing', text: money(group.owed) }),
           h('td', { class: 'r' }, h('div', 'row-tools',
             group.phone ? iconButton('whatsapp', 'Remind ' + group.name + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(group.phone, pendingReminderText(group.name, group.owed, 'your visits', detail)); }, { data: { action: 'pending-remind' } }) : null,
+            // Add Items and Move as on one bill (owner, 17 November, as on Manipal: "why is add itmes not there for first?"): the items
+            // onto their latest bill, Move taking all their bills.
+            h('button', { type: 'button', class: 'btn', data: { action: 'pending-items' }, onclick: e => { e.stopPropagation(); pendingItemsSheet(pendingLatestBill(group), group.name, group.owed); } }, icon('plus'), h('span', { class: 'hide-s', text: 'Add Items' })),
+            h('button', { type: 'button', class: 'btn', data: { action: 'pending-move' }, onclick: e => { e.stopPropagation(); pendingMoveSheet(group.rows.flatMap(r => (r.booking ? r.parts.map(x => x.billId) : [r.bill.id])), group.name, group.owed); } }, icon('transfer'), h('span', { class: 'hide-s', text: 'Move' })),
             h('button', { type: 'button', class: 'btn', data: { action: 'pending-collect' }, onclick: e => { e.stopPropagation(); pendingPersonSheet(group); } }, icon('wallet'), h('span', { class: 'hide-s', text: 'Collect' })))));
       }
       const r = group.rows[0];
@@ -13110,7 +13138,21 @@ const pendingPage = {
   title: 'Pending bills',
   subtitle: 'Money to be cleared in a day or two.',
   bar(bar) {
-    bar.append(h('button', { type: 'button', class: 'stock-when-button', data: { action: 'pending-dates' }, onclick: e => pendingDatesAsk(e.currentTarget) }, icon('reservations'), h('span', { text: pendingDatesWords() })));
+    // The dates on the page itself, as on Reports (owner, 17 November, as on Manipal: "keep the filter, today, yesterday and the
+    // nomral custom date filter"): Today, Yesterday, All dates, and From – To.
+    const presets = segmented([['today', 'Today'], ['yesterday', 'Yesterday'], ['all', 'All dates']], pendingQuery.range, value => { pendingQuery.range = value; render(); });
+    const shown = pendingQuery.range === 'custom' ? [pendingQuery.from, pendingQuery.to] : pendingQuery.range === 'yesterday' ? [shiftDay(dayKey(nowMs()), -1), shiftDay(dayKey(nowMs()), -1)] : [dayKey(nowMs()), dayKey(nowMs())];
+    const from = h('input', { type: 'date', value: shown[0], max: businessToday(), 'aria-label': 'From', data: { field: 'pending-from' } });
+    const to = h('input', { type: 'date', value: shown[1], max: businessToday(), 'aria-label': 'To', data: { field: 'pending-to' } });
+    const pick = () => {
+      if (!from.value || !to.value) return;
+      pendingQuery.range = 'custom';
+      [pendingQuery.from, pendingQuery.to] = from.value <= to.value ? [from.value, to.value] : [to.value, from.value];
+      render();
+    };
+    from.onchange = pick;
+    to.onchange = pick;
+    bar.append(h('div', { class: 'rep-range', data: { field: 'pending-dates' } }, presets.node, h('div', 'rep-dates', from, h('span', { class: 'muted', text: 'to' }), to)));
     bar.append(searchBox(creditSearch, 'Search pending', v => { creditSearch = v; redrawKeepingFocus(); }));
   },
   render(page) { pendingList(page); }
@@ -13423,17 +13465,15 @@ const reportsPage = {
       tile('floor', 'PS5', 'Gaming floor', gaming, playedMin ? inWords(playedMin) + ' played' : 'Not played'),
       tile('turf', 'turf', 'Turf', amount('Turf'), turfUse.bookings ? plural(turfUse.hours, 'hour', 'hours') + ' booked' : 'No bookings'),
       tile('snacks', 'drink', 'Snacks & drinks', products));
-    // What this money is: the same total, by what each rupee was; what is still owed is said apart, not in it.
+    // What this money is: the same total, by what each rupee was.
     const forToday = gaming + amount('Turf') + products;
     const parts = [['today', 'For ' + (single && reportFrom === businessToday() ? 'today' : 'these days'), forToday], ['advance', 'Advance', collected.advance], ['pending', 'Pending collected', collected.pending], ['credit', 'Credit collected', collected.credit], ...(collected.reversed ? [['back', 'Taken back', -collected.reversed]] : [])];
-    const owedPending = pendingRows().reduce((sum, r) => sum + r.owed, 0), owedCredit = credit.closingPaise || 0;
+    // What is still pending or on credit is not said here (owner, 17 November: "that still to come credit and all not needed").
     const what = h('section', { class: 'rep-card rs-card', data: { reportWhat: '' } },
       h('div', 'rs-head', h('span', 'rs-title', icon('wallet'), h('h2', { text: 'What this money is' }), h('span', { class: 'rep-when', text: period })), h('b', { class: 'num', data: { figure: 'received' }, text: money(total) })),
       h('div', 'rs-bar' + (total > 0 ? '' : ' none'), parts.filter(x => x[2] > 0).map(([key, , paise]) => h('i', { class: 'rs-' + key, style: 'flex:' + paise }))),
       h('div', { class: 'rs-parts', style: '--parts:' + parts.length }, parts.map(([key, label, paise]) => h('div', { class: 'rs-part' + (paise ? '' : ' zero'), data: { reportPart: key } },
-        h('span', null, h('i', { class: 'rs-' + key }), label), h('b', { class: 'num', text: money(paise) })))),
-      owedPending || owedCredit ? h('p', { class: 'rs-owed', data: { reportOwed: '' } }, 'Still to come, not in this money: ', ...[owedPending ? ['Pending ', owedPending] : null, owedCredit ? ['On credit ', owedCredit] : null].filter(Boolean)
-        .flatMap(([label, paise], i) => [i ? ' · ' : '', label, h('b', { class: 'num', text: money(paise) })]).filter(Boolean)) : null);
+        h('span', null, h('i', { class: 'rs-' + key }), label), h('b', { class: 'num', text: money(paise) })))));
     // How it came in: Cash, UPI and CA UPI.
     const ways = [['cash', 'Cash', s.cashPaise, 'cash'], ['upi', 'UPI', s.upiPaise - caPaise(s), 'upi'], ['ca', 'CA UPI', caPaise(s), 'upi']];
     const how = h('section', { class: 'rep-card rs-card', data: { figure: 'cash-upi' } },
@@ -16044,7 +16084,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "a9694277e7fd";
+const APP_BUILD = "e8bf91674b54";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
