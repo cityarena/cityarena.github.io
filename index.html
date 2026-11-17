@@ -4294,7 +4294,7 @@ var ArenaReports = (function () {
    their own items, settled through the usual checkout. Every amount is an ordinary order on an ordinary tab. */
 var ArenaTurf = (function () {
   'use strict';
-  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ACADEMY_ADOPT', 'PENDING_MOVE', 'PENDING_ADD_ITEMS', 'PENDING_PART_PAY', 'PENDING_PART_CREDIT', 'CARRY_SPLIT', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
+  var types = ['TURF_ACADEMY_SENT', 'TURF_ITEMS_PAY', 'TURF_BOOK', 'TURF_CHANGE', 'TURF_CANCEL', 'TURF_SENT', 'TURF_ITEMS', 'TURF_CHECKOUT', 'TURF_SPLIT', 'TURF_DISCOUNT', 'TURF_PLAYER', 'TURF_MOVE', 'TURF_RATES', 'TURF_POOL', 'TURF_PAY_ALL', 'TURF_CARRY', 'TURF_CREDIT_ALL', 'TURF_TAKE', 'TURF_FESTIVAL', 'TURF_PENDING', 'TURF_ACADEMY', 'TURF_UNLINK', 'TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_ACADEMY_ADOPT', 'BILLS_PENDING_DUE', 'PENDING_MOVE', 'PENDING_ADD_ITEMS', 'PENDING_PART_PAY', 'PENDING_PART_CREDIT', 'CARRY_SPLIT', 'TURF_ADVANCE', 'TURF_HOLD', 'TURF_CONFIRM', 'TURF_SEPARATE', 'TURF_SERIES_EXTEND'];
   // Items bought for Team A, Team B or everyone are kept once, as bought, and each player's part is one line on their bill.
   var SHARED = 'Shared items', GROUPS = ['A', 'B', 'all'];
   var COURTS = ['6-a-side', '5-a-side', '1v1'], SPORTS = ['Football', 'Cricket'], TEAMS = ['A', 'B'], OPEN_HOUR = 6, CLOSE_HOUR = 22, DAY_MS = 86400000;
@@ -4818,6 +4818,26 @@ var ArenaTurf = (function () {
         keptPaise += done.total;
       });
       return { posted: kept, amountPaise: keptPaise, noop: !kept, message: kept ? 'Pending ' + (keptPaise / 100) + ' from earlier days.' : 'Nothing is due to pending.' };
+    }
+    if (cmd.type === 'BILLS_PENDING_DUE') {
+      // No open bills (owner, 17 November: "there will be no open bills anymore. either pending or closed"): a bill of an earlier day
+      // left open with nothing playing on it (ended before End Session waited for the money, or a quick sale left open) goes to Pending
+      // under its name, or the next Customer A, B …; a turf booking's has its own (TURF_PENDING_DUE). Any open screen sends it; nothing
+      // to do writes nothing.
+      var billDay = dateKeyOf(now), keptBills = 0, keptBillsPaise = 0;
+      (state.Tabs || []).filter(function (t) { return t.status === 'open' && t.kind !== 'turf' && t.kind !== 'turf_player'; }).forEach(function (t, n) {
+        var segsHere = (state.Segments || []).filter(function (g) { return g.tabId === t.id && g.status !== 'void'; });
+        var ordsHere = (state.Orders || []).filter(function (o) { return o.tabId === t.id && o.status === 'active'; });
+        if (segsHere.some(function (g) { return g.status === 'active'; }) || ordsHere.some(function (o) { return o.category === 'Turf'; })) return;
+        if (!segsHere.length && !ordsHere.length) return;
+        var last = Math.max.apply(null, [Number(t.createdMs) || 0].concat(segsHere.map(function (g) { return Number(g.endMs) || 0; }), ordsHere.map(function (o) { return Number(o.createdMs) || 0; })));
+        if (dateKeyOf(last) >= billDay) return;
+        var kept = ArenaLifecycle.execute(state, { type: 'SETTLE_REVIEW', tabId: t.id, settlement: 'pay', discountType: 'none', discountValue: 0, amountPaise: 0, method: 'cash', pending: { name: '', phone: '' } }, actor, now, id + '-bill-' + n);
+        var keptRow = kept && kept.billId ? (state.Bills || []).find(function (b) { return b.id === kept.billId; }) : null;
+        keptBills++;
+        keptBillsPaise += keptRow ? Number(keptRow.totalPaise) - Number(keptRow.paidPaise) : 0;
+      });
+      return { posted: keptBills, amountPaise: keptBillsPaise, noop: !keptBills, message: keptBills ? keptBills + ' open bills of earlier days kept pending.' : 'No open bills to keep pending.' };
     }
     if (cmd.type === 'TURF_ACADEMY_ADOPT') {
       // Bookings made in an academy's name as a customer's (owner, 11 November: the name picked from the suggestions saved as a
@@ -11922,32 +11942,6 @@ const openedWords = t => day(openedAt(t)) + ', ' + clock(openedAt(t));
 function openBills() {
   return state.Tabs.filter(t => t.status === 'open' && (t.kind === 'quick_sale' || segmentsOf(t.id).length || ordersOf(t.id).length) && !(turfBookingForTab(t.id) && !turfEnded(turfBookingForTab(t.id))));
 }
-const tabsPage = {
-  title: 'Open tabs',
-  bar(bar) { bar.append(searchBox(tabSearch, 'Search open bills', v => { tabSearch = v; redrawKeepingFocus(); })); },
-  render(page) {
-    const text = tabSearch.trim().toLowerCase(), { fromMs, toMs } = billRange();
-    const open = openBills().filter(t => !text || (t.customer + ' ' + t.phone).toLowerCase().includes(text));
-    // The dates chosen, by the day each bill is of; newest first (owner, 4 November: "all dates everywhere i hope it starts
-    // from recent").
-    // Newest first by when each closed, one still playing by when it started (owner, 16 November, as on Manipal).
-    const order = t => closedAt(t) || openedAt(t);
-    const tabs = open.filter(t => !(fromMs && openedAt(t) < fromMs) && !(toMs && openedAt(t) >= toMs)).sort((a, b) => order(b) - order(a));
-    page.append(table(
-      [{ label: 'Customer' }, { label: 'Where', class: 'hide-s' }, { label: 'Status' }, { label: 'So far', class: 'r' }],
-      tabs.map(t => {
-        const units = [...new Set(segmentsOf(t.id).map(g => (unitOf(g.unitId) || {}).name || g.unitId))];
-        return h('tr', { class: 'click', data: { tab: t.id }, onclick: () => settleSheet(t.id) },
-          h('td', null, person(t.customer, [t.phone, openedWords(t), closedWords(t)].filter(Boolean).join(' · '))),
-          h('td', { class: 'hide-s muted', text: units.join(', ') || (t.kind === 'quick_sale' ? 'Quick Sale' : '') }),
-          h('td', null, stillPlaying(t.id) ? h('span', { class: 'badge good', text: 'Playing' }) : h('span', { class: 'badge warn', text: 'Ready to settle' })),
-          h('td', { class: 'r num', text: money(tabTotal(t.id)) }));
-      }), 'No open bills.', 'bills'));
-    // Open bills of other days are still to be settled: said under the list, one tap to see them all.
-    const elsewhere = open.length - tabs.length;
-    if (elsewhere) page.append(h('div', 'bills-elsewhere', h('span', { class: 'small muted', text: plural(elsewhere, 'open bill', 'open bills') + ' from other dates' }), btn('Show all dates', () => { billQuery.range = 'all'; render(); }, 'quiet', { data: { action: 'bills-all-dates' } })));
-  }
-};
 
 // ---------- Billing: searchable history, fetched from the server ----------
 // The Bills' dates, Open and Closed alike (owner, 3 November: "today is fine and then date wise either specific date or date
@@ -11992,21 +11986,22 @@ async function loadBills(key) {
     // a bill reversed and voided from this list still read Paid ₹180 in it).
     if (key === billKey()) billCache = { key, rows: out.rows, matched: out.matched };
   } catch (e) { billCache = { key, rows: [], matched: 0 }; notify('error', e.message); }
-  if (page === 'bills' && billsMode === 'closed') redrawKeepingFocus();
+  if (page === 'bills') redrawKeepingFocus();
 }
 const billKey = () => [version, billQuery.text, billQuery.status, billQuery.range, billQuery.from, billQuery.to].join('|');
 const billsPage = {
   title: 'Billing',
   bar(bar) {
     bar.append(searchBox(billQuery.text, 'Search bill, name, mobile or unit', v => { billQuery.text = v; clearTimeout(billTimer); billTimer = setTimeout(redrawKeepingFocus, 250); }));
-    bar.append(h('div', 'chips', [['all', 'All'], ['unpaid', 'Pending'], ['part', 'Part paid'], ['credit', 'On credit'], ['paid', 'Paid'], ['void', 'Voided']].map(([key, label]) =>
+    if (['unpaid', 'part'].includes(billQuery.status)) billQuery.status = 'all';
+    bar.append(h('div', 'chips', [['all', 'All'], ['paid', 'Paid'], ['credit', 'On credit'], ['void', 'Voided']].map(([key, label]) =>
       h('button', { type: 'button', class: 'chip', 'aria-pressed': String(billQuery.status === key), onclick: () => { billQuery.status = key; render(); } }, label))));
     bar.append(btn([icon('download'), 'Export CSV'], () => { const r = billRange(); exportCsv('bills', r.fromMs, r.toMs); }, 'quiet'));
   },
   render(page) {
     const key = billKey();
     if (billCache.key !== key) { loadBills(key); if (!billCache.rows) { page.append(loadingRows()); return; } }
-    const rows = billCache.rows || [];
+    const rows = (billCache.rows || []).filter(b => !['unpaid', 'part'].includes(b.status));
     page.append(table(
       [{ label: 'Bill' }, { label: 'When', class: 'hide-s' }, { label: 'Customer' }, { label: 'Total', class: 'r' }, { label: 'Outstanding', class: 'r hide-s' }, { label: 'Status' }, { label: '' }],
       rows.map(b => h('tr', { class: 'click', data: { bill: b.id }, onclick: () => receiptSheet(b.id) },
@@ -13786,15 +13781,17 @@ const TURF_RATE_DEFAULTS = { '5-a-side': 100000, '6-a-side': 120000, '1v1': 5000
 const RATE_DEFAULTS = { PC: [5000, 10000, 18000, 20000], PS5: [2000, 3000, 5000, 6000], RC: [10000, 10000, 15000, 20000], Pool: [3000, 6000, 8000, 10000], Snooker: [5000, 10000, 15000, 18000] };
 
 // ---------- Bills: open and closed in one place ----------
-let billsMode = 'open';
+// Bills are the settled ones only, as on Manipal (owner, 16 November: "why the fuck is open bills there in bills closed??? … see
+// manipal"): no Open list; a bill still owed (pending, or paid in part) is under Pending bills; an open bill of an earlier day goes
+// there by itself (owner, 17 November: "there will be no open bills anymore. either pending or closed").
 const allBillsPage = {
   title: 'Bills',
-  subtitle: 'Manage customer bills and payments',
+  subtitle: 'Settled bills and payments',
   bar(bar) {
-    bar.append(segmented([['open', 'Open', 'clock'], ['closed', 'Closed', 'history']], billsMode, v => { billsMode = v; render(); }).node, billDatesButton());
-    (billsMode === 'open' ? tabsPage : billsPage).bar(bar);
+    bar.append(billDatesButton());
+    billsPage.bar(bar);
   },
-  render(target) { (billsMode === 'open' ? tabsPage : billsPage).render(target); }
+  render(target) { billsPage.render(target); }
 };
 
 // ---------- Settings: setup, reports, customers and the menu ----------
@@ -15715,6 +15712,18 @@ function postAcademyAdopt() {
   const here = trySaveHere({ type: 'TURF_ACADEMY_ADOPT' });
   if (here && !here.refused) render();
 }
+// No open bills (owner, 17 November): one of an earlier day left open with nothing playing goes to Pending by itself (BILLS_PENDING_DUE).
+let billsPendingTried = 0;
+function postBillsPendingDue() {
+  if (!state || outbox.length || flow.saving() || nowMs() - billsPendingTried < SWEEP_EVERY_MS) return;
+  const today = dayKey(nowMs());
+  const last = t => Math.max(Number(t.createdMs) || 0, ...segmentsOf(t.id).map(g => Number(g.endMs) || 0), ...ordersOf(t.id).map(o => Number(o.createdMs) || 0));
+  const due = state.Tabs.some(t => t.status === 'open' && t.kind !== 'turf' && t.kind !== 'turf_player' && !stillPlaying(t.id) && !ordersOf(t.id).some(o => o.category === 'Turf') && (segmentsOf(t.id).length || ordersOf(t.id).length) && dayKey(last(t)) < today);
+  if (!due) return;
+  billsPendingTried = nowMs();
+  const here = trySaveHere({ type: 'BILLS_PENDING_DUE' });
+  if (here && !here.refused) render();
+}
 function postAcademyDue() {
   if (!state || outbox.length || flow.saving() || nowMs() - academyDueTried < SWEEP_EVERY_MS) return;
   const owing = tabId => { const t = tabOf(tabId); return !!t && t.status === 'open' && !stillPlaying(t.id) && ordersOf(t.id).length > 0; };
@@ -15875,7 +15884,7 @@ const NAV = [['floor', 'Gaming floor'], ['turf', 'Turf'], ['reservations', 'Rese
 const PHONE_NAV = [['floor', 'Floor'], ['turf', 'Turf'], ['sales', 'Snacks'], ['bills', 'Bills'], ['credits', 'Credit'], ['more', 'More']];
 // Names for places inside a section, so a link can say go('history') or go('menu').
 const SHORTCUTS = {
-  tabs: ['bills', () => { billsMode = 'open'; }], history: ['bills', () => { billsMode = 'closed'; }],
+  tabs: ['pending', () => {}], history: ['bills', () => {}],
   setup: ['settings', () => { settingsMode = 'setup'; }], reports: ['settings', () => { settingsMode = 'reports'; }],
   customers: ['settings', () => { settingsMode = 'customers'; }], menu: ['settings', () => { settingsMode = 'menu'; }]
 };
@@ -15892,7 +15901,6 @@ PAGES.more = {
 
 function navBadge(id) {
   if (!state) return null;
-  if (id === 'bills') { const ready = openBills().filter(t => !stillPlaying(t.id)).length; return ready ? String(ready) : null; }
   // Pending bills count the people owing (owner, 16 November).
   if (id === 'pending') { const people = pendingGroups(pendingRows()).length; return people ? String(people) : null; }
   if (id === 'reservations') { const waiting = state.Reservations.filter(r => r.status === 'waiting' || (RES_PENDING.includes(r.status) && r.arrivalMs < nowMs())).length; return waiting ? String(waiting) : null; }
@@ -16036,7 +16044,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "296d1a100c8d";
+const APP_BUILD = "a9694277e7fd";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
@@ -16060,6 +16068,7 @@ function applySnapshot(data) {
   watchArrivals();
   reloadIfOld(data.build);
   postAcademyAdopt();
+  postBillsPendingDue();
   postAcademyDue();
   postPendingDue();
   extendSeries();
