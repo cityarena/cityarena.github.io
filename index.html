@@ -8748,7 +8748,8 @@ function payChoice(store, onchange = () => {}, options = {}) {
 }
 
 // "Starts now · Change time": the time field appears only when it is needed.
-// held: the time stays at initialMs ("Ends 7:05 PM") unless changed, and that moment is its value.
+// held: the time stays at initialMs ("Ends 7:05 PM") unless changed, and that moment is its value, never later than the screen's
+// clock when the save is made (owner, 24 November: the clock set back by a slow save's answer made a held End read as ahead).
 function timeChoice(label, initialMs, held) {
   let custom = false;
   const input = h('input', { type: 'datetime-local', value: istInput(initialMs || nowMs()), 'aria-label': label + ' time' });
@@ -8757,7 +8758,7 @@ function timeChoice(label, initialMs, held) {
   const lead = h('span', 'time-lead', icon('clock'), summary);
   const toggle = btn('Change time', () => { custom = !custom; input.hidden = !custom; toggle.textContent = custom ? 'Use now' : 'Change time'; summary.textContent = custom ? label + ' at' : still; if (custom) input.focus(); }, 'quiet');
   input.hidden = true;
-  return { node: h('div', null, h('div', 'time-row', lead, toggle), h('div', { class: 'field' }, input)), value: () => (custom ? stamp(input.value) : held && initialMs ? initialMs : null), input };
+  return { node: h('div', null, h('div', 'time-row', lead, toggle), h('div', { class: 'field' }, input)), value: () => (custom ? stamp(input.value) : held && initialMs ? Math.min(initialMs, nowMs()) : null), input };
 }
 
 // A time as the owner's picture of 5 November: the hour and the minutes each in a box of their own ("10" : "30"; owner,
@@ -16580,7 +16581,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "80fa02d807d1";
+const APP_BUILD = "ae0d5a500c06";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
