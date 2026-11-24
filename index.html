@@ -16802,6 +16802,17 @@ function trySaveHere(command) {
     console.warn('[City Arena] ' + command.type + ' could not be worked out on screen (' + e.message + '); the server saves it');
     return null;
   }
+  // Only an End that opens its bill to settle here; one whose time stays on the system for others (keep) goes at once.
+  if (command.type === 'END_SELECTION' && !command.keep) {
+    heldIds.add(item.id);
+    clearTimeout(holdTimer);
+    holdTimer = setTimeout(releaseHolds, HOLD_END_MS);
+  } else if (!OWN_CHECKS.has(command.type) && heldIds.size) {
+    // The bill's next save: the End goes with it.
+    heldIds.clear();
+    clearTimeout(holdTimer);
+    holdTimer = 0;
+  }
   outbox.push(item);
   keepOutbox();
   state = out.view;
@@ -16810,6 +16821,29 @@ function trySaveHere(command) {
   return { result: out.result, command };
 }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// An End held until its bill's next save (owner, 24 November: "i ended one pc, it fucking took 10 seconds" — the End and the Collect a
+// second later went one after the other, each waiting for the other's answer): the End stays on this screen, already shown, and goes
+// with the next save made here (Collect, Move, Pending, or ✕ taking it back) in one request. The system closes only once the bill is
+// dealt with, as the owner asked (15 November), and its end time is still the moment End was pressed. Never held more than a minute,
+// never past anything that waits for the saves to reach the server, and never past the screen being put aside. In memory only: a
+// reload sends it at once. The screens' own checks neither release it nor go before it.
+const HOLD_END_MS = 60000, OWN_CHECKS = new Set(['TURF_ACCOUNT_DUE', 'TURF_PENDING_DUE', 'TURF_SERIES_EXTEND', 'TURF_ACADEMY_ADOPT', 'BILLS_PENDING_DUE', 'FLOOR_PENDING_DUE']);
+const heldIds = new Set();
+let holdTimer = 0;
+function releaseHolds() {
+  if (!heldIds.size) return;
+  heldIds.clear();
+  clearTimeout(holdTimer);
+  holdTimer = 0;
+  pumpOutbox();
+}
+// How many saves at the front of the list may go now: up to the first one held.
+function sendable() {
+  const at = outbox.findIndex(item => heldIds.has(item.id));
+  return at < 0 ? outbox.length : at;
+}
+// The saves on their way (a held End is not on its way yet).
+const outboxWaiting = () => outbox.filter(item => !heldIds.has(item.id));
 // The connection came back (owner, 24 November, as on Manipal 20 November: once the Wi-Fi was back the screen stayed on "Not saved
 // yet · retrying"): a save waiting out its pause, or still waiting on a request that will never be answered, is sent again at once,
 // with the same request ID, so it is never entered twice.
@@ -16834,7 +16868,8 @@ async function pumpOutbox() {
   let wait = 2000;
   try {
     while (outbox.length && token) {
-      if (outbox.length > 1 && !manyOff) {
+      if (!sendable()) break;
+      if (sendable() > 1 && !manyOff) {
         const sent = await sendMany();
         if (sent === 'stop') break;
         if (sent === 'again') {
@@ -16923,7 +16958,7 @@ const refusedWords = message => (/already finalized or moved/i.test(message) ? '
 const MANY_MAX = 25;
 let manyOff = false;
 async function sendMany() {
-  const items = outbox.slice(0, MANY_MAX);
+  const items = outbox.slice(0, Math.min(MANY_MAX, sendable()));
   const base = withBase({}).base;
   let reply;
   try { reply = await kickable(rpc('rpcCommands', token, items.map(item => ({ id: item.id, command: item.command, at: item.at })), base)); }
@@ -16982,6 +17017,8 @@ async function savedState(snapshot) {
 }
 // Everything on its way has reached the server.
 function outboxDrained() {
+  // Anything that waits for the saves to reach the server lets a held End go first.
+  releaseHolds();
   return outbox.length ? new Promise(done => outboxWaiters.push(done)) : Promise.resolve();
 }
 // A bill or a running cost read from the screen's data while saves are still on their way (the server does not have
@@ -17112,6 +17149,8 @@ function signedOut(message) {
 }
 async function signOut() {
   if (flow.saving()) return;
+  // A held End goes first (outbox.js).
+  releaseHolds();
   if (outbox.length) { notify('pending', 'Still saving. Sign out in a moment, once it says Up to date.'); return; }
   try { await rpc('rpcLogout', token); } catch (e) { /* signing out locally is still right */ }
   signedOut('');
@@ -17120,7 +17159,7 @@ async function signOut() {
 // from the last answer while the screen was behind another window, where it does not ask).
 const SYNC_STALE_MS = 45000;
 function showSync(ok, at) {
-  const saving = typeof outbox !== 'undefined' ? outbox.length : 0, trouble = saving && outboxTrouble;
+  const saving = typeof outbox !== 'undefined' ? outboxWaiting().length : 0, trouble = saving && outboxTrouble;
   const fresh = ok && nowMs() - at <= SYNC_STALE_MS;
   $('sync').classList.toggle('stale', !fresh || !!trouble);
   $('sync').classList.toggle('saving', !!saving && !trouble);
@@ -17171,7 +17210,8 @@ const deviceOffline = () => typeof navigator !== 'undefined' && navigator.onLine
 function serverLost() {
   if (!token) return false;
   if (deviceOffline() || (!serverAnswered && !state)) return true;
-  const waiting = typeof outbox !== 'undefined' && outbox.length && !String(outboxTrouble).startsWith('Sign in') ? outbox[0].at : 0;
+  const first = typeof outbox !== 'undefined' ? outboxWaiting()[0] : null;
+  const waiting = first && !String(outboxTrouble).startsWith('Sign in') ? first.at : 0;
   return (!!lookingSince && Date.now() - lookingSince > NO_ANSWER_MS) || (!!waiting && nowMs() - waiting > SAVE_WAIT_MS);
 }
 function showOffline() {
@@ -17234,7 +17274,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "2c08b2dfca34";
+const APP_BUILD = "db1617fc80e1";
 // On City Arena's own address a screen moves to a release only once the site really serves it (owner, 24 November, as on Manipal
 // 10 November: a screen reloaded before the site had the new page and opened the old one again, never asking a second time). The
 // fresh page is asked for directly and kept as the page the device opens; until the site has it, a later refresh asks again.
@@ -17432,7 +17472,8 @@ const comeBack = () => {
 window.addEventListener('online', () => { if (!token) return; showOffline(); reconnect(); kickOutbox(); refresh(true); });
 window.addEventListener('offline', showOffline);
 window.addEventListener('focus', comeBack);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') comeBack(); });
+// Put aside (another tab, the phone locked): a held End goes now (outbox.js).
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') comeBack(); else releaseHolds(); });
 setInterval(() => { if (token && !awayTooLong()) markAlive(); }, 60000);
 // Every 15 seconds. The connection is rebuilt only when it has answered nothing for two minutes (as on Manipal).
 setInterval(() => {
