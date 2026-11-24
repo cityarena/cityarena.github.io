@@ -408,6 +408,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   padding: 4px 0 24px;
 }
 .cat {
+  container-type: inline-size;
   grid-column: span 2;
   --edge: clamp(14px, 1.8cqw, 28px);
   position: relative;
@@ -438,7 +439,7 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   position: absolute;
   inset: 0;
   z-index: -1;
-  background: radial-gradient(ellipse at bottom left, #131d29ef, #1a2538ac 28%, transparent 65%), linear-gradient(0deg, #14263566, transparent 45%), var(--art) var(--pos) / cover no-repeat;
+  background: linear-gradient(63deg, #101321dc, #171b2a86 29%, transparent 64%), linear-gradient(0deg, #11192842, transparent 32%), var(--art) var(--pos) / cover no-repeat;
 }
 .cat::after {
   content: "";
@@ -449,27 +450,57 @@ main { min-width: 0; min-height: 0; overflow-y: auto; padding: 0 28px 36px 26px;
   pointer-events: none;
 }
 .cat-name {
-  font: italic 750 clamp(26px, 3.15cqw, 54px)/1.04 var(--display);
-  letter-spacing: -.045em;
-  text-shadow: 0 2px 8px #13212a77;
+  font: italic 750 clamp(24px, 6.25cqw, 46px)/1.04 var(--display);
+  letter-spacing: -.035em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 5px #12152085;
 }
-@media (min-width: 901px) {
-  .cat[data-category=PC] .cat-name, .cat[data-category=PS5] .cat-name {
-    font-size: clamp(34px, 4.4cqw, 62px);
-  }
+.cat-line {
+  font: 550 clamp(14px, 3.15cqw, 23px)/1.2 var(--display);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: white;
+  text-shadow: 0 1px 4px #101b26;
 }
-.cat-status { display: grid; gap: clamp(12px, 1.7cqw, 26px); }
-.cat-line { font-size: var(--text-md); font-weight: 550; }
-.cat-line b { color: #f6c9b5; font-variant-numeric: tabular-nums; }
-.cat .meter { gap: 4px; }
+.cat-line b {
+  white-space: nowrap;
+  font-weight: 700;
+  color: #f4b59e;
+  font-variant-numeric: tabular-nums;
+}
+.cat .meter {
+  gap: clamp(3px, .8cqw, 6px);
+  margin-top: clamp(8px, 6.5cqw, 44px);
+}
 .cat .meter i {
-  flex: none;
-  width: clamp(10px, 1.8cqw, 26px);
-  height: 4px;
-  border-radius: 1px;
-  background: #edb8a1;
+  flex: 0 1 clamp(10px, 7.45cqw, 54px);
+  max-width: none;
+  height: clamp(4px, 1.1cqw, 8px);
+  border-radius: 0;
+  background: #e4e6eca3;
 }
-.cat .meter i.on { background: #ffffff55; }
+.cat .meter i.on {
+  background: #f4b59e;
+  box-shadow: 0 0 5px #eba28855;
+}
+/* The lower row has less width. Space its three caption elements evenly
+   and use the same inset for the corner controls and the text. */
+.cat:where([data-category=RC], [data-category=Pool], [data-category=Snooker]) {
+  --edge: clamp(18px, 1.7vw, 32px);
+  gap: clamp(10px, .9vw, 16px);
+}
+.cat:where([data-category=RC], [data-category=Pool], [data-category=Snooker]) .cat-name {
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -.005em;
+  word-spacing: .06em;
+}
+.cat:where([data-category=RC], [data-category=Pool], [data-category=Snooker]) .meter {
+  margin-top: clamp(3px, 1.2cqw, 8px);
+}
+@media (hover: hover) {
+  .cat:hover { border-color: #875766; box-shadow: 0 2px 4px #182b3920, 0 12px 26px -12px #20333eb3; }
+}
 .cat-symbol, .cat-open {
   position: absolute;
   top: var(--edge);
@@ -1746,10 +1777,10 @@ main[data-page=turf] .turf-board { overflow-x: clip; }
   .tabbar button.on::before { content: ""; position: absolute; top: -4px; left: 50%; width: 24px; height: 3px; margin-left: -12px; border-radius: 0 0 3px 3px; background: var(--accent); }
   .tabbar svg { width: 21px; height: 21px; }
   .cats { height: clamp(380px, 72vw, 540px); gap: 8px; }
-  .cat { --edge: 8px; }
-  .cat .meter i { width: clamp(7px, 2cqw, 12px); }
-  .cat-name { font-size: var(--text-title); }
-  .cat-line { font-size: var(--text-xs); }
+  .cat { --edge: 8px; gap: 6px; }
+  .cat-line { font-size: var(--text-xs); letter-spacing: .015em; }
+  .cat-name { font-size: clamp(19px, 12cqw, 26px); }
+  .cat .meter { margin-top: 6px; }
   .cat-open { width: 26px; }
   .floor-summary { padding: 12px; gap: 12px; }
   .stations, .stations[data-category] { grid-template-columns: minmax(0, 1fr); gap: 12px; }
@@ -2250,6 +2281,80 @@ main > .top::after {
 }
 .sheet-head h2 { color: var(--steel); }
 .sheet-foot { background: linear-gradient(180deg, var(--surface), var(--bg-2)); }
+
+.ledger-person > b { color: var(--steel); }
+.ledger-meta {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.ledger-meta:empty { display: none; }
+.list td.r.num,
+.rs-row > b, .rs-part > b, .rs-tile-amount {
+  text-align: right;
+  font-variant-numeric: lining-nums tabular-nums;
+  font-style: normal;
+}
+.rs-rows { gap: 0; }
+.rs-row { border: 0; border-radius: 0; background: transparent; }
+.rs-row + .rs-row { border-top: 1px solid var(--line); }
+
+
+.bill-item-actions {
+  justify-content: space-between;
+  margin: 8px 0 0;
+}
+.bill-item-actions .station-links { margin: 0; }
+.bill-payment-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.bill-payment-summary .settle-discount {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+.bill-payment-summary .settle-discount input {
+  width: 84px;
+  min-height: 36px;
+  text-align: start;
+  font-variant-numeric: tabular-nums;
+}
+.bill-payment-due {
+  display: grid;
+  gap: 4px;
+  margin-inline-start: auto;
+  text-align: end;
+}
+.bill-payment-due .foot-total { font-size: var(--text-2xl); }
+
+/* "How many controllers?" when a move starts a PS5 (owner, 24 November): in a box of its own so it is seen and answered. */
+.ps5-ask { display: grid; gap: 4px; margin-top: 16px; padding: 12px 14px; border: 1px solid var(--primary-line); border-radius: var(--r-md); background: var(--primary-soft); }
+.ps5-ask .field { margin: 0; }
+
+/* The cover when the server is not answering (owner, 24 November, as on Manipal). */
+.offline { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.offline[hidden] { display: none; }
+.offline-card { max-width: 460px; width: 100%; display: grid; justify-items: center; gap: 12px; padding: 30px 24px; text-align: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow-pop); }
+.offline-mark { width: 64px; height: auto; }
+.offline h1 { margin: 0; font-size: var(--text-xl); color: var(--ink); }
+.offline p { margin: 0; font-size: var(--text-base); color: var(--ink-2); }
+.offline .offline-waiting { color: var(--danger); font-weight: 600; }
+.offline .offline-waiting[hidden] { display: none; }
+.offline.connecting .btn { display: none; }
+
+/* A bill left open on another screen, on its system's card, with Settle here (owner, 24 November, as on Manipal). */
+.bills-left { display: grid; gap: 8px; margin: 8px 0; }
+.bill-left { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 8px 10px; padding: 8px 10px; border: 1px solid var(--warn-line); border-radius: var(--r-sm); background: var(--warn-soft); color: var(--ink); }
+.bill-left > svg { flex: none; width: 20px; height: 20px; color: var(--warn); }
+.bill-left-text { display: grid; gap: 2px; min-width: 0; font-size: var(--text-sm); }
+.bill-left-text .small { color: var(--ink-2); }
+.bill-left .btn { grid-column: 1 / -1; width: 100%; }
 </style>
 </head>
 <body>
@@ -2286,6 +2391,17 @@ main > .top::after {
 
 <!-- A test copy (Script Property TEST_COPY) says so on every screen, so it is never taken for the real records. -->
 <div id="testCopy" class="test-copy" hidden>TEST COPY · not the real records</div>
+<!-- When the server is not answering (no internet, or nothing back for a while) this covers the whole screen, as on Manipal
+     (owner, 24 November). Changes already made stay on the device and are saved once it connects. -->
+<div id="offline" class="offline" hidden role="alertdialog" aria-live="assertive">
+  <div class="offline-card">
+    <img class="offline-mark" src="data:image/webp;base64,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" alt="" width="335" height="322">
+    <h1 id="offlineTitle"></h1>
+    <p id="offlineText"></p>
+    <p id="offlineWaiting" class="offline-waiting" hidden></p>
+    <button id="offlineRetry" type="button" class="btn primary"></button>
+  </div>
+</div>
 <div id="app" class="app" hidden>
   <aside class="side">
     <div class="brand">
@@ -2733,7 +2849,7 @@ var ArenaApp=(function(){
 
 /* Post-session settlement and physical-table parties. Called inside the existing locked atomic command. */
 var ArenaLifecycle=(function(){
- var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT','TABLE_ITEMS_PAY','REOPEN_END'];
+ var types=['END_SELECTION','SPLIT_REVIEW','KEEP_SHARED','MOVE_REVIEW','JOIN_TABLE','SETTLE_REVIEW','TRANSFER_CREDIT_INLINE','COMBINE_TABS','ATTACH_TO_GROUP','COUNTER_SALE','CREDIT_SALE','GROUP_TABS','TABLE_ROUND','TABLE_COLLECT','TABLE_ITEMS_PAY','REOPEN_END','FLOOR_PENDING_DUE'];
  function check(v,m){ArenaCore.check(v,m);}
  function row(rows,id){var r=(rows||[]).find(function(x){return x.id===id;});check(!!r,'Record not found.');return r;}
  function tab(s,id){var t=row(s.Tabs,id);check(t.status==='open','This tab is already finalized or moved.');return t;}
@@ -2742,6 +2858,22 @@ var ArenaLifecycle=(function(){
  function time(t,now){t=t==null?now:t;check(Number.isSafeInteger(t)&&t>0&&t<=now,'Invalid timestamp.');return t;}
  function running(s,t){return s.Segments.some(function(g){return g.tabId===t&&g.status==='active';});}
  function newTab(s,id,name,phone,now,kind){var t={id:id,customer:name,phone:phone||'',status:'open',createdMs:now,kind:kind||'individual'};s.Tabs.push(t);return t;}
+ // A bill left open on a screen that lost its Wi-Fi (owner, 24 November, as on Manipal 21 November: "only under these circumstances
+ // where the bill is opened and wifi goes off, then put it to pending so can clear on other screens"): nothing playing on it, not a
+ // turf bill (those have their own rule), no screen saying it has it open (held: said in the last 2 minutes), and 2 minutes after the
+ // last thing on it (its last game ended, its last item added, or it was opened). Money paid in advance is taken off and the rest is
+ // pending, unless more was paid than the bill comes to (handed back by someone, so it stays to be settled).
+ var FLOOR_PENDING_AFTER_MS=120000;
+ function floorPendingDue(s,now,held){
+  var mine={};(Array.isArray(held)?held.slice(0,200):[]).forEach(function(id){mine[id]=true;});
+  var turf={},ahead={},playing={},last={},any={},total={};
+  (s.TurfBookings||[]).forEach(function(b){if(b.tabId)turf[b.tabId]=true;});
+  (s.TurfPlayers||[]).forEach(function(p){if(p.tabId)turf[p.tabId]=true;});
+  (s.Advances||[]).forEach(function(a){if(a.status==='held')ahead[a.tabId]=(ahead[a.tabId]||0)+a.amountPaise;});
+  (s.Segments||[]).forEach(function(g){if(g.status==='void')return;any[g.tabId]=true;total[g.tabId]=(total[g.tabId]||0)+(Number(g.totalPaise)||0);if(g.status==='active')playing[g.tabId]=true;last[g.tabId]=Math.max(last[g.tabId]||0,Number(g.endMs)||0,Number(g.startMs)||0);});
+  (s.Orders||[]).forEach(function(o){if(o.status!=='active')return;any[o.tabId]=true;if(o.category==='Turf')turf[o.tabId]=true;total[o.tabId]=(total[o.tabId]||0)+(Number(o.totalPaise)||0);last[o.tabId]=Math.max(last[o.tabId]||0,Number(o.createdMs)||0);});
+  return (s.Tabs||[]).filter(function(t){return t.status==='open'&&t.kind!=='turf'&&t.kind!=='turf_player'&&!mine[t.id]&&any[t.id]&&!playing[t.id]&&!turf[t.id]&&(ahead[t.id]||0)<=(total[t.id]||0)&&Math.max(last[t.id]||0,Number(t.createdMs)||0)+FLOOR_PENDING_AFTER_MS<=now;});
+ }
  function lines(s,id){return s.Segments.concat(s.Orders||[]).filter(function(g){return g.tabId===id;});}
  // The rest of a bill when some players stop (owner, 21 October): ended time and items owned by nobody still playing (a bill
  // moved onto it, items for everyone). Time left for the others to pay (End · Others Will Pay) stays out of it.
@@ -2914,6 +3046,17 @@ var ArenaLifecycle=(function(){
    if(allSelected&&origins.length>1)origins.forEach(function(original){var t=row(s.Tabs,original);if(t.status==='open')merge(s,original,target.id);});
    if(typeof ArenaReservations!=='undefined')ArenaReservations.complete(s);
    return {tabId:target.id,segmentIds:c.segmentIds,message:'Selected timers stopped. Review charges and choose the next step.'};
+  }
+  if(c.type==='FLOOR_PENDING_DUE'){
+   // Every bill left open on a screen cut off goes to Pending by itself (floorPendingDue), under its name or the next Customer letter, kept
+   // for the day it was played. Any open screen asks; nothing is kept pending twice, and nothing to do writes nothing.
+   var keptFloor=0,keptFloorPaise=0,dueFloor=floorPendingDue(s,now,c.held);
+   dueFloor.forEach(function(t,n){
+    var r=execute(s,{type:'SETTLE_REVIEW',tabId:t.id,settlement:'pay',pending:{name:'',phone:''},discountType:'none',discountValue:0,amountPaise:0,method:'cash'},actor,now,id+'-'+n);
+    var b=r&&r.billId?row(s.Bills,r.billId):null;
+    if(b&&b.totalPaise>b.paidPaise){keptFloor++;keptFloorPaise+=b.totalPaise-b.paidPaise;}
+   });
+   return {posted:keptFloor,closed:dueFloor.length,amountPaise:keptFloorPaise,noop:!dueFloor.length,message:keptFloor?'Pending '+(keptFloorPaise/100)+' from bills nobody settled.':'Nothing is due to pending.'};
   }
   if(c.type==='REOPEN_END'){
    // Back from the bill an End opened (owner, 27 October: "i need the back button everywhere because if i need to change
@@ -3189,7 +3332,7 @@ var ArenaLifecycle=(function(){
   for(var i=0;i<702;i++){var k=i<26?String.fromCharCode(65+i):String.fromCharCode(64+Math.floor(i/26))+String.fromCharCode(65+i%26);if(!used['customer '+k.toLowerCase()])return 'Customer '+k;}
   return 'Customer';
  }
- return {handles:function(t){return types.indexOf(t)>=0;},execute:execute,party:party,isTable:table,gameOrders:gameOrders};
+ return {handles:function(t){return types.indexOf(t)>=0;},execute:execute,party:party,isTable:table,gameOrders:gameOrders,floorPendingDue:floorPendingDue,FLOOR_PENDING_AFTER_MS:FLOOR_PENDING_AFTER_MS};
 })();
 
 
@@ -8884,9 +9027,10 @@ function notesBlock(ids) {
     h('div', 'note-main', h('span', { class: 'note-text', text: n.text }), h('span', { class: 'small muted', text: [NOTE_KIND[n.kind] || 'Comment', when(n.createdMs)].join(' · ') })))));
 }
 
-// Cash or UPI: the same selector wherever money is taken.
+// UPI or Cash: the same selector wherever money is taken, UPI first (owner, 24 November, as on Manipal 23 November: "keep upi first
+// cash second and split third").
 function methodChoice(initial, onchange) {
-  const choice = segmented([['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi']], String(initial).startsWith('upi') ? 'upi' : initial, onchange);
+  const choice = segmented([['upi', 'UPI', 'upi'], ['cash', 'Cash', 'cash']], String(initial).startsWith('upi') ? 'upi' : initial, onchange);
   choice.node.classList.add('method');
   return choice;
 }
@@ -8902,7 +9046,8 @@ const isUpi = method => String(method || '').startsWith('upi');
 // options: { amount: the amount-received input (hidden while splitting), due: () => paise, splittable }.
 function payChoice(store, onchange = () => {}, options = {}) {
   const node = h('div', 'pay-choice'), splittable = options.splittable !== false, due = options.due || (() => 0);
-  if (!store.method) store.method = 'cash';
+  // UPI is the way chosen at first (owner, 24 November, as on Manipal: "let upi only be selected"); Cash is one tap.
+  if (!store.method) store.method = 'upi';
   const rest = typed => String(Math.max(0, due() - toPaise(typed || 0)) / 100);
   const draw = () => {
     const method = methodChoice(store.method, v => { store.method = v; draw(); onchange(); });
@@ -8912,7 +9057,7 @@ function payChoice(store, onchange = () => {}, options = {}) {
       Object.assign(store, { cash: '', upi: '', cashTyped: false, upiTyped: false });
       draw();
       onchange();
-      if (store.split) node.querySelector('[data-field=pay-cash]').focus();
+      if (store.split) node.querySelector('[data-field=pay-upi]').focus();
     }, 'quiet', { 'aria-pressed': String(!!store.split), data: { action: 'split-pay' } }) : null;
     if (!store.split) node.replaceChildren(h('div', 'pay-row', method.node, store.method === 'upi' ? ca : null, split));
     else {
@@ -8920,7 +9065,7 @@ function payChoice(store, onchange = () => {}, options = {}) {
       const upi = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: store.upi, 'aria-label': 'UPI received', data: { field: 'pay-upi' } });
       cash.oninput = () => { store.cash = cash.value; store.cashTyped = true; if (!store.upiTyped) upi.value = store.upi = rest(cash.value); onchange(); };
       upi.oninput = () => { store.upi = upi.value; store.upiTyped = true; if (!store.cashTyped) cash.value = store.cash = rest(upi.value); onchange(); };
-      node.replaceChildren(h('div', 'pay-row split-boxes', field('Cash (₹)', cash), field('UPI (₹)', upi), ca, split));
+      node.replaceChildren(h('div', 'pay-row split-boxes', field('UPI (₹)', upi), field('Cash (₹)', cash), ca, split));
     }
     const box = options.amount ? options.amount.closest('.field') : null;
     if (box) box.hidden = !!store.split;
@@ -9072,6 +9217,8 @@ const AFTER_SAVES = new Set(['rpcBill', 'rpcHistory', 'rpcReport', 'rpcStock', '
 // (ARENA_API, set by the build), so the browser's signed-in Google accounts never get in the way.
 const ARENA_API = "https://script.google.com/macros/s/AKfycbwoZOVuZ6rp7gDVmMdqrOx16x3jj0iddMGqTiT-Qd8AVaZXhMY9VsED-R-GvsrW-mjp/exec";
 let bridge = null, bridgeTroubles = 0;
+// When the hidden connection last carried anything: it is rebuilt only when it has said nothing for a minute (as on Manipal).
+let bridgeHeard = 0;
 // A connection that stops answering (the internet dropped, the frame stalled) is rebuilt after two failures in a row.
 function bridgeTrouble() {
   bridgeTroubles++;
@@ -9101,9 +9248,10 @@ function openBridge() {
   const listen = ev => {
     const m = ev.data;
     if (!m || typeof m !== 'object' || !/\.googleusercontent\.com$/.test(new URL(ev.origin).hostname)) return;
-    if (m.arena === 'ready') { target = ev.source; bridgeTroubles = 0; opened(true); return; }
+    if (m.arena === 'ready') { target = ev.source; bridgeTroubles = 0; bridgeHeard = Date.now(); opened(true); return; }
     const waiting = m.arena === 'reply' ? pending.get(m.id) : null;
     if (!waiting) return;
+    bridgeHeard = Date.now();
     pending.delete(m.id);
     if (m.failed) { bridgeTrouble(); waiting.reject(new Error('Connection interrupted.')); } else { bridgeTroubles = 0; waiting.resolve(m.reply); }
   };
@@ -9147,13 +9295,54 @@ function callServer(name, args) {
 function rpc(name, ...args) {
   return rpcWithin(45000, name, ...args);
 }
+// A report asked for twice while the first is still within its time shares the first; once that time is over a new one is sent
+// (owner, 24 November, as on Manipal 17 November: waiting on a request that never arrived held every later look for minutes).
+const READ_ONCE = new Set(['rpcReport', 'rpcStock']), readsOnTheirWay = new Map();
+function serverOnce(name, args, ms) {
+  if (!READ_ONCE.has(name)) return callServer(name, args);
+  const key = name + JSON.stringify(args.slice(1)), going = readsOnTheirWay.get(key);
+  if (going && Date.now() - going.at < ms) return going.call;
+  const call = callServer(name, args);
+  const mine = { at: Date.now(), call };
+  readsOnTheirWay.set(key, mine);
+  const done = () => { if (readsOnTheirWay.get(key) === mine) readsOnTheirWay.delete(key); };
+  call.then(done, done);
+  return call;
+}
+// A look at the screen's data that never relies on one way to the server (owner, 24 November, as on Manipal 17 November: Google's
+// frame in the hidden connection can drop the server's answers, so the screen read "Not updated" and Refresh did nothing). Asked at
+// once; with no answer in four seconds asked again the direct way, and again at eight; the first answer is used. A look writes
+// nothing, so asking twice is harmless.
+function lookOnce(name, args, ms, tries = [0, 4000, 8000]) {
+  return new Promise((resolve, reject) => {
+    let done = false, failures = 0, sent = 0;
+    const timers = [];
+    const finish = (fn, value) => { if (done) return; done = true; timers.forEach(clearTimeout); fn(value); };
+    // Each try once: at its time, or at once when the one before it failed outright (a held one is waited for).
+    const send = which => {
+      if (done || which >= tries.length || which < sent) return;
+      sent = which + 1;
+      const call = which === 1 && typeof google === 'undefined' ? directCall(name, args) : callServer(name, args);
+      call.then(reply => {
+        if (reply && reply.ok) finish(resolve, reply.data);
+        else finish(reject, Object.assign(new Error(reply && reply.error || 'Request failed.'), { notSaved: !!(reply && reply.notSaved), alreadySaved: !!(reply && reply.alreadySaved) }));
+      }, () => { failures++; if (failures === tries.length) finish(reject, new Error('Connection interrupted.')); else send(sent); });
+    };
+    tries.forEach((at, which) => timers.push(setTimeout(() => send(which), at)));
+    timers.push(setTimeout(() => {
+      if (bridge && typeof google === 'undefined' && Date.now() - bridgeHeard > 60000) bridgeTrouble();
+      finish(reject, new Error('The server has not confirmed the outcome yet.'));
+    }, ms));
+  });
+}
 // A look at the data gives up sooner than a save, so a lost answer never holds the screen for long.
 function rpcWithin(ms, name, ...args) {
   if (AFTER_SAVES.has(name) && typeof outbox !== 'undefined' && outbox.length) return outboxDrained().then(() => rpcWithin(ms, name, ...args));
   return new Promise((resolve, reject) => {
     let settled = false;
-    const timer = setTimeout(() => { settled = true; if (bridge && typeof google === 'undefined') bridgeTrouble(); reject(new Error('The server has not confirmed the outcome yet.')); }, ms);
-    callServer(name, args).then(reply => {
+    // A slow answer is not a broken connection: only one that has said nothing for a minute is rebuilt (as on Manipal).
+    const timer = setTimeout(() => { settled = true; if (bridge && typeof google === 'undefined' && Date.now() - bridgeHeard > 60000) bridgeTrouble(); reject(new Error('The server has not confirmed the outcome yet.')); }, ms);
+    serverOnce(name, args, ms).then(reply => {
       if (settled) return;
       clearTimeout(timer);
       if (reply && reply.ok) resolve(reply.data);
@@ -9263,7 +9452,9 @@ function openSheet(config) {
   if (!$('sheet').open) $('sheet').showModal();
   $('sheetBody').scrollTop = again;
   // The cursor goes to the first box, or to the one the sheet names (focus: a selector), or nowhere (focus: false).
-  const first = $('sheetBody').querySelector(typeof config.focus === 'string' ? config.focus : 'input:not([type=hidden]):not([hidden])');
+  const first = typeof config.focus === 'string'
+    ? $('sheet').querySelector(config.focus)
+    : $('sheetBody').querySelector('input:not([type=hidden]):not([hidden])');
   const kept = typing ? $('sheet').querySelector('[data-field="' + typing + '"]') : null;
   if (kept && kept.offsetParent) kept.focus({ preventScroll: true });
   else if (first && config.focus !== false) {
@@ -9495,7 +9686,7 @@ const BOOKING_STALE_MS = 4 * 3600000;
 function bookingsWithoutPlace(category, taken, exclude) {
   const now = nowMs(), until = now + settingValue('reservationHorizonMinutes', 60) * 60000;
   const free = state.Equipment.filter(u => u.category === category && u.id !== taken && !inUse(u)).map(u => u.id);
-  const due = state.Reservations.filter(r => r.id !== exclude && r.category === category && RES_PENDING.includes(r.status) && r.arrivalMs <= until && r.arrivalMs >= now - BOOKING_STALE_MS)
+  const due = state.Reservations.filter(r => r.id !== exclude && r.category === category && RES_PENDING.includes(r.status) && resCurrent(r) && r.arrivalMs <= until && r.arrivalMs >= now - BOOKING_STALE_MS)
     .sort((a, b) => a.arrivalMs - b.arrivalMs);
   const claimed = new Set(), left = [], open = [];
   for (const r of due) {
@@ -9556,25 +9747,20 @@ function floorBar(bar) {
       icon(category), h('span', { text: catName(category) })))));
 }
 
-// A row of small bars, one per unit or controller; the filled ones are in use.
-function meter(used, total) {
-  const bars = [];
-  for (let n = 0; n < total; n++) bars.push(h('i', n < used ? 'on' : ''));
-  return h('span', { class: 'meter', 'aria-hidden': 'true' }, bars);
-}
-
-// ---------- Home: the four systems, nothing else ----------
+// The five Gaming floor categories.
 function categoryTile(category) {
-  const c = categoryCounts(category), busy = c.total - c.free, live = busy > 0;
+  const c = categoryCounts(category), live = c.free < c.total;
   const line = c.free === 0
-    ? h('div', { class: 'cat-line full', text: 'Full' })
-    : h('div', 'cat-line', h('b', { text: c.free + ' of ' + c.total }), ' available');
+    ? h('span', { class: 'cat-line full', text: 'Full' })
+    : h('span', 'cat-line', h('b', { text: c.free + ' of ' + c.total }), ' available');
   const due = (state.Reminders || []).filter(r => (unitOf(r.unitId) || {}).category === category).map(r => r.dueMs);
   return h('button', { type: 'button', class: 'cat' + (live ? ' live' : ''), data: { category, ...(due.length ? { due: String(Math.min(...due)) } : {}) }, onclick: () => { floorCategory = category; render(); } },
     h('span', { class: 'cat-name', text: catName(category) }),
     h('span', { class: 'cat-art', 'aria-hidden': 'true' }),
     h('span', { class: 'cat-symbol', 'aria-hidden': 'true' }, icon(category)),
-    h('span', 'cat-status', line, meter(busy, c.total)),
+    line,
+    h('span', { class: 'meter', 'aria-hidden': 'true' },
+      Array.from({ length: c.total }, (_, i) => h('i', i < c.total - c.free ? 'on' : ''))),
     h('span', 'cat-open', icon('arrowRight')));
 }
 
@@ -9728,12 +9914,80 @@ function sessionMenu(segment, extra = []) {
 // A photograph card (owner, 20 October): the photograph fills the card, the name on its top. A free card has Start Session on
 // its foot; a card in use has who, how long and its buttons on a light panel at the foot, so every card keeps the original
 // card's length. An opened console or PC (its + pressed) lists its controllers instead and keeps a photograph band.
+// One card that cannot be drawn never blanks the page (owner, 24 November, as on Manipal 10 November): it says so in its place and
+// every other card is drawn.
+function safeStationCard(unit) {
+  try { return stationCard(unit); }
+  catch (e) {
+    console.error(e);
+    return h('article', { class: 'station', data: { unit: unit.id, category: unit.category, stationBroken: '1' } }, h('b', { text: unit.name }), h('p', { class: 'small muted', text: 'This card could not be shown. Refresh the page; if it stays, tell the owner.' }));
+  }
+}
+// Bills with nothing playing that this screen does not have open, on the card of each system they were played on (owner, 24 November,
+// as on Manipal 21 November: "Build Settle here"): another screen may have it open and have lost its Wi-Fi. Settle here opens the bill
+// here; it goes to Pending by itself if nobody does. Only once no screen has said it for 20 seconds and nothing has happened on it for
+// 20 seconds, so in normal running nobody sees it while another screen collects.
+const SETTLE_HERE_AFTER_MS = 20000;
+const lastOnTab = t => Math.max(Number(t.createdMs) || 0, ...state.Segments.filter(g => g.tabId === t.id && g.status !== 'void').map(g => Math.max(Number(g.endMs) || 0, Number(g.startMs) || 0)), ...state.Orders.filter(o => o.tabId === t.id && o.status === 'active').map(o => Number(o.createdMs) || 0));
+const saidFor = tabId => (tabId in (settlingSeen.map || {}) ? settlingSeen.at - Number(settlingSeen.map[tabId]) : Infinity);
+function billsLeftOn(unitId) {
+  const mine = new Set(heldTabs()), now = nowMs();
+  return state.Tabs.filter(t => t.status === 'open' && t.kind !== 'turf' && t.kind !== 'turf_player' && !mine.has(t.id) && !stillPlaying(t.id) && !turfBookingForTab(t.id) && state.Segments.some(g => g.tabId === t.id && g.unitId === unitId && g.status === 'ended') &&
+    saidFor(t.id) >= SETTLE_HERE_AFTER_MS && lastOnTab(t) + SETTLE_HERE_AFTER_MS <= now);
+}
+// Shown again as a bill's 20 seconds pass, with no new data from the server.
+let billsLeftShown = '';
+function watchBillsLeft() {
+  if (page !== 'floor' || !floorCategory || !state || $('sheet').open) return;
+  const now = state.Equipment.map(u => u.id + ':' + billsLeftOn(u.id).map(t => t.id).join(',')).join('|');
+  // The first look only notes what the cards were drawn with; a redraw is for a change since (a menu open then stays open).
+  if (!billsLeftShown) { billsLeftShown = now; return; }
+  if (now !== billsLeftShown) { billsLeftShown = now; render(); }
+}
+const openElsewhere = tabId => saidFor(tabId) < 10 * 60000;
+// Settle here opens the bill on this screen at once: the card's own line already says it is open on another screen.
+function settleHere(tabId) {
+  settlingHere.add(tabId);
+  settleSheet(tabId, 'pay');
+}
+function billsLeftStrip(unit) {
+  const tabs = billsLeftOn(unit.id);
+  if (!tabs.length) return null;
+  return h('div', { class: 'bills-left', data: { billsLeft: String(tabs.length) } }, tabs.map(t => {
+    const ended = Math.max(...state.Segments.filter(g => g.tabId === t.id && g.status === 'ended').map(g => Number(g.endMs) || 0));
+    return h('div', { class: 'bill-left', data: { billLeft: t.id } }, icon('wallet'),
+      h('span', 'bill-left-text', h('b', { text: openElsewhere(t.id) ? 'Bill open on another screen' : 'Bill not settled' }),
+        h('span', { class: 'small', text: [t.customer, 'ended ' + clock(ended), money(Math.max(0, tabTotal(t.id) - heldFor([t.id])))].join(' · ') })),
+      btn('Settle here', e => { e.stopPropagation(); settleHere(t.id); }, 'tonal', { data: { action: 'settle-here' } }));
+  }));
+}
+// A bill left open on a screen that lost its Wi-Fi goes to Pending by itself (owner, 24 November, as on Manipal 21 November; ✕ on the
+// bill still takes the End back). A screen says which bills it has open to settle (heldTabs) every 10 seconds, even in the background;
+// one nobody has said for 2 minutes, with nothing playing, is sent to Pending by any open screen, the server keeping each pending once.
+// A bill opened here with Settle here is this screen's while its sheet is open.
+const settlingHere = new Set();
+const heldTabs = () => !state ? [] : [...new Set([...endsOpen.keys(), ...(splitQueue ? splitQueue.tabIds : []), ...($('sheet').open ? settlingHere : [])])].filter(id => { const t = tabOf(id); return t && t.status === 'open'; });
+let floorPendingTried = 0, settlingSeen = { map: {}, at: 0 };
+function heldEverywhere() {
+  const fresh = Object.keys(settlingSeen.map || {}).filter(id => settlingSeen.at - Number(settlingSeen.map[id]) < ArenaLifecycle.FLOOR_PENDING_AFTER_MS);
+  return [...new Set([...heldTabs(), ...fresh])];
+}
+function postFloorPendingDue() {
+  if (!state || outbox.length || flow.saving() || $('sheet').open || nowMs() - floorPendingTried < 10000) return;
+  const held = heldEverywhere();
+  if (!ArenaLifecycle.floorPendingDue(state, nowMs(), held).length) return;
+  floorPendingTried = nowMs();
+  const here = trySaveHere({ type: 'FLOOR_PENDING_DUE', held });
+  if (here && !here.refused) render();
+}
 function stationCard(unit) {
-  const card = stationCardBody(unit), opened = card.classList.contains('live') && canCollapse(unit) && !card.classList.contains('mini');
+  const card = stationCardBody(unit), left = billsLeftStrip(unit), opened = card.classList.contains('live') && canCollapse(unit) && !card.classList.contains('mini');
+  if (left) { const at = card.querySelector(':scope > .station-actions, :scope > [data-action=start]'); if (at) card.insertBefore(left, at); else card.append(left); }
   if (opened || legacyOn(unit.id)) return card;
   card.classList.add('photo');
   const art = card.querySelector('.station-art');
-  if (!card.classList.contains('live') || !art) return card;
+  // A free card with a bill left on it shows the bill and Start Session on the light panel, as a card in use does.
+  if ((!card.classList.contains('live') && !left) || !art) return card;
   const panel = h('div', 'station-panel');
   while (art.nextSibling) panel.append(art.nextSibling);
   card.append(panel);
@@ -9869,7 +10123,7 @@ const floorPage = {
   bar: floorBar,
   render(page) {
     if (!floorCategory) { page.append(h('div', 'cats', CATEGORIES.map(categoryTile))); return; }
-    page.append(floorSummary(floorCategory), h('div', { class: 'stations', data: { category: floorCategory } }, state.Equipment.filter(u => u.category === floorCategory).map(stationCard)));
+    page.append(floorSummary(floorCategory), h('div', { class: 'stations', data: { category: floorCategory } }, state.Equipment.filter(u => u.category === floorCategory).map(safeStationCard)));
     tick();
   }
 };
@@ -10956,6 +11210,10 @@ function leftToPending(tabId) {
     return { text: money(owed) + ' left on ' + (who ? who + '’s' : 'the') + ' bill is pending.' };
   });
 }
+function billSettlementSummary(discount, label, amount) {
+  return h('div', 'bill-payment-summary', discount, h('div', 'bill-payment-due', label, amount));
+}
+
 function settleSheet(tabId, mode = 'pay', preset = null) {
   const tab = tabOf(tabId);
   if (!tab || tab.status !== 'open') { closeSheet(); return; }
@@ -11064,7 +11322,7 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
       } : null;
       // Discount: one flat rupee amount, typed straight in; the figure below changes as it is typed. On a turf bill it sits in
       // the turf card under the charge, as on a split booking (owner, 22 October: the discount is given on the turf);
-      // otherwise beside Add Items at the top.
+      // otherwise beside the outstanding amount.
       const discountInput = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: draft.discount, placeholder: '0', 'aria-label': 'Discount amount', data: { field: 'discount' }, oninput: () => { draft.discount = discountInput.value; paint(); } });
       const discountRow = h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), discountInput), onTurf = ordersOf(tab.id).some(o => o.category === 'Turf');
       // The lines, kept close together so the whole bill shows without scrolling (owner, 22 October).
@@ -11076,23 +11334,13 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
       const adds = h('div', 'station-links', btn([icon('sales'), 'Add Items'], () => addItemsSheet(tab), 'quiet', { data: { action: 'items' } }));
       if (tab.kind === 'quick_sale') adds.append(btn([icon('plus'), 'Gaming or other charge'], () => manualChargeSheet(tab), 'quiet'));
       if (group && goodsOf(ordersOf(group.id)).length) adds.append(btn([icon('sales'), 'Items from ' + group.customer + '’s bill'], () => takeItemsSheet(tab, group), 'quiet', { data: { action: 'take-items' } }));
-      // One row at the top (owner, 22 October): add items or a charge, and the discount typed in. On a turf bill the turf card
-      // with its discount comes first and Add Items goes under the lines.
-      // The discount typed in at the top; Add Items under the lines (owner, 23 November, as on Manipal: "the add items keep below only"). On
-      // a turf bill the turf card with its discount comes first.
-      const top = h('div', 'settle-top', ...(onTurf ? [adds] : []));
-      if (onTurf) ui.body.append(top);
-      else {
-        ui.body.prepend(top);
-        ui.body.append(h('div', 'settle-adds', adds));
-      }
+      const itemActions = h('div', 'settle-top bill-item-actions', adds);
+      ui.body.append(itemActions);
       if (playing || !lines) discountRow.remove();
       if (playing) { ui.body.append(h('p', { class: 'muted', style: 'margin-top:16px', text: 'Still playing. End the remaining players to settle this bill.' })); tick(); return; }
       if (!lines) { ui.body.append(h('p', { class: 'muted', style: 'margin-top:16px', text: 'Nothing to settle yet.' })); return; }
 
-      if (!onTurf) top.append(discountRow);
-      // The whole bill cancelled, items too, after a reason (owner, 4 November), in the ⋮ at the end of the top row.
-      if (!onTurf) top.append(menu([['Void bill', () => reasonSheet({ title: 'Void bill', sub: 'Cancelled completely: nothing is charged, the items go back in stock.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_TAB', tabId: tab.id, reason }), then: () => { closeSheet(); return { text: 'Bill voided. Nothing is charged.' }; } }), true, 'ban']], 'Options for this bill'));
+      if (!onTurf) itemActions.append(menu([['Void bill', () => reasonSheet({ title: 'Void bill', sub: 'Cancelled completely: nothing is charged, the items go back in stock.', action: 'Void bill', icon: 'ban', tone: 'bad', command: reason => ({ type: 'VOID_TAB', tabId: tab.id, reason }), then: () => { closeSheet(); return { text: 'Bill voided. Nothing is charged.' }; } }), true, 'ban']], 'Options for this bill'));
       let accountTitle = null;
       if (mode === 'credit') {
         picker = accountPicker(draft.account);
@@ -11128,7 +11376,7 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
       const pendingBox = pendingFields(draft);
       ui.foot.append(
         sums,
-        h('div', 'foot-row', h('div', { class: 'foot-label', text: 'Outstanding' }), totalValue),
+        billSettlementSummary(onTurf ? null : discountRow, h('div', { class: 'foot-label', text: 'Outstanding' }), totalValue),
         receivedRow,
         balance,
         restBox);
@@ -11149,7 +11397,7 @@ function settleSheet(tabId, mode = 'pay', preset = null) {
       function paint() {
         const sub = subtotal(), discount = discountPaise(), valid = Number.isSafeInteger(discount) && discount >= 0 && discount <= sub, total = valid ? sub - discount : sub;
         const advance = valid ? advancePaise() : 0, due = total - advance, back = valid ? handBackPaise() : 0;
-        // The large figure is what is still outstanding, after the discount typed at the top (not said again here). Rows above
+        // The large figure is what is still outstanding, after the discount (not said again here). Rows above
         // it appear only when money was already paid towards this bill (total bill, paid, and by whom).
         // With charges from earlier: this session's total, then what is still owed from earlier; the large figure is both.
         // One total (owner, 27 October): what each part is for is on the bill above, each section with its total; only money
@@ -11441,7 +11689,7 @@ const payableTimers = tab => { const playing = new Set(unitsOfTab(tab.id)); retu
 // all"): from "so far" on any system, the items they pay for now, ticked or counted, paid in full; they become a bill of their
 // own (TABLE_ITEMS_PAY) and the time and every other item stay on the system.
 function payItemsSheet(tab, back) {
-  const picks = new Map(), pay = { method: 'cash' };
+  const picks = new Map(), pay = { method: 'upi' };
   let rows = [], timeRows = [], how = null, ticked = false, whole = null;
   // A balance carried from an earlier bill, paid now or not (owner, 16 November, as on Manipal): nothing ticked at first; whole or
   // piece by piece (carryTake: how many of a piece).
@@ -11594,6 +11842,17 @@ function swapSheet(unit) {
     then() { closeSheet(); render(); return { text: 'Moved from ' + unit.name + ' to ' + unitOf(to).name + '. The time runs on.' }; }
   });
 }
+// A PS5 started by a move: how many controllers, asked there and then (owner, 24 November: "when moving to a free station, ps5 has
+// to ask how many people"; as on Manipal, 15 November): nothing chosen at first, the question brought into view, the button waiting
+// for it. keep holds the choice between redraws; max is how many controllers are free there.
+function ps5Question(ui, keep, max) {
+  const fresh = !keep.count, upTo = Array.from({ length: Math.max(1, Math.min(4, max || 4)) }, (_, i) => [i + 1, String(i + 1)]);
+  keep.count = segmented(upTo, keep.count ? keep.count.value() : '', () => ui.redraw());
+  const box = h('div', { class: 'ps5-ask', data: { ps5Ask: '' } }, h('div', { class: 'field', data: { field: 'move-controllers' } }, h('span', { text: 'How many controllers?' }), keep.count.node));
+  if (fresh) requestAnimationFrame(() => box.scrollIntoView({ block: 'nearest' }));
+  return box;
+}
+const ps5Ready = keep => !!keep.count && Number(keep.count.value()) > 0;
 // One Move (owner, 21 October), three places: a system playing now (this bill goes onto theirs, nobody starts playing),
 // today's turf (paid with the booking; the calendar beside it shows another day's, owner, 2 November: "tomorrow or any
 // other days turf booking"), or a free system (they carry on playing there; pick two or more and a timer starts on each,
@@ -11607,12 +11866,10 @@ function moveSheet(tab) {
   const systems = tab.kind === 'turf_player' ? [] : playingBills(tab), anyTurf = turfTakers(tab), today = dayKey(nowMs());
   const free = canPlayOn ? CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && offered(u))) : [];
   const chosen = new Set();
-  // How many stopped on this bill; the usual number to start again, but fewer may play on.
-  const movers = Math.max(1, state.Endings.filter(e => e.reviewTabId === tab.id && e.status === 'review' && e.segmentId).length);
-  let joinTab = '', time, controllers = 0, acked = false, turfTo = '', billTo = '', turfDay = today, dayBox = null;
+  let joinTab = '', time, acked = false, turfTo = '', billTo = '', turfDay = today, dayBox = null;
+  const pads = {};
   const comment = commentField();
   const onePs5 = () => { const only = chosen.size === 1 ? unitOf([...chosen][0]) : null; return only && only.category === 'PS5' ? only : null; };
-  const seatCount = () => { const unit = onePs5(); return unit ? Math.min(controllers || movers, freeSlots(unit)) : 0; };
   const clear = () => { chosen.clear(); turfTo = ''; billTo = ''; joinTab = ''; acked = false; current.ack.reservation = false; };
   openSheet({
     title: 'Move',
@@ -11654,16 +11911,14 @@ function moveSheet(tab) {
         const bill = segmented([['', 'Own bill'], ...hosts.map(t => [t.id, t.customer + '’s bill'])], joinTab, v => { joinTab = v; });
         ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'join-bill' } }, h('span', { text: 'Joining ' + hosts.map(t => t.customer).join(' and ') + ' · charge to' }), bill.node));
       }
-      if (onePs5()) {
-        const slots = freeSlots(onePs5()), options = [];
-        for (let n = 1; n <= slots; n++) options.push([n, String(n)]);
-        ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented(options, seatCount(), v => { controllers = Number(v); }).node));
-      }
+      const toPs5 = !!onePs5();
+      if (toPs5) ui.body.append(ps5Question(ui, pads, freeSlots(onePs5())));
       // A free system chosen here that someone has booked soon: said here, before the move.
       const clashes = units.map(u => [u, bookingClash(u)]).filter(([, list]) => list.length);
       for (const [u, list] of clashes) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(u, list, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
       time = time || timeChoice('Starts');
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node), h('div', { style: 'margin-top:16px' }, comment.node));
+      if (toPs5 && !ps5Ready(pads)) { ui.primary('Choose how many controllers', true); return; }
       ui.primary((only && inUse(only) ? 'Join ' : 'Move to ') + units.map(u => u.name).join(' + '), clashes.length > 0 && !acked);
     },
     command() {
@@ -11677,7 +11932,7 @@ function moveSheet(tab) {
         return target.home ? { type: 'CONSOLIDATE_TABS', sourceTabId: tab.id, tabId: target.home.id, note } : { type: 'ATTACH_TO_GROUP', sourceTabId: tab.id, memberTabId: target.members[0].id, note };
       }
       if (!chosen.size) throw new Error('Choose where they are moving to.');
-      return { type: 'MOVE_REVIEW', tabId: tab.id, unitIds: [...chosen], startMs: time.value(), joinTabId: chosen.size === 1 && joinTab ? joinTab : undefined, controllers: onePs5() ? seatCount() : undefined, note };
+      return { type: 'MOVE_REVIEW', tabId: tab.id, unitIds: [...chosen], startMs: time.value(), joinTabId: chosen.size === 1 && joinTab ? joinTab : undefined, controllers: onePs5() ? Number(pads.count.value()) : undefined, note };
     },
     then(result, command) {
       if (command.type === 'ATTACH_TO_GROUP') {
@@ -11920,7 +12175,7 @@ async function receiptSheet(billId, back, opts = {}) {
   const [stateIcon, stateTone] = BILL_STATE[data.status] || ['clock', 'warn'];
   // For a bill that went on credit: what was paid at the counter. Later repayments belong to the account, not to this bill.
   const paidHere = data.transfer ? data.payments.reduce((sum, p) => sum + p.amountPaise, 0) : bill.paidPaise;
-  const payStore = { method: 'cash' };
+  const payStore = { method: 'upi' };
   let amount, how, collectOff = 0, offBox = null;
   // A part payment always asks where the rest goes (owner, 23 November, as on Manipal; there 20 November: "when i put part payment, ask pending or rest of the amount what to
   // do … anywhere and everywhere whenever part payment is done"): Keep pending, Move to Credit or Move, chosen before Collect.
@@ -11978,13 +12233,11 @@ async function receiptSheet(billId, back, opts = {}) {
       if (!payable) ui.body.append(h('div', 'bill-head', glyph(stateIcon, stateTone, 'lg'),
         h('div', 'bill-who', h('div', { class: 'who', text: customer }), h('div', { class: 'small muted', data: { billWhen: '1' }, text: [phone, billWhen(data, detail)].filter(Boolean).join(' · ') })),
         h('span', 'bill-tools', statusBadge(data.status), billMenu)));
-      // A pending bill is laid out as any bill being settled (owner, 23 November, as on Manipal; there 20 November: "why not keep the same format as of normal bills?
-      // discount on top and all … bill is bill only no?? its just pending"): one row at the top, Add Items and the discount typed
-      // straight in, then its lines, the money at the foot. The discount is on the whole bill, not while only some of it is ticked.
+      let itemActions = null;
       if (payable) {
         const adds = h('div', 'station-links', ...[!onTurf && !ArenaCore.carryOf(state, billId) ? btn([icon('sales'), 'Add Items'], () => pendingItemsSheet(billId, customer, due, () => receiptSheet(billId, back)), 'quiet', { data: { action: 'pending-bill-items' } }) : null].filter(Boolean));
         offBox = partly() ? null : h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: collectOff ? String(collectOff / 100) : '', placeholder: '0', 'aria-label': 'Discount', data: { field: 'collect-discount' } });
-        ui.body.append(h('div', 'settle-top', ...[adds, offBox ? h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), offBox) : null, billMenu].filter(Boolean)));
+        itemActions = h('div', 'settle-top bill-item-actions', adds, billMenu);
       }
       if (ticking) {
         const lines = [];
@@ -12015,6 +12268,7 @@ async function receiptSheet(billId, back, opts = {}) {
       else if (payable) { const linesBox = h('div', 'settle-lines'); ui.body.append(linesBox); drawLines(linesBox, { segments: data.segments, orders: data.orders, customer, tab: data.tab || null, editable: false, detail: true, pauses: data.pauses }); }
       else drawLines(ui.body, { segments: data.segments, orders: data.orders, customer, tab: data.tab || null, editable: false, detail: true, pauses: data.pauses });
       const notes = notesBlock([billId, data.tab ? data.tab.id : '']);
+      if (itemActions) ui.body.append(itemActions);
       if (notes) ui.body.append(notes);
 
       // 1. The bill: what it comes to, what has been paid towards it, and what is still outstanding.
@@ -12070,7 +12324,7 @@ async function receiptSheet(billId, back, opts = {}) {
         const owing = ticking ? tickedSum() : due;
         amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: String((owing - collectOff) / 100), 'aria-label': 'Amount received', data: { field: 'received' } });
         const receivedBox = field('Received (₹)', amount);
-        // The discount typed at the top (offBox) changes what is left to collect at once.
+        // The discount next to the total (offBox) changes what is left to collect at once.
         const left = () => owing - (partly() ? 0 : collectOff);
         const total = h('div', { class: 'foot-total', text: money(left()) });
         const totalLabel = h('div', { class: 'foot-label', text: partly() ? 'Ticked' : collectOff ? 'To collect' : 'Outstanding' });
@@ -12108,7 +12362,7 @@ async function receiptSheet(billId, back, opts = {}) {
           primary();
         };
         ui.foot.append(
-          h('div', 'foot-row', totalLabel, total),
+          billSettlementSummary(offBox ? h('label', 'settle-discount', h('span', { text: 'Discount (₹)' }), offBox) : null, totalLabel, total),
           h('div', 'foot-row pay-foot', receivedBox, (how = payChoice(payStore, () => primary(), { amount, due: () => left(), splittable: !partly() })).node),
           restBox);
         ui.primary('');
@@ -12539,14 +12793,13 @@ const billsPage = {
     if (billCache.key !== key) { loadBills(key); if (!billCache.rows) { page.append(loadingRows()); return; } }
     const rows = (billCache.rows || []).filter(b => !['unpaid', 'part'].includes(b.status));
     page.append(table(
-      [{ label: 'Bill' }, { label: 'When', class: 'hide-s' }, { label: 'Customer' }, { label: 'Total', class: 'r' }, { label: 'Outstanding', class: 'r hide-s' }, { label: 'Status' }, { label: '' }],
+      [{ label: 'Customer / bill' }, { label: 'Total', class: 'r' }, { label: 'Outstanding', class: 'r hide-s' }, { label: 'Status' }, { label: '' }],
       rows.map(b => h('tr', { class: 'click', data: { bill: b.id }, onclick: () => receiptSheet(b.id) },
-        // A bill paid (in part) by UPI to the CA scanner carries a small CA (owner, 20 October).
-        h('td', { class: 'num' }, b.number, b.ca ? h('span', { class: 'tag-ca', text: 'CA' }) : null),
-        // A bill of an earlier day paid in these dates: when it was paid, and the day it was made.
-        // When it is of: when it was played, a turf bill by its slot (owner, 4 November: "as long as i know which date it is of").
-        h('td', { class: 'hide-s muted', text: b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.playedMs || b.createdMs) : when(b.playedMs || b.createdMs) }),
-        h('td', null, h('b', { text: b.customer }), h('div', { class: 'small muted', text: [b.units.map(id => (unitOf(id) || {}).name || id).join(', '), b.account ? 'credit: ' + b.account : '', b.paidAtMs ? (b.paidThenPaise < 0 ? money(-b.paidThenPaise) + ' taken back' : money(b.paidThenPaise) + ' paid') : ''].filter(Boolean).join(' · ') })),
+        h('td', { class: 'ledger-person' },
+          h('b', { text: b.customer || 'Customer' }),
+          h('div', 'ledger-meta', b.number, b.ca ? h('span', { class: 'tag-ca', text: 'CA' }) : null,
+            ' · ' + (b.paidAtMs ? 'Paid ' + when(b.paidAtMs) + ' · bill of ' + day(b.playedMs || b.createdMs) : when(b.playedMs || b.createdMs))),
+          h('div', { class: 'ledger-meta', text: [b.units.map(id => (unitOf(id) || {}).name || id).join(', '), b.account ? 'credit: ' + b.account : '', b.paidAtMs ? (b.paidThenPaise < 0 ? money(-b.paidThenPaise) + ' taken back' : money(b.paidThenPaise) + ' paid') : ''].filter(Boolean).join(' · ') })),
         h('td', { class: 'r num', text: money(b.totalPaise) }),
         h('td', { class: 'r num hide-s' + (b.outstandingPaise && !b.account ? ' owing' : ''), text: b.outstandingPaise && !b.account ? money(b.outstandingPaise) : '—' }),
         // Paid on a later day: which day, beside the status (owner, 2 November: "incase a customer wants to trace back").
@@ -12564,6 +12817,16 @@ const billsPage = {
 
 // ---------- Reservations ----------
 const RES_PENDING = ['upcoming', 'confirmed', 'waiting', 'needs_confirmation'];
+// Only today's and later days' bookings are shown (owner, 24 November, as on Manipal 11 November: "only keep like the things booked
+// for next day or further days. rest all clear after midnight"): an earlier day's are left out everywhere, never changed or deleted.
+// The day is the business day (Settings → Setup).
+const resCurrent = r => dayKey(Number(r.arrivalMs) - settingValue('businessDayStartMinutes', 0) * 60000) >= businessToday();
+// Who booked what and when, in the same words on the screen that made it and on every other (owner, 24 November, as on Manipal 11
+// November: "if pool is booked then so an so booked pool at so and so time").
+function reservationAt(r) { return dayKey(r.arrivalMs) === dayKey(nowMs()) ? 'at ' + clock(r.arrivalMs) : 'for ' + day(r.arrivalMs) + ' at ' + clock(r.arrivalMs); }
+// In a sentence a booking for any one of a kind says the kind ("booked PS5"), one for a station its name.
+const bookedWhat = r => (unitOf(r.unitId) || {}).name || catName(r.category);
+function reservationWords(r) { return r.customer + ' booked ' + bookedWhat(r) + ' ' + reservationAt(r); }
 function reservationStatus(r) {
   if (RES_PENDING.includes(r.status)) {
     if (nowMs() > r.arrivalMs + settingValue('reservationGraceMinutes', 10) * 60000 && r.status !== 'waiting') return h('span', { class: 'badge bad', text: 'Overdue' });
@@ -12596,6 +12859,12 @@ function reservationSheet(r) {
     command() {
       const arrivalMs = at.value();
       return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: category.value(), unitId: unit.value, arrivalMs, notes: notes.value.trim(), controllers: pads ? Number(pads.value()) : undefined };
+    },
+    then(result) {
+      closeSheet();
+      const saved = result && state.Reservations.find(x => x.id === result.reservationId);
+      if (!saved) return null;
+      return { text: r ? saved.customer + '’s booking is now ' + bookedWhat(saved) + ' ' + reservationAt(saved) + '.' : reservationWords(saved) + '.' };
     }
   });
 }
@@ -12646,7 +12915,8 @@ const reservationsPage = {
     // (owner, 6 November: "cancelled bookings should literally disappear the moment i cancel … no show, let it remain until
     // end of the day and then disappear").
     const today = businessToday(), startMinutes = settingValue('businessDayStartMinutes', 0) * 60000;
-    const shown = r => r.status !== 'cancelled' && (r.status !== 'no_show' || dayKey(r.arrivalMs - startMinutes) >= today);
+    // An earlier day's booking of any kind goes at midnight (resCurrent; owner, 24 November).
+    const shown = r => r.status !== 'cancelled' && (r.status !== 'no_show' || dayKey(r.arrivalMs - startMinutes) >= today) && resCurrent(r);
     const list = state.Reservations.filter(shown).sort((a, b) => Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs);
     const kinds = CATEGORIES.concat([...new Set(list.map(r => r.category))].filter(c => !CATEGORIES.includes(c)));
     page.append(h('div', 'res-board', kinds.map(kind => {
@@ -12685,7 +12955,7 @@ function reservationCard(r) {
 }
 
 // ---------- Snacks & beverages over the counter, and the menu ----------
-let salePicker = null, saleProducts = '', saleCustomer = null, salePay = { method: 'cash' }, salePaint = () => {};
+let salePicker = null, saleProducts = '', saleCustomer = null, salePay = { method: 'upi' }, salePaint = () => {};
 // New items one after another: name, Enter, price, Enter, and the next. The kind stays chosen and the items just added
 // are listed; Done (or ✕) closes. An existing item is edited on its own.
 // want 'stock' puts the cursor in Stock (Enable stock on a menu card).
@@ -13152,7 +13422,7 @@ function accountSheet(accountId) {
   const account = state.CreditAccounts.find(a => a.id === accountId);
   if (!account) { closeSheet(); return; }
   const summary = creditSummary(account.id), due = summary.outstandingPaise, phone = creditPhone(account.id);
-  const payStore = { method: 'cash' };
+  const payStore = { method: 'upi' };
   let amount, how, showEarlier = false;
   // The days opened out to show their bills, kept while the sheet is redrawn.
   const openDays = new Set();
@@ -13466,8 +13736,9 @@ function pendingHeldFor(r) {
 function pendingMoveSheet(billIds, name, owed, back, opts = {}) {
   const running = playingBills({ id: '' }), free = CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && !inUse(u)));
   const today = dayKey(nowMs()), bookings = turfTakers({ kind: '' }).filter(x => x.dateKey >= today && x.split !== 'yes' && !turfAccountOf(x.id));
-  const reservations = state.Reservations.filter(r => RES_PENDING.includes(r.status)).sort((x, y) => x.arrivalMs - y.arrivalMs);
-  let to = null, controllers = 1, time, acked = false, sheet = null;
+  const reservations = state.Reservations.filter(r => RES_PENDING.includes(r.status) && resCurrent(r)).sort((x, y) => x.arrivalMs - y.arrivalMs);
+  let to = null, time, acked = false, sheet = null;
+  const pads = {};
   const pick = target => { to = target; acked = false; current.ack.reservation = false; sheet.redraw(); };
   const chosen = kind => key => !!to && to.kind === kind && to.key === key;
   openSheet({
@@ -13488,11 +13759,12 @@ function pendingMoveSheet(billIds, name, owed, back, opts = {}) {
       const unit = to && to.kind === 'unit' ? unitOf(to.unitId) : null;
       if (unit) {
         // A free system: a PS5's controllers, and when they start.
-        if (unit.category === 'PS5') ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented([1, 2, 3, 4].map(n => [n, String(n)]), controllers, v => { controllers = Number(v); }).node));
+        if (unit.category === 'PS5') ui.body.append(ps5Question(ui, pads, 4));
         const clashes = bookingClash(unit);
         if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
         time = time || timeChoice('Starts');
         ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
+        if (unit.category === 'PS5' && !ps5Ready(pads)) { ui.primary('Choose how many controllers', true); return; }
         ui.primary('Start ' + unit.name + ' · Move ' + money(owed), clashes.length > 0 && !acked);
         return;
       }
@@ -13501,7 +13773,7 @@ function pendingMoveSheet(billIds, name, owed, back, opts = {}) {
     command() {
       if (!to) throw new Error('Choose where it goes.');
       const base = { type: 'PENDING_MOVE', billIds, ...(opts.split ? { split: opts.split } : {}) };
-      if (to.kind === 'unit') return { ...base, unitId: to.unitId, startMs: time.value(), ...(unitOf(to.unitId).category === 'PS5' ? { controllers } : {}) };
+      if (to.kind === 'unit') return { ...base, unitId: to.unitId, startMs: time.value(), ...(unitOf(to.unitId).category === 'PS5' ? { controllers: Number(pads.count.value()) } : {}) };
       if (to.kind === 'booking') return { ...base, bookingId: to.bookingId };
       if (to.kind === 'reservation') return { ...base, reservationId: to.reservationId };
       return { ...base, tabId: to.tabId };
@@ -13620,7 +13892,7 @@ function pendingPersonSheet(group, startOff = 0) {
 // full, oldest first, in one save. A discount as on any bill, typed straight in: taken off the newest bills first, each bill's own discount.
 function pendingCollectAll(group, back, startOff = 0) {
   const bills = group.rows.flatMap(r => (r.booking ? r.parts.map(x => ({ billId: x.billId, owed: x.owed })) : [{ billId: r.bill.id, owed: r.owed }])).reverse();
-  const store = { method: 'cash' };
+  const store = { method: 'upi' };
   let how, off = startOff, offBox;
   const plan = () => {
     let left = off;
@@ -13635,14 +13907,16 @@ function pendingCollectAll(group, back, startOff = 0) {
   const toTake = () => group.owed - off;
   const label = () => (off > group.owed ? 'The discount is more than is owed' : toTake() > 0 ? 'Collect ' + money(toTake()) : 'Give discount · ' + money(off));
   openSheet({
-    title: 'Collect all · ' + money(group.owed),
-    sub: group.name + ' · ' + plural(bills.length, 'bill', 'bills'),
+    title: 'Collect all · ' + group.name,
+    sub: plural(bills.length, 'bill', 'bills'),
     icon: 'wallet',
     onClose: () => pendingPersonSheet(group, off),
     build(ui) {
       offBox = offBox || h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: off ? String(off / 100) : '', placeholder: '0', 'aria-label': 'Discount', data: { field: 'collect-all-discount' } });
+      const total = h('b', { class: 'foot-total', text: money(Math.max(0, toTake())) });
       offBox.oninput = () => {
         off = Math.max(0, toPaise(offBox.value || 0));
+        total.textContent = money(Math.max(0, toTake()));
         const b = current.primaryButton;
         b.dataset.label = label();
         b.textContent = label();
@@ -13650,6 +13924,7 @@ function pendingCollectAll(group, back, startOff = 0) {
       };
       how = payChoice(store, () => {}, { due: () => toTake(), splittable: false });
       ui.body.append(field('Discount (₹)', offBox), h('div', 'field', h('span', { text: 'Paid by' }), how.node));
+      ui.foot.append(h('div', 'foot-row', h('span', { class: 'foot-label', text: 'To collect' }), total));
       ui.primary(label(), off > group.owed);
     },
     command() {
@@ -13698,14 +13973,14 @@ function pendingList(page) {
   page.append(balanceCard('pending', 'clock', 'Total pending', owedAll, plural(people, 'person', 'people') + ' · ' + plural(allRows.length, 'bill', 'bills'), datesWord ? ['Given ' + (pendingQuery.range === 'custom' ? datesWord : datesWord.toLowerCase()), shownOwed] : null));
   const text = creditSearch.trim().toLowerCase(), list = pendingRows().filter(pendingInDates).filter(r => !text || (r.booking ? r.booking.customer + ' ' + r.booking.phone : r.detail.customer + ' ' + ((r.tab || {}).phone || '')).toLowerCase().includes(text));
   page.append(table(
-    [{ label: 'Who' }, { label: 'For', class: 'hide-s' }, { label: 'Pending' }, { label: 'Actions', class: 'r' }],
+    [{ label: 'Who' }, { label: 'For', class: 'hide-s' }, { label: 'Pending', class: 'r' }, { label: 'Actions', class: 'r' }],
     pendingGroups(list).map(group => {
       if (group.rows.length > 1) {
         const days = [...new Set(group.rows.map(pendingDay))].sort().reverse(), detail = days.map(key => '• ' + ordinalDate(key) + ' ' + money(group.rows.filter(r => pendingDay(r) === key).reduce((n, r) => n + r.owed, 0)));
         return h('tr', { class: 'click', data: { pendingPerson: group.key }, onclick: () => pendingPersonSheet(group) },
           h('td', null, person(group.name, group.phone)),
           h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: plural(group.rows.length, 'bill', 'bills') }))),
-          h('td', { class: 'num owing', text: money(group.owed) }),
+          h('td', { class: 'r num owing', text: money(group.owed) }),
           h('td', { class: 'r' }, h('div', 'row-tools',
             group.phone ? iconButton('whatsapp', 'Remind ' + group.name + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(group.phone, pendingReminderText(group.name, group.owed, 'your visits', detail)); }, { data: { action: 'pending-remind' } }) : null,
             // Add Items and Move as on one bill (owner, 17 November, as on Manipal: "why is add itmes not there for first?"): the items
@@ -13720,7 +13995,7 @@ function pendingList(page) {
         return h('tr', { class: 'click', data: { pending: b.id }, onclick: () => turfPendingSheet(r) },
           h('td', null, person(b.customer, b.phone)),
           h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: 'Turf · ' + courtLabel(b.court) }), h('span', { class: 'small muted', text: turfDayName(b.dateKey) + ' · ' + turfRange(b) + (players.length ? ' · ' + players.map(x => x.name).join(', ') : '') }))),
-          h('td', { class: 'num owing', text: money(r.owed) }),
+          h('td', { class: 'r num owing', text: money(r.owed) }),
           h('td', { class: 'r' }, h('div', 'row-tools',
             iconButton('whatsapp', 'Remind ' + b.customer + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(b.phone, pendingReminderText(b.customer, r.owed, turfPendingWhat(b), detail)); }, { data: { action: 'pending-remind' } }),
             h('button', { type: 'button', class: 'btn', data: { action: 'pending-items' }, onclick: e => { e.stopPropagation(); pendingItemsSheet(r.parts[0].billId, b.customer, r.owed); } }, icon('plus'), h('span', { class: 'hide-s', text: 'Add Items' })),
@@ -13732,7 +14007,7 @@ function pendingList(page) {
       return h('tr', { class: 'click', data: { pending: r.bill.id }, onclick: () => receiptSheet(r.bill.id) },
         h('td', null, person(r.detail.customer, phone)),
         h('td', { class: 'hide-s' }, h('div', 'cell-text', h('b', { text: where || numberOf(r.bill.id) || 'Bill' }), h('span', { class: 'small muted', text: when(r.detail.createdMs) + (where && numberOf(r.bill.id) ? ' · ' + numberOf(r.bill.id) : '') }))),
-        h('td', { class: 'num owing', text: money(r.owed) }),
+        h('td', { class: 'r num owing', text: money(r.owed) }),
         h('td', { class: 'r' }, h('div', 'row-tools',
           phone ? iconButton('whatsapp', 'Remind ' + r.detail.customer + ' on WhatsApp', e => { e.stopPropagation(); whatsapp(phone, pendingReminderText(r.detail.customer, r.owed, what)); }, { data: { action: 'pending-remind' } }) : null,
           h('button', { type: 'button', class: 'btn', data: { action: 'pending-items' }, onclick: e => { e.stopPropagation(); pendingItemsSheet(r.bill.id, r.detail.customer, r.owed); } }, icon('plus'), h('span', { class: 'hide-s', text: 'Add Items' })),
@@ -13781,9 +14056,9 @@ const creditsPage = {
     const accounts = state.CreditAccounts.filter(a => !text || (a.name + ' ' + creditPhone(a.id)).toLowerCase().includes(text))
       .sort((a, b) => creditSummary(b.id).outstandingPaise - creditSummary(a.id).outstandingPaise);
     page.append(table(
-      [{ label: 'Account' }, { label: 'Mobile', class: 'hide-s' }, { label: 'Outstanding' }, { label: 'Actions', class: 'r' }],
+      [{ label: 'Account' }, { label: 'Mobile', class: 'hide-s' }, { label: 'Outstanding', class: 'r' }, { label: 'Actions', class: 'r' }],
       accounts.map(a => h('tr', { class: 'click', data: { account: a.id }, onclick: () => accountSheet(a.id) },
-        h('td', null, person(a.name)), h('td', { class: 'hide-s muted', text: creditPhone(a.id) || '—' }), h('td', { class: 'num' + (creditSummary(a.id).outstandingPaise > 0 ? ' owing' : ''), text: money(creditSummary(a.id).outstandingPaise) }),
+        h('td', null, person(a.name)), h('td', { class: 'hide-s muted', text: creditPhone(a.id) || '—' }), h('td', { class: 'r num' + (creditSummary(a.id).outstandingPaise > 0 ? ' owing' : ''), text: money(creditSummary(a.id).outstandingPaise) }),
         h('td', { class: 'r' }, h('div', 'row-tools',
           creditPhone(a.id)
             ? iconButton('whatsapp', 'Send ' + a.name + ' today’s balance on WhatsApp', e => { e.stopPropagation(); whatsapp(creditPhone(a.id), dayStatementText(a)); }, { data: { action: 'account-whatsapp' } })
@@ -13940,6 +14215,12 @@ async function loadReport(key) {
   if (page === 'settings' && settingsMode === 'reports') render();
 }
 const reportKey = () => version + '|' + reportFrom + '|' + reportTo;
+// A reading that found no answer is asked again once the server answers again (owner, 24 November, as on Manipal 20 November: after
+// the Wi-Fi came back Reports would not load until the app was closed).
+function reportAgainIfHeld() {
+  if (page !== 'settings' || settingsMode !== 'reports') return;
+  if (reportCache.failed && reportCache.key === reportKey()) loadReport(reportKey());
+}
 // The Stock report's own dates (owner, 1 November): Today at first, Yesterday, or any two dates; read from the server only
 // when they differ from the report's.
 let stockPreset = 'today', stockFrom = '', stockTo = '', stockCache = { key: '', rows: null };
@@ -14178,7 +14459,10 @@ function passwordSheet() {
     }
   });
 }
-const setupPage = {
+const settingsHead = (name, title, tone = '') => h('div', 'panel-head', glyph(name, tone), h('h2', { text: title }));
+// Every rate in one place (owner, 24 November, as on Manipal 10 November: "rates and setup make 2 tabs … all rates you put in one");
+// snacks and drinks keep their prices on the Menu tab, each with its item.
+const ratesPage = {
   render(page) {
     // The fifth row, the 10-minute price after an hour, empty until it is set (owner, 16 November).
     const durations = [15, 30, 45, 60, 10], inputs = {};
@@ -14202,10 +14486,6 @@ const setupPage = {
       if (!commands.length) { notify('success', 'Rates are unchanged.'); return; }
       saveAll(commands, 'Rates saved. Sessions already running keep their old rates.');
     };
-    const horizon = h('input', { type: 'number', min: '0', max: '1440', step: '1', value: String(settingValue('reservationHorizonMinutes', 60)), 'aria-label': 'Warning window' });
-    const grace = h('input', { type: 'number', min: '0', max: '120', step: '1', value: String(settingValue('reservationGraceMinutes', 10)), 'aria-label': 'Late after' });
-    const dayStart = h('select', { 'aria-label': 'Business day starts' }, [0, 1, 2, 3, 4, 5, 6].map(hour => h('option', { value: String(hour * 60) }, hour === 0 ? 'Midnight' : hour + ':00 AM')));
-    dayStart.value = String(settingValue('businessDayStartMinutes', 0));
     // Turf: one rate per booked hour and court. A booking keeps the rate it was made with.
     const turfRates = TURF_COURTS.map(court => { const saved = state.Settings.find(r => r.id === 'turfRate-' + court); return h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String((saved ? Number(saved.value) : TURF_RATE_DEFAULTS[court]) / 100), 'aria-label': court + ' rate per hour', data: { turfRate: court } }); });
     const saveTurfRates = () => {
@@ -14214,14 +14494,25 @@ const setupPage = {
       if (Object.values(rates).some(r => !(r > 0))) { notify('error', 'Every turf rate must be more than zero.'); return; }
       runCommand({ type: 'TURF_RATES', rates }, () => {});
     };
-    const backupError = session.backupError ? JSON.parse(session.backupError) : null;
-    const head = (name, title, tone = '') => h('div', 'panel-head', glyph(name, tone), h('h2', { text: title }));
+    const head = settingsHead;
     page.append(
       h('section', 'panel', head('cash', 'Gaming rates (₹)', 'gold'), grid, h('div', { style: 'margin-top:16px' }, btn('Save rates', saveRates, 'primary', { data: { action: 'save-rates' } }))),
       h('div', 'panel-grid',
         h('section', 'panel', head('turf', 'Turf rate per hour (₹)', 'gold'), TURF_COURTS.map((court, i) => field(court, turfRates[i])),
           btn('Save', saveTurfRates, '', { data: { action: 'save-turf-rates' } })),
-        academyPanel(head),
+        academyPanel(head)));
+  }
+};
+const setupPage = {
+  render(page) {
+    const horizon = h('input', { type: 'number', min: '0', max: '1440', step: '1', value: String(settingValue('reservationHorizonMinutes', 60)), 'aria-label': 'Warning window' });
+    const grace = h('input', { type: 'number', min: '0', max: '120', step: '1', value: String(settingValue('reservationGraceMinutes', 10)), 'aria-label': 'Late after' });
+    const dayStart = h('select', { 'aria-label': 'Business day starts' }, [0, 1, 2, 3, 4, 5, 6].map(hour => h('option', { value: String(hour * 60) }, hour === 0 ? 'Midnight' : hour + ':00 AM')));
+    dayStart.value = String(settingValue('businessDayStartMinutes', 0));
+    const backupError = session.backupError ? JSON.parse(session.backupError) : null;
+    const head = settingsHead;
+    page.append(
+      h('div', 'panel-grid',
         groupsPanel(head),
         festivalPanel(head),
         h('section', 'panel', head('reservations', 'Reservations'), field('Warn about bookings due within (minutes)', horizon), field('Mark as overdue after (minutes)', grace),
@@ -14472,12 +14763,12 @@ const allBillsPage = {
 };
 
 // ---------- Settings: setup, reports, customers and the menu ----------
-let settingsMode = 'setup';
-const SETTINGS_PARTS = { setup: setupPage, reports: reportsPage, customers: customersPage, menu: menuPage };
+let settingsMode = 'rates';
+const SETTINGS_PARTS = { rates: ratesPage, setup: setupPage, reports: reportsPage, customers: customersPage, menu: menuPage };
 const settingsPage = {
   title: 'Settings',
   bar(bar) {
-    bar.append(h('div', 'bar-row', segmented([['setup', 'Rates & setup', 'setup'], ['reports', 'Reports', 'reports'], ['customers', 'Customers', 'customers'], ['menu', 'Menu', 'menu']], settingsMode, v => { if (settingsMode === 'reports' && v !== 'reports') leaveReports(); settingsMode = v; render(); }).node));
+    bar.append(h('div', 'bar-row', segmented([['rates', 'Rates', 'cash'], ['setup', 'Setup', 'setup'], ['reports', 'Reports', 'reports'], ['customers', 'Customers', 'customers'], ['menu', 'Menu', 'menu']], settingsMode, v => { if (settingsMode === 'reports' && v !== 'reports') leaveReports(); settingsMode = v; render(); }).node));
     const part = SETTINGS_PARTS[settingsMode];
     if (part.bar) part.bar(bar);
   },
@@ -14648,13 +14939,13 @@ const turfHoldAnchor = b => document.querySelector('.turf-block[data-booking="' 
 function turfHoldReceived(b) {
   const anchor = turfHoldAnchor(b);
   const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: turfHoldOf(b) ? String(turfHoldOf(b) / 100) : '', placeholder: '0', 'aria-label': 'Advance received', data: { field: 'hold-received' } });
-  const way = { method: 'cash', ca: false };
+  const way = { method: 'upi', ca: false };
   const scanner = h('div', { class: 'turf-scanner', data: { field: 'hold-scanner' } });
   const paintScanner = () => {
     scanner.hidden = way.method !== 'upi';
     scanner.replaceChildren(...(way.method === 'upi' ? [segmented([['ours', 'Scanner'], ['ca', 'CA']], way.ca ? 'ca' : 'ours', v => { way.ca = v === 'ca'; }).node] : []));
   };
-  const how = segmented([['cash', 'Cash', 'cash'], ['upi', 'UPI', 'upi']], way.method, v => {
+  const how = segmented([['upi', 'UPI', 'upi'], ['cash', 'Cash', 'cash']], way.method, v => {
     way.method = v;
     paintScanner();
   });
@@ -14683,7 +14974,7 @@ function turfHoldSheet(b) {
 // The advance came in: record it (or confirm without one) and the hold becomes a confirmed booking.
 function turfConfirmSheet(b) {
   const amount = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: turfHoldOf(b) ? String(turfHoldOf(b) / 100) : '', placeholder: '0', 'aria-label': 'Advance received', data: { field: 'received' } });
-  const pay = { method: 'cash' };
+  const pay = { method: 'upi' };
   let how;
   openSheet({
     title: 'Confirm booking', sub: b.customer + ' · ' + turfRange(b), icon: 'checkCircle', tone: 'jade',
@@ -14707,7 +14998,7 @@ function turfConfirmSheet(b) {
 // Paid in advance on a booking, at any time before it is paid (owner, 20 October).
 function turfAdvanceSheet(b) {
   const amount = h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', 'aria-label': 'Paid in advance', data: { field: 'advance' } });
-  const pay = { method: 'cash' };
+  const pay = { method: 'upi' };
   let how;
   openSheet({
     title: 'Paid in advance', sub: b.customer + ' · ' + turfRange(b), icon: 'wallet', tone: 'jade',
@@ -15159,11 +15450,11 @@ function turfPayChoice(amountPaise, key, pick, options = {}) {
   const way = turfWay, splittable = options.splittable !== false;
   const choose = patch => { Object.assign(way, patch); current.ui.redraw(); };
   const buttons = h('div', { class: 'turf-pay', data: { pay: key } },
-    btn([icon('cash'), 'Cash'], () => choose({ method: 'cash', split: false }), 'collect', { 'aria-pressed': String(!way.split && way.method === 'cash'), data: { action: key + '-cash' } }),
     btn([icon('upi'), 'UPI'], () => choose({ method: 'upi', split: false }), 'collect', { 'aria-pressed': String(!way.split && way.method === 'upi'), data: { action: key + '-upi' } }),
+    btn([icon('cash'), 'Cash'], () => choose({ method: 'cash', split: false }), 'collect', { 'aria-pressed': String(!way.split && way.method === 'cash'), data: { action: key + '-cash' } }),
     splittable ? btn([icon('split'), 'Cash + UPI'], () => {
       choose({ method: '', split: true, cash: '', upi: '', cashTyped: false, upiTyped: false });
-      const box = $('sheet').querySelector('[data-field="' + key + '-cash"]');
+      const box = $('sheet').querySelector('[data-field="' + key + '-upi"]');
       if (box) box.focus();
     }, 'collect', { 'aria-pressed': String(way.split), data: { action: key + '-split' } }) : null,
     options.close ? iconButton('close', 'Not now', () => { turfWay = { key: '' }; options.close(); }) : null);
@@ -15177,7 +15468,7 @@ function turfPayChoice(amountPaise, key, pick, options = {}) {
     const upi = h('input', { type: 'number', min: '0', step: '1', inputmode: 'decimal', value: way.upi, 'aria-label': 'UPI received', data: { field: key + '-upi' } });
     cash.oninput = () => { way.cash = cash.value; way.cashTyped = true; if (!way.upiTyped) upi.value = way.upi = rest(cash.value); paint(); };
     upi.oninput = () => { way.upi = upi.value; way.upiTyped = true; if (!way.cashTyped) cash.value = way.cash = rest(upi.value); paint(); };
-    boxes = h('div', 'pay-row split-boxes', field('Cash (₹)', cash), field('UPI (₹)', upi));
+    boxes = h('div', 'pay-row split-boxes', field('UPI (₹)', upi), field('Cash (₹)', cash));
   }
   const upiWay = way.ca ? 'upi:ca' : 'upi';
   const got = () => toPaise(way.cash || 0) + toPaise(way.upi || 0);
@@ -15274,7 +15565,7 @@ function turfDetailSheet(id) {
       else turfOnePayerBody(ui, b, status, main, mainOpen, mainPart);
       // Brought from an earlier booking of this customer, to be paid with this one.
       const brought = main && main.status === 'open' ? ordersOf(main.id).filter(turfCarried) : [];
-      if (brought.length) ui.body.append(h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(carriedLine)));
+      if (brought.length) ui.body.append(h('div', 'group-title', icon('history'), 'Carried from earlier'), h('div', 'lines', brought.map(o => carriedLine(o))));
       const notes = notesBlock([b.id, b.tabId, ...turfPlayersOf(b).map(x => x.tabId)]);
       if (notes) ui.body.append(notes);
       // Play brought from the gaming floor (a group that played before the turf), at its saved price.
@@ -15437,7 +15728,7 @@ function turfDetailSheet(id) {
       if (onAccount && counting.length) ui.foot.prepend(turfCounterItems(b, null, counting, ui));
       counterBox();
       if (!split && !onAccount && mainOpen && collect > 0 && turfPaying === 'split') {
-        if (turfSplitStore.id !== b.id) turfSplitStore = { id: b.id, split: true, method: 'cash' };
+        if (turfSplitStore.id !== b.id) turfSplitStore = { id: b.id, split: true, method: 'upi' };
         const store = turfSplitStore;
         // What the two boxes come to, as they are typed (owner, 21 October: Cash 30 + UPI 300 of 500): the whole; less, and
         // where the rest goes — kept pending under the booking's name, to a credit account, or to their next booking (the
@@ -15480,9 +15771,9 @@ function turfDetailSheet(id) {
       if (!split && !onAccount && mainOpen && collect > 0 && turfPaying !== 'all' && turfPaying !== 'split') ui.foot.prepend(h('div', { class: 'turf-collect', data: { collect: '1' } },
         h('span', { class: 'turf-collect-label', text: 'Collect ' + money(collect) }),
         h('div', 'turf-pay',
-          btn([icon('cash'), 'Cash'], () => { turfPick = { key: oneKey, method: 'cash' }; ui.redraw(); }, 'collect', { 'aria-pressed': String(oneHow === 'cash'), data: { action: 'turf-collect-cash' } }),
           btn([icon('upi'), 'UPI'], () => { turfPick = { key: oneKey, method: 'upi' }; ui.redraw(); }, 'collect', { 'aria-pressed': String(isUpi(oneHow)), data: { action: 'turf-collect-upi' } }),
-          btn([icon('split'), 'Cash + UPI'], () => { turfPaying = 'split'; turfPick = { key: '', method: '' }; turfSplitStore = {}; ui.redraw(); const box = $('sheetFoot').querySelector('[data-field=pay-cash]'); if (box) box.focus(); }, 'collect', { data: { action: 'turf-collect-split' } })),
+          btn([icon('cash'), 'Cash'], () => { turfPick = { key: oneKey, method: 'cash' }; ui.redraw(); }, 'collect', { 'aria-pressed': String(oneHow === 'cash'), data: { action: 'turf-collect-cash' } }),
+          btn([icon('split'), 'Cash + UPI'], () => { turfPaying = 'split'; turfPick = { key: '', method: '' }; turfSplitStore = {}; ui.redraw(); const box = $('sheetFoot').querySelector('[data-field=pay-upi]'); if (box) box.focus(); }, 'collect', { data: { action: 'turf-collect-split' } })),
         // UPI asks which scanner (owner, 23 October), instead of a CA button of its own.
         isUpi(oneHow) ? h('div', { class: 'turf-scanner', data: { field: 'turf-collect-scanner' } },
           segmented([['upi', 'Scanner'], ['upi:ca', 'CA']], oneHow, v => { turfPick = { key: oneKey, method: v }; ui.redraw(); }).node) : null,
@@ -15908,7 +16199,8 @@ function turfMoveSheet(b, p) {
   }
   running.sort((x, y) => x.name.localeCompare(y.name, 'en', { numeric: true }));
   const free = CATEGORIES.flatMap(category => state.Equipment.filter(u => u.category === category && !inUse(u)));
-  let chosen = '', unitTo = '', controllers = 1, acked = false, time;
+  let chosen = '', unitTo = '', acked = false, time;
+  const pads = {};
   const choose = (bill, unit) => { chosen = bill; unitTo = unit; acked = false; current.ack.reservation = false; };
   openSheet({
     title: 'Move to System',
@@ -15923,12 +16215,13 @@ function turfMoveSheet(b, p) {
       const target = running.find(x => x.t.id === chosen), unit = unitTo ? unitOf(unitTo) : null;
       if (unit) {
         // A free system: how many controllers on a PS5, when they start, and a booking someone has made on it soon.
-        if (unit.category === 'PS5') ui.body.append(h('div', { class: 'field', style: 'margin-top:16px', data: { field: 'move-controllers' } }, h('span', { text: 'Controllers starting' }), segmented([1, 2, 3, 4].map(n => [n, String(n)]), controllers, v => { controllers = Number(v); }).node));
+        if (unit.category === 'PS5') ui.body.append(ps5Question(ui, pads, 4));
         const clashes = bookingClash(unit);
         if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
         time = time || timeChoice('Starts');
         ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
         ui.body.append(h('div', { style: 'margin-top:14px' }, comment.node));
+        if (unit.category === 'PS5' && !ps5Ready(pads)) { ui.primary('Choose how many controllers', true); return; }
         ui.primary('Start ' + unit.name + ' · Move ' + money(owed), clashes.length > 0 && !acked);
         return;
       }
@@ -15938,7 +16231,7 @@ function turfMoveSheet(b, p) {
     command() {
       if (!chosen && !unitTo) throw new Error('Choose a system.');
       const who = p ? { playerId: p.id } : { id: b.id };
-      if (unitTo) return { type: 'TURF_MOVE', ...who, unitId: unitTo, controllers: unitOf(unitTo).category === 'PS5' ? controllers : 1, startMs: time.value(), note: comment.value() };
+      if (unitTo) return { type: 'TURF_MOVE', ...who, unitId: unitTo, controllers: unitOf(unitTo).category === 'PS5' ? Number(pads.count.value()) : 1, startMs: time.value(), note: comment.value() };
       return { type: 'TURF_MOVE', ...who, tabId: chosen, note: comment.value() };
     },
     then() { return turfAfter(b.id); }
@@ -16517,6 +16810,24 @@ function trySaveHere(command) {
   return { result: out.result, command };
 }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+// The connection came back (owner, 24 November, as on Manipal 20 November: once the Wi-Fi was back the screen stayed on "Not saved
+// yet · retrying"): a save waiting out its pause, or still waiting on a request that will never be answered, is sent again at once,
+// with the same request ID, so it is never entered twice.
+let outboxKick = null, outboxSentAt = 0;
+// A save whose request has gone unanswered for more than 8 seconds while the server answers other requests was lost on the way.
+const outboxHeld = () => outboxBusy && outboxSentAt > 0 && Date.now() - outboxSentAt > 8000;
+function kickOutbox() {
+  if (outboxKick) { const kick = outboxKick; outboxKick = null; kick(); return; }
+  if (outbox.length && !outboxBusy) pumpOutbox();
+}
+// A request raced against the kick: sent again at once (the same IDs) when the connection is back.
+function kickable(call) {
+  const kicked = new Promise((resolve, reject) => { outboxKick = () => reject(Object.assign(new Error('Sending it again now.'), { kicked: true })); });
+  outboxSentAt = Date.now();
+  return Promise.race([call, kicked]).finally(() => { outboxSentAt = 0; });
+}
+// A pause before trying again that the kick ends at once.
+const kickablePause = ms => Promise.race([pause(ms), new Promise(resolve => { outboxKick = resolve; })]).finally(() => { outboxKick = null; });
 async function pumpOutbox() {
   if (outboxBusy || !token) return;
   outboxBusy = true;
@@ -16527,22 +16838,32 @@ async function pumpOutbox() {
         const sent = await sendMany();
         if (sent === 'stop') break;
         if (sent === 'again') {
-          await pause(wait);
+          await kickablePause(wait);
           wait = Math.min(wait * 2, 30000);
         } else wait = 2000;
         continue;
       }
       const item = outbox[0];
+      // Already on the server (its answer was lost on the way): off the list, never sent again.
+      if (confirmed && (confirmed.Applied || []).includes(item.id)) {
+        outbox.shift();
+        keepOutbox();
+        outboxTrouble = '';
+        state = outbox.length ? overlay(confirmed) : confirmed;
+        render();
+        continue;
+      }
       let reply;
       // With the moment it was made, so a save that arrives late keeps its times.
-      try { reply = await rpc('rpcCommand', token, withBase({ id: item.id, command: item.command, at: item.at })); }
+      try { reply = await kickable(rpc('rpcCommand', token, withBase({ id: item.id, command: item.command, at: item.at }))); }
       catch (e) {
+        if (e.kicked) { wait = 2000; continue; }
         if (e.notSaved) {
           // Refused for good: off the screen, with the reason.
           outbox.shift();
           keepOutbox();
           outboxTrouble = '';
-          notify('error', e.message + ' That change was taken back; nothing was saved.');
+          notify('error', refusedWords(e.message));
           await refresh(true);
           continue;
         }
@@ -16560,10 +16881,11 @@ async function pumpOutbox() {
         outboxTrouble = /sign in|expired|Access denied/i.test(e.message) ? 'Sign in again to finish saving.' : 'Not saved yet · retrying';
         showSync(true, lastGood);
         if (outboxTrouble.startsWith('Sign in')) break;
-        await pause(wait);
+        await kickablePause(wait);
         wait = Math.min(wait * 2, 30000);
         continue;
       }
+      outboxKick = null;
       wait = 2000;
       outboxTrouble = '';
       outboxReason = '';
@@ -16573,6 +16895,7 @@ async function pumpOutbox() {
       if (full) {
         clockOffset = reply.snapshot.serverMs - Date.now();
         lastGood = reply.snapshot.serverMs;
+        heardFromServer();
         const before = JSON.stringify(state);
         setConfirmed(full, reply.snapshot.version, reply.snapshot.viewMs);
         if (JSON.stringify(state) !== before) render();
@@ -16580,6 +16903,7 @@ async function pumpOutbox() {
     }
   } finally {
     outboxBusy = false;
+    outboxKick = null;
     showSync(true, lastGood);
     if (!outbox.length) {
       const waiting = outboxWaiters;
@@ -16588,6 +16912,9 @@ async function pumpOutbox() {
     }
   }
 }
+// A save the server refused, in words: a bill another screen settled first (owner, 24 November, as on Manipal 21 November: a screen
+// cut off on the bill while the other settled it) says only that; anything else says why and that it was taken back.
+const refusedWords = message => (/already finalized or moved/i.test(message) ? 'This bill was already settled on another screen.' : message + ' That change was taken back; nothing was saved.');
 // Every save waiting, sent together in one request, in order (rpcCommands in Store.gs; owner, 24 November: twelve changes tapped in
 // fifteen seconds went one after another, each waiting for the answer to the one before, the last saved 37 seconds after its tap and
 // "Saving…" for a minute). Each save has its own answer: made or already made, it leaves the list; refused, it leaves the list
@@ -16599,8 +16926,9 @@ async function sendMany() {
   const items = outbox.slice(0, MANY_MAX);
   const base = withBase({}).base;
   let reply;
-  try { reply = await rpc('rpcCommands', token, items.map(item => ({ id: item.id, command: item.command, at: item.at })), base); }
+  try { reply = await kickable(rpc('rpcCommands', token, items.map(item => ({ id: item.id, command: item.command, at: item.at })), base)); }
   catch (e) {
+    if (e.kicked) return 'next';
     if (/does not offer|not simulated|^Invalid request\.$/.test(e.message)) { manyOff = true; return 'next'; }
     outboxReason = e.message;
     outboxTrouble = /sign in|expired|Access denied/i.test(e.message) ? 'Sign in again to finish saving.' : 'Not saved yet · retrying';
@@ -16613,11 +16941,12 @@ async function sendMany() {
   outbox = outbox.filter(item => !done.has(item.id));
   keepOutbox();
   const refused = (reply.results || []).filter(own => own && !own.ok);
-  for (const own of refused) notify('error', own.error + ' That change was taken back; nothing was saved.');
+  for (const own of refused) notify('error', refusedWords(own.error));
   const full = reply.snapshot ? await savedState(reply.snapshot) : null;
   if (full) {
     clockOffset = reply.snapshot.serverMs - Date.now();
     lastGood = reply.snapshot.serverMs;
+    heardFromServer();
     const before = JSON.stringify(state);
     setConfirmed(full, reply.snapshot.version, reply.snapshot.viewMs);
     if (JSON.stringify(state) !== before) render();
@@ -16694,7 +17023,7 @@ const PHONE_NAV = [['floor', 'Floor'], ['turf', 'Turf'], ['sales', 'Snacks'], ['
 // Names for places inside a section, so a link can say go('history') or go('menu').
 const SHORTCUTS = {
   tabs: ['pending', () => {}], history: ['bills', () => {}],
-  setup: ['settings', () => { settingsMode = 'setup'; }], reports: ['settings', () => { settingsMode = 'reports'; }],
+  rates: ['settings', () => { settingsMode = 'rates'; }], setup: ['settings', () => { settingsMode = 'setup'; }], reports: ['settings', () => { settingsMode = 'reports'; }],
   customers: ['settings', () => { settingsMode = 'customers'; }], menu: ['settings', () => { settingsMode = 'menu'; }]
 };
 let page = 'floor';
@@ -16712,7 +17041,7 @@ function navBadge(id) {
   if (!state) return null;
   // Pending bills count the people owing (owner, 16 November).
   if (id === 'pending') { const people = pendingGroups(pendingRows()).length; return people ? String(people) : null; }
-  if (id === 'reservations') { const waiting = state.Reservations.filter(r => r.status === 'waiting' || (RES_PENDING.includes(r.status) && r.arrivalMs < nowMs())).length; return waiting ? String(waiting) : null; }
+  if (id === 'reservations') { const waiting = state.Reservations.filter(r => (r.status === 'waiting' || (RES_PENDING.includes(r.status) && r.arrivalMs < nowMs())) && resCurrent(r)).length; return waiting ? String(waiting) : null; }
   return null;
 }
 // The earliest reminder on the floor, as a data-due attribute for tick() to watch.
@@ -16787,11 +17116,15 @@ async function signOut() {
   try { await rpc('rpcLogout', token); } catch (e) { /* signing out locally is still right */ }
   signedOut('');
 }
+// Up to date only while the last answer is less than 45 seconds old (owner, 24 November, as on Manipal 18 November: the words stayed
+// from the last answer while the screen was behind another window, where it does not ask).
+const SYNC_STALE_MS = 45000;
 function showSync(ok, at) {
   const saving = typeof outbox !== 'undefined' ? outbox.length : 0, trouble = saving && outboxTrouble;
-  $('sync').classList.toggle('stale', !ok || !!trouble);
+  const fresh = ok && nowMs() - at <= SYNC_STALE_MS;
+  $('sync').classList.toggle('stale', !fresh || !!trouble);
   $('sync').classList.toggle('saving', !!saving && !trouble);
-  $('syncText').textContent = trouble ? outboxTrouble : saving ? 'Saving…' : ok ? 'Up to date' : 'Not updated since ' + clock(at);
+  $('syncText').textContent = trouble ? outboxTrouble : saving ? 'Saving…' : fresh ? 'Up to date' : 'Not updated since ' + clock(at);
   // A save that stays waiting says how many, since when and what the server said (owner, 29 October: only the console showed it).
   $('sync').title = trouble ? saving + (saving === 1 ? ' change' : ' changes') + ' waiting since ' + clock(outbox[0].at) + (outboxReason ? ' · ' + outboxReason : '') : saving ? 'Changes are on screen; the server is confirming them' : ok ? 'Up to date at ' + clock(at) : 'The last refresh failed';
 }
@@ -16804,17 +17137,64 @@ const LAST_KEY = 'arenaLast';
 function keepLast(data) {
   try { if (storage && token) storage.setItem(LAST_KEY, JSON.stringify({ state: confirmed, serverMs: data.serverMs, user: session.user })); } catch (e) { /* only a convenience */ }
 }
+// A page refreshed (or reloaded for a new release) opens at once on what the server said in the last ten minutes, with no cover,
+// while it asks again (owner, 24 November, as on Manipal 23 November: "keep that only if internet is not responding"). Older than
+// that, or nothing kept, it waits for the server behind the cover.
+const KEPT_OPEN_MS = 10 * 60000;
 function lastSeen() {
-  try { const last = JSON.parse(storage.getItem(LAST_KEY) || 'null'); return last && last.state && last.user ? last : null; } catch (e) { return null; }
+  try {
+    const last = JSON.parse(storage.getItem(LAST_KEY) || 'null');
+    const heard = Math.max(last ? last.serverMs : 0, Number(storage.getItem(LAST_KEY + 'At')) || 0);
+    return last && last.state && last.user && Date.now() - heard < KEPT_OPEN_MS ? last : null;
+  } catch (e) { return null; }
 }
 function forgetLast() {
-  try { if (storage) storage.removeItem(LAST_KEY); } catch (e) { /* nothing kept */ }
+  try { if (storage) { storage.removeItem(LAST_KEY); storage.removeItem(LAST_KEY + 'At'); } } catch (e) { /* nothing kept */ }
 }
 function showApp(user) {
   $('login').hidden = true;
   $('app').hidden = false;
   $('identity').textContent = user.username;
   $('avatar').textContent = (user.username[0] || '?').toUpperCase();
+}
+// When the server last answered, kept on every answer (an unchanged one too) without writing the data again.
+function keepHeard(serverMs) {
+  try { if (storage && token) storage.setItem(LAST_KEY + 'At', String(serverMs)); } catch (e) { /* only a convenience */ }
+}
+// The cover when the server is not answering (owner, 24 November, as on Manipal 21 to 23 November): at once when the device has no
+// internet, until the server has answered once when nothing was kept, when a look goes 15 seconds unanswered and when a change made
+// here goes 30 seconds unconfirmed. A slow server never covers a working screen; coming back to the screen never covers it by
+// itself. Taps stay instant; changes already made stay on the device and go first once it is back.
+const SERVER_LOST_MS = 60000, NO_ANSWER_MS = 15000, SAVE_WAIT_MS = 30000;
+let serverAnswered = false, offlineAsked = 0, lookingSince = 0, wasLost = false;
+const deviceOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+function serverLost() {
+  if (!token) return false;
+  if (deviceOffline() || (!serverAnswered && !state)) return true;
+  const waiting = typeof outbox !== 'undefined' && outbox.length && !String(outboxTrouble).startsWith('Sign in') ? outbox[0].at : 0;
+  return (!!lookingSince && Date.now() - lookingSince > NO_ANSWER_MS) || (!!waiting && nowMs() - waiting > SAVE_WAIT_MS);
+}
+function showOffline() {
+  const lost = serverLost(), cover = $('offline');
+  // Just covered: it says it is connecting for 15 seconds first.
+  if (lost && !wasLost && serverAnswered) offlineAsked = Date.now();
+  wasLost = lost;
+  cover.hidden = !lost;
+  $('app').inert = lost;
+  if (!lost) return;
+  const none = deviceOffline(), asking = !none && Date.now() - offlineAsked < 15000;
+  cover.classList.toggle('connecting', asking);
+  $('offlineTitle').textContent = none ? 'No internet connection' : asking ? 'Connecting to City Arena…' : 'Can’t reach the City Arena server';
+  $('offlineText').textContent = none ? 'Nothing can be done on this screen until the internet is back.' : asking ? 'One moment.' : 'Nothing can be done on this screen until it connects. Check the internet on this device, then press Try again.' + (serverAnswered ? ' Last reached at ' + clock(lastGood) + '.' : '');
+  const waiting = typeof outbox !== 'undefined' ? outbox.length : 0;
+  $('offlineWaiting').hidden = !waiting;
+  $('offlineWaiting').textContent = waiting ? waiting + (waiting === 1 ? ' change made here is' : ' changes made here are') + ' kept and will be saved once it connects.' : '';
+}
+// The server answered (a look or a save): the cover goes and the clock of the last answer is kept.
+function heardFromServer() {
+  serverAnswered = true;
+  lookingSince = 0;
+  showOffline();
 }
 function openOnLast(last) {
   session = { user: last.user, lastBackup: null, backupError: null, saveTrail: null };
@@ -16845,7 +17225,8 @@ function watchArrivals() {
   if (!state) { box.replaceChildren(); return; }
   if (!seen) { seen = { since: nowMs(), ids: new Set() }; keepSeen(); }
   const fresh = list => list.filter(x => Number(x.createdMs) > seen.since && !seen.ids.has(x.id) && !['cancelled', 'no_show'].includes(x.status));
-  const items = fresh(state.Reservations || []).map(r => ({ ids: [r.id], icon: 'reservations', text: r.customer + ' booked ' + ((unitOf(r.unitId) || {}).name || catName(r.category)) + ' · ' + when(r.arrivalMs) }));
+  // Who booked what and when (reservationWords); a notice of a booking whose day is over goes at midnight (owner, 24 November).
+  const items = fresh(state.Reservations || []).filter(resCurrent).map(r => ({ ids: [r.id], icon: 'reservations', text: reservationWords(r) }));
   box.replaceChildren(...items.map(item => h('div', { class: 'arrival', data: { arrival: item.ids[0] } }, glyph(item.icon, 'gold'),
     h('span', 'arrival-text', h('b', { text: 'New booking' }), h('span', { text: item.text })),
     iconButton('close', 'Close this notice', () => { item.ids.forEach(id => seen.ids.add(id)); keepSeen(); watchArrivals(); }, { data: { action: 'arrival-close' } }))));
@@ -16853,31 +17234,54 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "2ebf1b022157";
-function reloadIfOld(build) {
-  if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
+const APP_BUILD = "2c08b2dfca34";
+// On City Arena's own address a screen moves to a release only once the site really serves it (owner, 24 November, as on Manipal
+// 10 November: a screen reloaded before the site had the new page and opened the old one again, never asking a second time). The
+// fresh page is asked for directly and kept as the page the device opens; until the site has it, a later refresh asks again.
+let reloadFetching = false, reloadAskedAt = 0;
+async function newPageReady(build) {
+  const fresh = await fetch('/', { cache: 'no-store', credentials: 'same-origin' });
+  if (!fresh.ok || !(await fresh.clone().text()).includes(build)) return false;
+  if (window.caches && navigator.serviceWorker && navigator.serviceWorker.controller) await (await caches.open('city-arena-page')).put('./', fresh);
+  return true;
+}
+const reloadWaits = () => outbox.length || flow.saving() || $('sheet').open;
+async function reloadIfOld(build) {
+  if (!build || build === APP_BUILD || reloadWaits() || reloadFetching || nowMs() - reloadAskedAt < 60000) return;
   let tried = '';
   try { tried = sessionStorage.getItem('arenaReloadedFor') || ''; } catch (e) { return; }
   if (tried === build) return;
-  try { sessionStorage.setItem('arenaReloadedFor', build); } catch (e) { return; }
+  reloadFetching = true;
+  reloadAskedAt = nowMs();
+  try {
+    if (typeof google === 'undefined' && /^https:/.test(location.origin) && !(await newPageReady(build))) { reloadFetching = false; return; }
+    if (reloadWaits()) { reloadFetching = false; return; }
+    sessionStorage.setItem('arenaReloadedFor', build);
+  } catch (e) { reloadFetching = false; return; }
   location.reload();
 }
 function applySnapshot(data) {
   clockOffset = data.serverMs - Date.now();
   lastGood = data.serverMs;
+  heardFromServer();
+  keepHeard(data.serverMs);
+  if (data.settling) settlingSeen = { map: data.settling, at: data.serverMs };
   session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError, saveTrail: data.saveTrail || null };
   $('testCopy').hidden = !data.testCopy;
   const first = !state;
   if (!data.unchanged && setConfirmed(data.state, data.version, data.viewMs)) keepLast(data);
-  // Saves left on their way (a reload, a lost connection) carry on.
-  if (outbox.length && !outboxBusy) pumpOutbox();
+  // Saves left on their way (a reload, a lost connection) carry on; the server just answered, so one waiting to try again goes now.
+  if (outbox.length && (outboxTrouble || outboxHeld() || !outboxBusy)) kickOutbox();
+  reportAgainIfHeld();
   showApp(data.user);
   showSync(true, data.serverMs);
+  // Before drawing: an older page that cannot draw must still be able to get the new one (as on Manipal, 10 November).
+  reloadIfOld(data.build);
   if (!data.unchanged || first) render();
   watchArrivals();
-  reloadIfOld(data.build);
   postAcademyAdopt();
   postBillsPendingDue();
+  postFloorPendingDue();
   postAcademyDue();
   postPendingDue();
   extendSeries();
@@ -16892,6 +17296,7 @@ async function applySaved(snapshot) {
   if (!full) return false;
   clockOffset = snapshot.serverMs - Date.now();
   lastGood = snapshot.serverMs;
+  heardFromServer();
   if (setConfirmed(full, snapshot.version, snapshot.viewMs)) keepLast(snapshot);
   showSync(true, snapshot.serverMs);
   render();
@@ -16899,17 +17304,25 @@ async function applySaved(snapshot) {
 }
 // A tap on Refresh while a look has been waiting more than a few seconds starts a new one rather than queueing behind it.
 let refreshStarted = 0;
+let retrySoon = 0;
 function refresh(force) {
   if (!token) return Promise.resolve();
-  if (refreshing && !(force && nowMs() - refreshStarted > 4000)) return force ? refreshing.then(() => refresh(true)) : refreshing;
+  // Refresh pressed always asks at once (owner, 24 November, as on Manipal 17 November); the screen's own look every 15 seconds
+  // waits for one already on its way.
+  if (refreshing && !force) return refreshing;
   refreshStarted = nowMs();
+  if (!lookingSince) lookingSince = Date.now();
   $('refresh').classList.add('busy');
   const mine = (async () => {
     try {
-      applySnapshot(await rpcWithin(15000, 'rpcSnapshot', token, force ? '' : version));
+      applySnapshot(await lookOnce('rpcSnapshot', [token, force ? '' : version, heldTabs()], 15000));
     } catch (e) {
       if (/sign in|expired|Access denied/i.test(e.message)) signedOut(/expired/i.test(e.message) ? 'Signed out after 30 days. Sign in again.' : '');
-      else showSync(false, lastGood);
+      else {
+        showSync(false, lastGood);
+        // A lost look is asked for again at once, not 15 seconds later (as on Manipal, 17 November: "sometimes take 10 minutes").
+        if (!retrySoon) retrySoon = setTimeout(() => { retrySoon = 0; refresh(); }, 1500);
+      }
     } finally {
       if (refreshing === mine) { refreshing = null; $('refresh').classList.remove('busy'); }
     }
@@ -16928,7 +17341,13 @@ $('sheetClose').append(icon('close'));
 // Back (owner, 21 October): a sheet opened from another goes back to it, one step, plainly named.
 $('sheetBack').append(icon('back'), h('span', { text: 'Back' }));
 $('sheetBack').onclick = () => { if (!flow.saving()) goBack(); };
-$('refresh').onclick = () => refresh(true);
+// Refresh says Checking… at once, until the answer comes (owner, 24 November, as on Manipal 17 November).
+$('refresh').onclick = () => {
+  $('syncText').textContent = 'Checking…';
+  refresh(true);
+};
+$('offlineRetry').textContent = 'Try again';
+$('offlineRetry').onclick = () => { offlineAsked = Date.now(); showOffline(); reconnect(); kickOutbox(); refresh(true); };
 $('logout').onclick = signOut;
 $('sheetClose').onclick = () => { if (!flow.saving()) dismissSheet(); };
 $('sheet').addEventListener('cancel', e => { e.preventDefault(); if (!flow.saving()) dismissSheet(); });
@@ -17000,21 +17419,35 @@ const comeBack = () => {
   if (!token) return;
   if (awayTooLong()) return signOutAfterAway();
   markAlive();
+  if (nowMs() - lastGood > SERVER_LOST_MS) offlineAsked = Date.now();
+  // A look left waiting while the screen was in the background (the browser holds its timers) has its 15 seconds from now.
+  if (lookingSince) lookingSince = Date.now();
   if (nowMs() - lastGood > 60000) reconnect();
+  if (outboxTrouble) kickOutbox();
+  // Behind for a while: it says it is checking until the answer comes, never Up to date from before.
+  if (nowMs() - lastGood > 20000 && !outbox.length) $('syncText').textContent = 'Checking…';
   refresh();
 };
-// The internet came back: a fresh connection and the latest records at once.
-window.addEventListener('online', () => { if (!token) return; reconnect(); refresh(true); });
+// The internet came back: a fresh connection, the saves waiting sent at once and the latest records (as on Manipal).
+window.addEventListener('online', () => { if (!token) return; showOffline(); reconnect(); kickOutbox(); refresh(true); });
+window.addEventListener('offline', showOffline);
 window.addEventListener('focus', comeBack);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') comeBack(); });
 setInterval(() => { if (token && !awayTooLong()) markAlive(); }, 60000);
-// Every 15 seconds; behind for more than two minutes, the connection is rebuilt first.
+// Every 15 seconds. The connection is rebuilt only when it has answered nothing for two minutes (as on Manipal).
 setInterval(() => {
   if (document.visibilityState !== 'visible') return;
-  if (token && nowMs() - lastGood > 120000) reconnect();
+  if (token && nowMs() - lastGood > 120000 && Date.now() - bridgeHeard > 120000) reconnect();
   refresh();
 }, 15000);
+// A bill open to settle is said every 10 seconds, even while the screen is in the background (WhatsApp opened to send the QR), so no
+// other screen puts it in Pending while it is being settled here.
+setInterval(() => { if (token && heldTabs().length) refresh(); }, 10000);
 setInterval(tick, 1000);
+setInterval(showOffline, 1000);
+setInterval(watchBillsLeft, 2000);
+// Up to date turns to Not updated since … once the last answer is 45 seconds old, whatever the reason.
+setInterval(() => { if (token && $('syncText').textContent === 'Up to date' && nowMs() - lastGood > SYNC_STALE_MS) showSync(true, lastGood); }, 1000);
 
 // On City Arena's own address the connection is opened at once, so it is ready by the time the password is typed.
 if (typeof google === 'undefined') openBridge();
@@ -17028,7 +17461,9 @@ else {
     markAlive();
     const last = lastSeen();
     if (last) openOnLast(last);
-    refresh(true).then(() => { if (!state) $('login').hidden = false; });
+    offlineAsked = Date.now();
+    showOffline();
+    refresh(true);
   }
   else $('login').hidden = false;
 }
