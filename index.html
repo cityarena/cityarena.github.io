@@ -8866,7 +8866,7 @@ function customerFields(initialName = '', initialPhone = '', phoneRequired = fal
 }
 
 // ---------- Server calls ----------
-let token = '', state = null, version = '', clockOffset = 0, session = { user: null, lastBackup: null, backupError: null };
+let token = '', state = null, version = '', clockOffset = 0, session = { user: null, lastBackup: null, backupError: null, saveTrail: null };
 const storage = (() => { try { localStorage.getItem('arenaToken'); return localStorage; } catch (e) { return null; } })();
 
 const AFTER_SAVES = new Set(['rpcBill', 'rpcHistory', 'rpcReport', 'rpcStock', 'rpcQuote', 'rpcTurf', 'rpcExport']);
@@ -16389,6 +16389,29 @@ function viewHere(read) {
   try { return structuredClone(read(state)); } catch (e) { return null; }
 }
 
+// The server's record of the last thirty saves (SAVE_TRAIL in Store.gs), one line each, newest first, for reading in the console:
+// saveRecord(). Nothing on the screen shows it; it is for finding where a slow save spent its time (owner, 24 November).
+const SAVE_STEPS = ['settings', 'data', 'rules', 'compare', 'mark', 'write to Sheet', 'finish', 'cache', 'screen data'];
+function saveRecord() {
+  let rows = [];
+  try { rows = JSON.parse(session.saveTrail || '[]') || []; } catch (e) { rows = []; }
+  const clock = ms => (ms ? new Date(ms).toLocaleTimeString('en-IN', { hour12: false }) : '-');
+  return rows.map(r => ({
+    arrived: clock(r[0] - r[6]),
+    save: r[1],
+    id: r[2],
+    made: clock(r[3]),
+    late: r[3] ? Math.round((r[0] - r[6] - r[3]) / 1000) + ' s' : '-',
+    way: r[4],
+    outcome: r[5],
+    server: (r[6] / 1000).toFixed(1) + ' s',
+    waited: (r[7] / 1000).toFixed(1) + ' s',
+    sheetChanges: r[8],
+    data: r[9] ? 'cache' : 'Sheet',
+    steps: r.slice(10).map((ms, i) => SAVE_STEPS[i] + ' ' + ms).join(', ')
+  }));
+}
+
 // ---------- Sections ----------
 // Seven in the menu. Open and closed bills share one section; customers, reports and the menu live inside Settings.
 const PAGES = { floor: floorPage, turf: turfPage, reservations: reservationsPage, sales: salesPage, bills: allBillsPage, pending: pendingPage, credits: creditsPage, settings: settingsPage };
@@ -16521,7 +16544,7 @@ function showApp(user) {
   $('avatar').textContent = (user.username[0] || '?').toUpperCase();
 }
 function openOnLast(last) {
-  session = { user: last.user, lastBackup: null, backupError: null };
+  session = { user: last.user, lastBackup: null, backupError: null, saveTrail: null };
   lastGood = last.serverMs;
   // Kept without its version, so whatever the server answers next replaces it.
   setConfirmed(last.state, '');
@@ -16557,7 +16580,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "9c94bef3c417";
+const APP_BUILD = "80fa02d807d1";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
@@ -16569,7 +16592,7 @@ function reloadIfOld(build) {
 function applySnapshot(data) {
   clockOffset = data.serverMs - Date.now();
   lastGood = data.serverMs;
-  session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError };
+  session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError, saveTrail: data.saveTrail || null };
   $('testCopy').hidden = !data.testCopy;
   const first = !state;
   if (!data.unchanged && setConfirmed(data.state, data.version)) keepLast(data);
