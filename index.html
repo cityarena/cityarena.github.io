@@ -9075,7 +9075,7 @@ function openSheet(config) {
   }
 }
 
-const flow = createSaveFlow(storage || { getItem: () => null, setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, request => rpc('rpcCommand', token, request), flowNotice, () => nowMs());
+const flow = createSaveFlow(storage || { getItem: () => null, setItem: () => { throw new Error('blocked'); }, removeItem: () => {} }, request => rpc('rpcCommand', token, withBase(request)), flowNotice, () => nowMs());
 
 function setBusy(on) {
   document.body.classList.toggle('busy', on);
@@ -9105,7 +9105,7 @@ async function afterSave(then, here) {
   // A booking made here is not announced here; the other screens announce it.
   keepOwnArrivals(saved && saved.result);
   if (here) render();
-  else if (!applySaved(saved && saved.snapshot)) await refresh(true);
+  else if (!(await applySaved(saved && saved.snapshot))) await refresh(true);
   // A follow-up may return { text, action } to say it better than the server's stock message.
   sheetAfterSave = true;
   let said;
@@ -16259,7 +16259,7 @@ function postAcademyDue() {
 // the screen with the reason. The server always has the last word: the screen is the server's data with the saves still
 // on their way laid over it.
 const OUTBOX_KEY = 'arenaOutbox';
-let outbox = [], confirmed = null, confirmedVersion = '', outboxBusy = false, outboxTrouble = '', outboxReason = '', outboxWaiters = [];
+let outbox = [], confirmed = null, confirmedVersion = '', confirmedViewMs = 0, outboxBusy = false, outboxTrouble = '', outboxReason = '', outboxWaiters = [];
 try { outbox = JSON.parse((storage && storage.getItem(OUTBOX_KEY)) || '[]') || []; }
 catch (e) { outbox = []; }
 function keepOutbox() {
@@ -16285,10 +16285,11 @@ function overlay(base) {
 }
 const versionTime = v => Number(String(v || '0').split('-')[0]) || 0;
 // The server's data arrived (a refresh or a save's answer). An answer older than one already shown is ignored.
-function setConfirmed(serverState, serverVersion) {
+function setConfirmed(serverState, serverVersion, viewMs) {
   if (confirmed && versionTime(serverVersion) < versionTime(confirmedVersion)) return false;
   confirmed = serverState;
   confirmedVersion = serverVersion;
+  confirmedViewMs = typeof viewMs === 'number' ? viewMs : 0;
   version = serverVersion;
   state = outbox.length ? overlay(serverState) : serverState;
   return true;
@@ -16324,10 +16325,19 @@ async function pumpOutbox() {
   let wait = 2000;
   try {
     while (outbox.length && token) {
+      if (outbox.length > 1 && !manyOff) {
+        const sent = await sendMany();
+        if (sent === 'stop') break;
+        if (sent === 'again') {
+          await pause(wait);
+          wait = Math.min(wait * 2, 30000);
+        } else wait = 2000;
+        continue;
+      }
       const item = outbox[0];
       let reply;
       // With the moment it was made, so a save that arrives late keeps its times.
-      try { reply = await rpc('rpcCommand', token, { id: item.id, command: item.command, at: item.at }); }
+      try { reply = await rpc('rpcCommand', token, withBase({ id: item.id, command: item.command, at: item.at })); }
       catch (e) {
         if (e.notSaved) {
           // Refused for good: off the screen, with the reason.
@@ -16361,11 +16371,12 @@ async function pumpOutbox() {
       outboxReason = '';
       outbox.shift();
       keepOutbox();
-      if (reply.snapshot) {
+      const full = reply.snapshot ? await savedState(reply.snapshot) : null;
+      if (full) {
         clockOffset = reply.snapshot.serverMs - Date.now();
         lastGood = reply.snapshot.serverMs;
         const before = JSON.stringify(state);
-        setConfirmed(reply.snapshot.state, reply.snapshot.version);
+        setConfirmed(full, reply.snapshot.version, reply.snapshot.viewMs);
         if (JSON.stringify(state) !== before) render();
       } else await refresh(true);
     }
@@ -16378,6 +16389,69 @@ async function pumpOutbox() {
       waiting.forEach(done => done());
     }
   }
+}
+// Every save waiting, sent together in one request, in order (rpcCommands in Store.gs; owner, 24 November: twelve changes tapped in
+// fifteen seconds went one after another, each waiting for the answer to the one before, the last saved 37 seconds after its tap and
+// "Saving…" for a minute). Each save has its own answer: made or already made, it leaves the list; refused, it leaves the list
+// with the reason and is taken off the screen; no answer to the request, all stay to be sent again with the same request IDs.
+// A server without it (only while a release is changing over) and the saves go one at a time as before.
+const MANY_MAX = 25;
+let manyOff = false;
+async function sendMany() {
+  const items = outbox.slice(0, MANY_MAX);
+  const base = withBase({}).base;
+  let reply;
+  try { reply = await rpc('rpcCommands', token, items.map(item => ({ id: item.id, command: item.command, at: item.at })), base); }
+  catch (e) {
+    if (/does not offer|not simulated|^Invalid request\.$/.test(e.message)) { manyOff = true; return 'next'; }
+    outboxReason = e.message;
+    outboxTrouble = /sign in|expired|Access denied/i.test(e.message) ? 'Sign in again to finish saving.' : 'Not saved yet · retrying';
+    showSync(true, lastGood);
+    return outboxTrouble.startsWith('Sign in') ? 'stop' : 'again';
+  }
+  outboxTrouble = '';
+  outboxReason = '';
+  const done = new Set(items.map(item => item.id));
+  outbox = outbox.filter(item => !done.has(item.id));
+  keepOutbox();
+  const refused = (reply.results || []).filter(own => own && !own.ok);
+  for (const own of refused) notify('error', own.error + ' That change was taken back; nothing was saved.');
+  const full = reply.snapshot ? await savedState(reply.snapshot) : null;
+  if (full) {
+    clockOffset = reply.snapshot.serverMs - Date.now();
+    lastGood = reply.snapshot.serverMs;
+    const before = JSON.stringify(state);
+    setConfirmed(full, reply.snapshot.version, reply.snapshot.viewMs);
+    if (JSON.stringify(state) !== before) render();
+  } else await refresh(true);
+  return 'next';
+}
+// A save names the data this screen holds, so the server sends back only what differs from it (screenData_ in Store.gs; owner,
+// 24 November: every save's answer carried all 836 KB of the screen's data). Without a fingerprint to check it by, nothing is named
+// and the whole data comes back as before.
+function withBase(request) {
+  if (!confirmed || !confirmedVersion || !confirmedViewMs || typeof crypto === 'undefined' || !crypto.subtle) return request;
+  return { ...request, base: { version: confirmedVersion, viewMs: confirmedViewMs } };
+}
+// The server's fingerprint of a text (hash_ in Auth.gs: SHA-256, web-safe base64).
+async function fingerprint(text) {
+  const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_');
+}
+// The whole data after a save: as it came, or the parts that changed laid on the data this screen held and checked against the
+// server's fingerprint. Null when it cannot be made exactly (another version under it, a part that does not match): the caller
+// then reads the whole data from the server.
+async function savedState(snapshot) {
+  if (!snapshot) return null;
+  if (snapshot.state) return snapshot.state;
+  if (!snapshot.delta || !confirmed || snapshot.base !== confirmedVersion) return null;
+  const next = { ...confirmed };
+  for (const key of snapshot.removed || []) delete next[key];
+  Object.assign(next, snapshot.delta);
+  try { return (await fingerprint(JSON.stringify(next))) === snapshot.digest ? next : null; }
+  catch (e) { return null; }
 }
 // Everything on its way has reached the server.
 function outboxDrained() {
@@ -16581,7 +16655,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "ae0d5a500c06";
+const APP_BUILD = "0cf4244b8183";
 function reloadIfOld(build) {
   if (!build || build === APP_BUILD || outbox.length || flow.saving() || $('sheet').open) return;
   let tried = '';
@@ -16596,7 +16670,7 @@ function applySnapshot(data) {
   session = { user: data.user, lastBackup: data.lastBackup, backupError: data.backupError, saveTrail: data.saveTrail || null };
   $('testCopy').hidden = !data.testCopy;
   const first = !state;
-  if (!data.unchanged && setConfirmed(data.state, data.version)) keepLast(data);
+  if (!data.unchanged && setConfirmed(data.state, data.version, data.viewMs)) keepLast(data);
   // Saves left on their way (a reload, a lost connection) carry on.
   if (outbox.length && !outboxBusy) pumpOutbox();
   showApp(data.user);
@@ -16614,11 +16688,13 @@ function applySnapshot(data) {
   if (flow.pending() && !flow.saving() && !$('sheet').open) notify('pending', 'A save from earlier has not been confirmed.', { label: 'Check again', run: retrySave });
 }
 // The data that came back with a save: the screen is brought up to date without asking again.
-function applySaved(snapshot) {
+async function applySaved(snapshot) {
   if (!snapshot || !state) return false;
+  const full = await savedState(snapshot);
+  if (!full) return false;
   clockOffset = snapshot.serverMs - Date.now();
   lastGood = snapshot.serverMs;
-  if (setConfirmed(snapshot.state, snapshot.version)) keepLast(snapshot);
+  if (setConfirmed(full, snapshot.version, snapshot.viewMs)) keepLast(snapshot);
   showSync(true, snapshot.serverMs);
   render();
   return true;
