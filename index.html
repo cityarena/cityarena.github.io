@@ -2355,6 +2355,41 @@ main > .top::after {
 .bill-left-text { display: grid; gap: 2px; min-width: 0; font-size: var(--text-sm); }
 .bill-left-text .small { color: var(--ink-2); }
 .bill-left .btn { grid-column: 1 / -1; width: 100%; }
+
+/* Reservations as on Manipal (owner, 25 November): a tab for each kind with how many are booked, Up next or Cancelled, then a card
+   for each booking: time and state, who, where and how many, a fine rule, then Check In, Cancel and ⋮. */
+.res-tabs .chip { flex: 0 1 auto; padding: 0 16px; }
+.res-tabs .chip .count { margin-left: 2px; }
+.res-tabs .chip[aria-pressed=true] .count { border-color: rgba(255, 255, 255, 0.5); background: rgba(255, 255, 255, 0.18); color: #ffffff; }
+.res-view { margin-bottom: 14px; }
+.res-switch { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); box-shadow: var(--hi); }
+.res-switch button { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border: 1px solid transparent; border-radius: var(--r-sm); background: transparent; color: var(--ink); font-size: var(--text-md); font-weight: 500; cursor: pointer; }
+.res-switch button svg { width: 18px; height: 18px; color: var(--ink-2); }
+.res-switch button[aria-pressed=true] { border-color: var(--primary-deep); background: linear-gradient(180deg, var(--primary-top) 0%, var(--primary) 60%, var(--primary-deep) 100%); color: #ffffff; font-weight: 600; }
+.res-switch button[aria-pressed=true] svg { color: #ffffff; }
+.res-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; align-items: start; margin-bottom: 18px; }
+.res-list .res-card { gap: 12px; padding: 18px; border-radius: var(--r-lg); }
+.res-time { font-size: var(--text-xl); }
+.res-meta { display: flex; flex-wrap: wrap; gap: 8px 22px; color: var(--ink-2); font-size: var(--text-sm); }
+.res-meta-item { display: inline-flex; align-items: center; gap: 8px; }
+.res-meta-item svg { width: 17px; height: 17px; color: var(--ink-2); }
+.res-list .res-tools { gap: 8px; padding-top: 14px; border-top: 1px solid var(--line-strong); }
+.res-list .res-tools > .btn { flex: 1; min-width: 0; }
+.res-list .res-tools .menu .icon-btn { width: 44px; height: 44px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); background: var(--raised); }
+.res-none { padding: 16px; border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--ink-3); text-align: center; }
+/* A walk-in waiting: its number large in amber, the card faintly warm. */
+.res-token { font-size: var(--text-xl); color: var(--warn); }
+.res-card.walkin { border-color: var(--warn-line); }
+@media (max-width: 900px) {
+  /* On a phone the kinds take the whole line, five across as on the floor; Add to waiting and New Reservation under them. */
+  .res-tabs { flex: 1 1 100%; }
+  .res-tabs .chip .count { position: absolute; top: 2px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; font-size: var(--text-xs); }
+  .res-tabs .chip { position: relative; }
+}
+/* Someone waiting for this kind: an amber note, never in the way of the start. */
+.waiting-note { border-color: var(--warn-line); background: var(--warn-soft); }
+.waiting-note > svg { color: var(--warn); }
+.waiting-note .btn { justify-self: start; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -2539,7 +2574,7 @@ var ArenaCore = (function () {
   // numbering, weekly bookings (a Forever series kept would book its weeks again), late cancels, reservation notes, pending bills
   // held for a reservation and academy statements. Every rate stays; an academy keeps its account, with nothing owed, so its
   // rates still work; the stock counts stay with the menu and go without it.
-  var RECORD_SETTINGS = ['counter-', 'turfSeries-', 'lateCancel-', 'reservationControllers-', 'pendingFor-', 'academyStatement-'];
+  var RECORD_SETTINGS = ['counter-', 'turfSeries-', 'lateCancel-', 'reservationControllers-', 'walkin-', 'pendingFor-', 'academyStatement-'];
   // keepBookings (owner, 15 November, as on Manipal: "add an option there not to erase turf … bookings"): the turf bookings not yet
   // over stay, with their weekly series, each without its old bill (the money starts fresh with everything else); an academy's
   // keep their marker, so they stay on its account.
@@ -3340,13 +3375,26 @@ var ArenaReservations=(function(){
  function check(v,m){ArenaCore.check(v,m);}
  function config(s,key,fallback){var r=(s.Settings||[]).find(function(x){return x.id===key;});return r?Number(r.value):fallback;}
  function pending(r){return ['upcoming','confirmed','waiting','needs_confirmation'].indexOf(r.status)>=0;}
+ // A walk-in on the waiting list (owner, 25 November, as on Manipal): its number for the day kept in Settings as walkin-<id>.
+ function walkIn(s,r){return (s.Settings||[]).some(function(x){return x.id==='walkin-'+r.id;});}
+ // The next waiting number for a kind today (India time): 1, 2, 3…, never used twice in a day.
+ var IST_MS=19800000,DAY_MS=86400000;
+ function nextToken(s,category,now){
+  var day=Math.floor((now+IST_MS)/DAY_MS),used=0;
+  (s.Reservations||[]).forEach(function(r){
+   if(r.category!==category||Math.floor((Number(r.arrivalMs)+IST_MS)/DAY_MS)!==day)return;
+   var row=(s.Settings||[]).find(function(x){return x.id==='walkin-'+r.id;});
+   if(row)used=Math.max(used,Number(row.value)||0);
+  });
+  return used+1;
+ }
  function occupied(s,unit){return s.Segments.some(function(g){return g.unitId===unit&&g.status==='active';})||s.Sessions.some(function(g){return g.unitId===unit&&g.status==='active';});}
  // A booking nobody closed stops counting towards capacity four hours after its arrival time.
  // It is never cancelled automatically; the Reservations page still lists it as overdue.
  var STALE_MS=4*3600000;
  function warnings(s,category,until,unavailable,exclude,proposed,now){
   var units=s.Equipment.filter(function(u){return u.category===category;}), free=units.filter(function(u){return u.id!==unavailable&&!occupied(s,u.id);}).map(function(u){return u.id;});
-  var demand=(s.Reservations||[]).filter(function(r){return r.id!==exclude&&r.category===category&&pending(r)&&r.arrivalMs<=until&&(now==null||r.arrivalMs>=now-STALE_MS);});if(proposed)demand.push(proposed);
+  var demand=(s.Reservations||[]).filter(function(r){return r.id!==exclude&&r.category===category&&pending(r)&&!walkIn(s,r)&&r.arrivalMs<=until&&(now==null||r.arrivalMs>=now-STALE_MS);});if(proposed)demand.push(proposed);
   var issues=[],specific={},any=0;
   demand.forEach(function(r){if(r.unitId){if(specific[r.unitId]||free.indexOf(r.unitId)<0)issues.push(r.unitId+' has an unresolved booking or active session.');specific[r.unitId]=true;}else any++;});
   var capacity=free.filter(function(id){return !specific[id];}).length;
@@ -3366,18 +3414,24 @@ var ArenaReservations=(function(){
   if(c.type==='RESERVE'||c.type==='EDIT_RESERVATION'){
    var old=c.type==='EDIT_RESERVATION'?find(s,c.id):null;
    if(old){check(pending(old),'This reservation has already started or closed.');check(c.revision===old.revision,'This reservation changed on another device. Refresh before editing.');}
+   // A walk-in arrives now and keeps that time; it is never refused for capacity, it waits its turn.
+   var walking=old?walkIn(s,old):c.walkin===true;
+   if(walking)c.arrivalMs=old?old.arrivalMs:now;
    check(s.Equipment.some(function(u){return u.category===c.category;}),'Invalid equipment category.');
    check(!c.unitId||s.Equipment.some(function(u){return u.id===c.unitId&&u.category===c.category;}),'Invalid reserved unit.');
    check(Number.isSafeInteger(c.arrivalMs)&&c.arrivalMs>0,'Invalid arrival time.');
    // The name is optional (owner, 20 October): without one the mobile names the booking, or it is a walk-in.
    var named=typeof c.customer==='string'&&c.customer.trim().length>0,phoneGiven=typeof c.phone==='string'&&c.phone.trim().length>0;
    var next={id:old?old.id:id,customer:text(named?c.customer:phoneGiven?c.phone:'Walk-in',80),phone:text(c.phone||'',30,true),category:c.category,unitId:c.unitId||'',arrivalMs:c.arrivalMs,notes:text(c.notes||'',500,true),status:old?old.status:'confirmed',tabId:'',revision:old?old.revision+1:1,acknowledgedAt:c.acknowledge===true?now:'',createdMs:old?old.createdMs:now};
-   var issues=warnings(s,next.category,next.arrivalMs,'',old?old.id:'',next,now);check(!issues.length||c.acknowledge===true,'Reservation warning: '+issues.join(' ')+' Review and acknowledge to proceed.');
+   if(walking)next.status=old?old.status:'waiting';
+   var issues=walking?[]:warnings(s,next.category,next.arrivalMs,'',old?old.id:'',next,now);check(!issues.length||c.acknowledge===true,'Reservation warning: '+issues.join(' ')+' Review and acknowledge to proceed.');
    if(typeof ArenaCustomers!=='undefined'&&named)ArenaCustomers.touch(s,next.customer,next.phone,now,id+'-customer');
    // A PS5 booking says how many controllers (owner, 22 October); kept in Settings as reservationControllers-<id>, so the Sheet's columns stay as they are.
    var pads=next.category==='PS5'?(c.controllers==null?1:c.controllers):0;check(!pads||(Number.isInteger(pads)&&pads>=1&&pads<=4),'Choose 1 to 4 controllers.');
    s.Settings=s.Settings||[];var padRow=s.Settings.find(function(x){return x.id==='reservationControllers-'+next.id;});if(pads){if(padRow)padRow.value=pads;else s.Settings.push({id:'reservationControllers-'+next.id,value:pads});}else if(padRow)s.Settings.splice(s.Settings.indexOf(padRow),1);
-   if(old)Object.assign(old,next);else s.Reservations.push(next);return {reservationId:next.id,message:old?'Reservation updated.':'Reservation saved.'};
+   var token=0;
+   if(walking){var tokenRow=s.Settings.find(function(x){return x.id==='walkin-'+next.id;});token=tokenRow?Number(tokenRow.value):nextToken(s,next.category,now);if(!tokenRow)s.Settings.push({id:'walkin-'+next.id,value:token});}
+   if(old)Object.assign(old,next);else s.Reservations.push(next);return {reservationId:next.id,token:token||undefined,message:old?(walking?'Waiting entry updated.':'Reservation updated.'):walking?'Waiting #'+token+' · '+next.customer+'.':'Reservation saved.'};
   }
   var r=find(s,c.id);
   if(c.type==='RESERVATION_STATUS'){
@@ -9686,7 +9740,7 @@ const BOOKING_STALE_MS = 4 * 3600000;
 function bookingsWithoutPlace(category, taken, exclude) {
   const now = nowMs(), until = now + settingValue('reservationHorizonMinutes', 60) * 60000;
   const free = state.Equipment.filter(u => u.category === category && u.id !== taken && !inUse(u)).map(u => u.id);
-  const due = state.Reservations.filter(r => r.id !== exclude && r.category === category && RES_PENDING.includes(r.status) && resCurrent(r) && r.arrivalMs <= until && r.arrivalMs >= now - BOOKING_STALE_MS)
+  const due = state.Reservations.filter(r => r.id !== exclude && r.category === category && RES_PENDING.includes(r.status) && resCurrent(r) && !isWalkIn(r) && r.arrivalMs <= until && r.arrivalMs >= now - BOOKING_STALE_MS)
     .sort((a, b) => a.arrivalMs - b.arrivalMs);
   const claimed = new Set(), left = [], open = [];
   for (const r of due) {
@@ -9709,6 +9763,22 @@ function clashNotice(unit, clashes, acked, onTick) {
   const box = h('input', { type: 'checkbox', checked: acked, data: { field: 'booking-ack' }, onchange: () => onTick(box.checked) });
   return h('div', 'clash', icon('reservations'), h('div', 'clash-main', h('b', { text: clashes.length === 1 ? 'Booked soon' : clashes.length + ' bookings soon' }),
     lines.map(text => h('span', { class: 'small', text })), h('label', 'clash-ack', box, h('span', { text: 'Use ' + unit.name + ' anyway' }))));
+}
+
+// Someone waiting for this kind (owner, 25 November: "warnings, just make sure you keep it like so and so is waiting"): said where a
+// free station is started, with Seat for the first in line; it never stops the start (it may be them). Walk-ins only: a booking has
+// its own warning above. except: the walk-in being seated now, who is not waiting for themselves.
+function waitingFor(category, except = '') {
+  return state.Reservations.filter(r => r.id !== except && r.category === category && RES_PENDING.includes(r.status) && resCurrent(r) && isWalkIn(r)).sort((a, b) => walkToken(a) - walkToken(b));
+}
+function waitingNotice(unit, except = '') {
+  const list = waitingFor(unit.category, except);
+  if (!list.length) return null;
+  const first = list[0];
+  return h('div', { class: 'clash waiting-note', data: { waiting: String(list.length) } }, icon('clock'), h('div', 'clash-main',
+    h('b', { text: list.length === 1 ? first.customer + ' is waiting for ' + catName(unit.category) : list.length + ' are waiting for ' + catName(unit.category) }),
+    list.map(r => h('span', { class: 'small', text: '#' + walkToken(r) + ' · ' + r.customer + ' · since ' + clock(r.arrivalMs) })),
+    except ? null : btn([icon('user'), 'Seat ' + first.customer + ' instead'], () => checkInSheet(first), 'quiet', { data: { action: 'seat-waiting' } })));
 }
 
 // ---------- Paid in advance and reminders, as shown on a station ----------
@@ -10190,6 +10260,8 @@ function startSheet(unit) {
     title: 'Start ' + unit.name,
     icon: unit.category,
     build(ui) {
+      const waiting = waitingNotice(unit);
+      if (waiting) ui.body.append(waiting);
       if (clashes.length) ui.body.append(clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; }));
       who = who || customerFields();
       ui.body.append(who.node);
@@ -11915,6 +11987,7 @@ function moveSheet(tab) {
       if (toPs5) ui.body.append(ps5Question(ui, pads, freeSlots(onePs5())));
       // A free system chosen here that someone has booked soon: said here, before the move.
       const clashes = units.map(u => [u, bookingClash(u)]).filter(([, list]) => list.length);
+      for (const u of units.filter(x => !inUse(x))) { const waiting = waitingNotice(u); if (waiting) ui.body.append(h('div', { style: 'margin-top:16px' }, waiting)); }
       for (const [u, list] of clashes) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(u, list, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
       time = time || timeChoice('Starts');
       ui.body.append(h('div', { style: 'margin-top:16px' }, time.node), h('div', { style: 'margin-top:16px' }, comment.node));
@@ -12826,8 +12899,12 @@ const resCurrent = r => dayKey(Number(r.arrivalMs) - settingValue('businessDaySt
 function reservationAt(r) { return dayKey(r.arrivalMs) === dayKey(nowMs()) ? 'at ' + clock(r.arrivalMs) : 'for ' + day(r.arrivalMs) + ' at ' + clock(r.arrivalMs); }
 // In a sentence a booking for any one of a kind says the kind ("booked PS5"), one for a station its name.
 const bookedWhat = r => (unitOf(r.unitId) || {}).name || catName(r.category);
-function reservationWords(r) { return r.customer + ' booked ' + bookedWhat(r) + ' ' + reservationAt(r); }
+function reservationWords(r) {
+  if (isWalkIn(r)) return r.customer + ' is waiting for ' + bookedWhat(r) + ' · #' + walkToken(r);
+  return r.customer + ' booked ' + bookedWhat(r) + ' ' + reservationAt(r);
+}
 function reservationStatus(r) {
+  if (isWalkIn(r)) return h('span', { class: 'badge ' + (RES_PENDING.includes(r.status) ? 'warn' : ''), text: RES_PENDING.includes(r.status) ? 'Waiting' : r.status === 'in_progress' ? 'Playing' : 'Left' });
   if (RES_PENDING.includes(r.status)) {
     if (nowMs() > r.arrivalMs + settingValue('reservationGraceMinutes', 10) * 60000 && r.status !== 'waiting') return h('span', { class: 'badge bad', text: 'Overdue' });
     return h('span', { class: 'badge ' + (r.status === 'waiting' ? 'warn' : 'gold'), text: r.status === 'waiting' ? 'Waiting' : 'Booked' });
@@ -12835,8 +12912,33 @@ function reservationStatus(r) {
   const label = { in_progress: 'Playing', completed: 'Completed', cancelled: 'Cancelled', no_show: 'No-show' }[r.status] || r.status;
   return h('span', { class: 'badge' + (r.status === 'in_progress' ? ' good' : ''), text: label });
 }
+// A walk-in on the waiting list and its number for the day (owner, 25 November, as on Manipal), or 0.
+const walkToken = r => Number(settingValue('walkin-' + r.id, 0)) || 0;
+const isWalkIn = r => walkToken(r) > 0;
 // How many controllers a PS5 booking asked for (owner, 22 October), or 0.
 const resControllers = r => Number(settingValue('reservationControllers-' + r.id, 0)) || 0;
+// Add to waiting (owner, 25 November, as on Manipal): a walk-in here now, name and mobile optional, the kind, and a PS5's controllers;
+// they get the next number for the day. No time to type: they are here.
+function waitingSheet(kind, r) {
+  let who, category, pads;
+  openSheet({
+    title: r ? 'Waiting #' + walkToken(r) : 'Add to waiting',
+    icon: 'clock',
+    build(ui) {
+      who = who || customerFields(r ? r.customer : '', r ? r.phone : '');
+      const chosen = r ? r.category : category ? category.value() : kind || CATEGORIES[0];
+      category = r ? null : segmented(CATEGORIES.map(c => [c, catName(c), c]), chosen, () => ui.redraw());
+      pads = chosen === 'PS5' ? segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], pads ? pads.value() : (r && resControllers(r)) || 1) : null;
+      ui.body.append(...[who.node, category ? h('div', 'field', h('span', { text: 'For' }), category.node) : null, pads ? h('div', { class: 'field', data: { field: 'res-controllers' } }, h('span', { text: 'Controllers' }), pads.node) : null].filter(Boolean));
+      ui.primary(r ? 'Save' : 'Add to waiting');
+    },
+    command() {
+      const kindNow = r ? r.category : category.value();
+      return { type: r ? 'EDIT_RESERVATION' : 'RESERVE', walkin: true, id: r && r.id, revision: r && r.revision, customer: who.name.value.trim(), phone: who.phone.value.trim(), category: kindNow, unitId: '', arrivalMs: r ? r.arrivalMs : nowMs(), notes: r ? r.notes || '' : '', ...(kindNow === 'PS5' ? { controllers: Number(pads.value()) } : {}) };
+    },
+    then(result) { closeSheet(); resKind = r ? r.category : category.value(); resView = 'next'; go('reservations'); return result && result.message ? { text: result.message } : null; }
+  });
+}
 function reservationSheet(r) {
   let who, category, unit, at, notes, pads;
   openSheet({
@@ -12885,6 +12987,9 @@ function checkInSheet(r) {
       if (!free.length) ui.body.append(h('p', { class: 'muted', style: 'margin-bottom:16px', text: 'No ' + r.category + ' is free right now.' }), h('p', { style: 'margin-bottom:16px' }, btn('Mark as waiting', () => runCommand({ type: 'RESERVATION_STATUS', id: r.id, revision: r.revision, status: 'waiting' }))));
       if (candidates.length) ui.body.append(h('div', 'field', h('span', { text: 'Unit' }), h('div', 'chips', candidates.map(u => h('button', { type: 'button', class: 'chip', 'aria-pressed': String(chosen === u.id), data: { unit: u.id }, onclick: () => { chosen = u.id; acked = false; current.ack.reservation = false; ui.redraw(); } }, u.name + (inUse(u) ? ' · in use' : ''))))));
       const unit = chosen && unitOf(chosen), clashes = unit ? bookingClash(unit, r.id) : [];
+      // Seating a walk-in: anyone waiting longer is said (owner, 25 November).
+      const before = unit && isWalkIn(r) ? waitingFor(unit.category, r.id).filter(x => walkToken(x) < walkToken(r)) : [];
+      if (before.length) ui.body.append(h('div', { class: 'clash waiting-note', data: { waiting: String(before.length) } }, icon('clock'), h('div', 'clash-main', h('b', { text: before.length === 1 ? before[0].customer + ' has been waiting longer' : before.length + ' have been waiting longer' }), before.map(x => h('span', { class: 'small', text: '#' + walkToken(x) + ' · ' + x.customer + ' · since ' + clock(x.arrivalMs) })))));
       if (clashes.length) ui.body.append(clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; }));
       if (r.category === 'PS5') { count = segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], count ? count.value() : resControllers(r) || 1); ui.body.append(h('div', 'field', h('span', { text: 'Controllers' }), count.node)); }
       if (unit && inUse(unit)) { const box = h('input', { type: 'checkbox', checked: join, onchange: () => { join = box.checked; } }); ui.body.append(h('label', 'check', box, h('span', { text: 'Join the players already on this console' }))); }
@@ -12904,30 +13009,38 @@ function checkInSheet(r) {
     then() { closeSheet(); floorCategory = r.category; go('floor'); }
   });
 }
-// Reservations side by side, one column for each kind (owner, 22 October): PC, PS5, RC Gaming, Pool and Snooker, each
-// with its own bookings, those still to come first, soonest first.
+// Reservations as on Manipal (owner, 25 November: "can we keep reservation style like manipal"): a tab for each kind (PC, PS5, RC
+// Gaming, Pool, Snooker) with how many are booked, then Up next (still to come, soonest first) or Cancelled (cancelled and no-shows,
+// kept on the screen until their day is over; owner, 6 November: a cancelled booking leaves the list the moment it is cancelled).
+// The tab first shown is the first kind with a booking. Bookings checked in leave the page.
+let resKind = '', resView = 'next';
+const resOpenOf = kind => state.Reservations.filter(r => r.category === kind && RES_PENDING.includes(r.status) && resCurrent(r));
+const resKindNow = () => resKind || CATEGORIES.find(k => resOpenOf(k).length) || CATEGORIES[0];
 const reservationsPage = {
   title: 'Reservations',
   subtitle: 'Manage bookings for gaming stations',
-  bar(bar) { bar.append(btn([icon('plus'), 'New Reservation'], () => reservationSheet(null), 'primary', { data: { action: 'new-reservation' } })); },
+  bar(bar) {
+    const kind = resKindNow();
+    bar.append(h('div', { class: 'cat-tabs res-tabs', role: 'group', 'aria-label': 'Kinds' }, CATEGORIES.map(k => {
+      const n = resOpenOf(k).length;
+      return h('button', { type: 'button', class: 'chip', 'aria-pressed': String(k === kind), data: { resTab: k }, onclick: () => { resKind = k; render(); } },
+        icon(k), h('span', { text: catName(k) }), ...(n ? [h('span', { class: 'count', text: String(n) })] : []));
+    })),
+    btn([icon('clock'), 'Add to waiting'], () => waitingSheet(kind), '', { data: { action: 'add-waiting' } }),
+    btn([icon('plus'), 'New Reservation'], () => reservationSheet(null), 'primary', { data: { action: 'new-reservation' } }));
+  },
   render(page) {
-    // A cancelled booking goes the moment it is cancelled; a no-show stays until the end of the day it was booked for
-    // (owner, 6 November: "cancelled bookings should literally disappear the moment i cancel … no show, let it remain until
-    // end of the day and then disappear").
-    const today = businessToday(), startMinutes = settingValue('businessDayStartMinutes', 0) * 60000;
-    // An earlier day's booking of any kind goes at midnight (resCurrent; owner, 24 November).
-    const shown = r => r.status !== 'cancelled' && (r.status !== 'no_show' || dayKey(r.arrivalMs - startMinutes) >= today) && resCurrent(r);
-    const list = state.Reservations.filter(shown).sort((a, b) => Number(RES_PENDING.includes(b.status)) - Number(RES_PENDING.includes(a.status)) || a.arrivalMs - b.arrivalMs);
-    const kinds = CATEGORIES.concat([...new Set(list.map(r => r.category))].filter(c => !CATEGORIES.includes(c)));
-    page.append(h('div', 'res-board', kinds.map(kind => {
-      const mine = list.filter(r => r.category === kind);
-      return h('section', { class: 'res-col', data: { resCol: kind } },
-        h('div', { class: 'group-title res-kind', data: { resKind: kind } }, icon(kind), catName(kind)),
-        mine.length ? mine.map(reservationCard) : h('p', { class: 'res-none', text: 'No bookings' }));
-    })));
+    const kind = resKindNow();
+    // Bookings by their time and walk-ins by when they came, one list in the order they should play.
+    const open = resOpenOf(kind).sort((a, b) => a.arrivalMs - b.arrivalMs || walkToken(a) - walkToken(b));
+    const gone = state.Reservations.filter(r => r.category === kind && ['cancelled', 'no_show'].includes(r.status) && resCurrent(r)).sort((a, b) => b.arrivalMs - a.arrivalMs);
+    const choose = (value, name, text) => h('button', { type: 'button', 'aria-pressed': String(resView === value), data: { value }, onclick: () => { resView = value; render(); } }, icon(name), h('span', { text }));
+    page.append(h('div', { class: 'res-view', data: { resView } }, h('div', { class: 'res-switch', role: 'group' }, choose('next', 'clock', 'Up next'), choose('gone', 'ban', 'Cancelled' + (gone.length ? ' · ' + gone.length : '')))));
+    if (resView === 'gone') { page.append(h('div', { class: 'res-list', data: { resList: kind } }, gone.length ? gone.map(reservationCard) : h('p', { class: 'res-none', text: 'Nothing cancelled' }))); return; }
+    page.append(h('div', { class: 'res-list', data: { resList: kind } }, open.length ? open.map(reservationCard) : h('p', { class: 'res-none', text: 'Nobody booked or waiting' })));
   }
 };
-// One booking: when and how it stands, who, which unit, and Check In.
+// One booking: when and how it stands, who, which station and how many controllers, then Check In and Cancel, the rest behind ⋮.
 function reservationCard(r) {
   const pending = RES_PENDING.includes(r.status);
   // Pending bills that were to come onto this booking: asked about once it is cancelled or a no-show (owner, 15 November).
@@ -12938,20 +13051,35 @@ function reservationCard(r) {
       return null;
     });
   };
+  // Cancel asks once, there and then (as on Manipal, 17 November).
+  const cancelAsk = anchor => popover(anchor, h('b', { class: 'popover-title', text: 'Cancel ' + r.customer + '’s booking?' }),
+    h('div', 'popover-foot',
+      btn([icon('close'), 'Yes, cancel'], () => { closePopover(); setStatus('cancelled'); }, 'bad', { data: { action: 'cancel-yes' } }),
+      btn('No', closePopover, 'quiet', { data: { action: 'cancel-no' } })));
   const held = pending ? pendingHeldFor(r) : { owed: 0 };
-  return h('div', { class: 'res-card', data: { reservation: r.id } },
-    h('div', 'res-top', h('b', { class: 'num', text: when(r.arrivalMs) }), reservationStatus(r)),
+  const pads = resControllers(r), walk = isWalkIn(r);
+  const meta = (name, text) => (text ? h('span', 'res-meta-item', icon(name), h('span', { text })) : null);
+  // A walk-in told on WhatsApp that their station is free (as on Manipal).
+  const ready = walk && pending && r.phone ? iconButton('whatsapp', 'Tell ' + r.customer + ' on WhatsApp that it is ready', () => whatsapp(r.phone, ['Hi ' + r.customer + ', your ' + bookedWhat(r) + ' at City Arena is ready.', '', ...MESSAGE_SIGN].join('\n')), { data: { action: 'whatsapp-ready' } }) : null;
+  return h('div', { class: 'res-card' + (walk ? ' walkin' : ''), data: { reservation: r.id } },
+    h('div', 'res-top', walk ? h('b', { class: 'num res-token', text: '#' + walkToken(r) }) : h('b', { class: 'num res-time', text: when(r.arrivalMs) }), reservationStatus(r)),
     person(r.customer, [r.phone, r.notes].filter(Boolean).join(' · ')),
-    h('span', { class: 'small muted', text: (r.unitId ? (unitOf(r.unitId) || {}).name || r.unitId : 'Any ' + catName(r.category)) + (resControllers(r) ? ' · ' + resControllers(r) + (resControllers(r) === 1 ? ' controller' : ' controllers') : '') }),
-    pending ? h('div', 'res-tools',
-      btn([icon('check'), 'Check In'], () => checkInSheet(r), 'go', { data: { action: 'check-in' } }),
+    h('div', 'res-meta', ...[meta(r.category, r.unitId ? (unitOf(r.unitId) || {}).name || r.unitId : 'Any ' + catName(r.category)), meta('PS5', pads ? pads + (pads === 1 ? ' controller' : ' controllers') : '')].filter(Boolean)),
+    ...(walk && pending ? [h('div', 'res-meta', meta('user', 'Arrived ' + clock(r.arrivalMs) + ' · waiting ' + inWords(Math.max(0, Math.floor((nowMs() - r.arrivalMs) / 60000)))), ...[ready].filter(Boolean))] : []),
+    ...(held.owed ? [h('div', { class: 'res-pending', data: { resPending: String(held.owed) } }, icon('wallet'), money(held.owed) + ' pending comes onto their bill')] : []),
+    ...(pending && walk ? [h('div', 'res-tools',
+      btn([icon('user'), 'Seat'], () => checkInSheet(r), 'primary', { data: { action: 'check-in' } }),
+      btn([icon('logout'), 'Left'], () => setStatus('cancelled'), 'outline', { data: { action: 'left' } }),
+      menu([['Edit', () => waitingSheet(r.category, r), false, 'pencil']], 'Waiting actions'))] : []),
+    ...(pending && !walk ? [h('div', 'res-tools',
+      btn([icon('check'), 'Check In'], () => checkInSheet(r), 'primary', { data: { action: 'check-in' } }),
+      btn([icon('close'), 'Cancel'], e => cancelAsk(e.currentTarget), 'outline', { data: { action: 'cancel' } }),
       menu([
         ...(r.status !== 'waiting' ? [['Arrived, waiting', () => setStatus('waiting'), false, 'clock']] : []),
         ['Edit', () => reservationSheet(r), false, 'pencil'],
         ['No-show', () => setStatus('no_show'), false, 'ban'],
         ['Cancel booking', () => setStatus('cancelled'), true, 'close']
-      ], 'Reservation actions')) : null,
-    held.owed ? h('div', { class: 'res-pending', data: { resPending: String(held.owed) } }, icon('wallet'), money(held.owed) + ' pending comes onto their bill') : null);
+      ], 'Reservation actions'))] : []));
 }
 
 // ---------- Snacks & beverages over the counter, and the menu ----------
@@ -13761,6 +13889,8 @@ function pendingMoveSheet(billIds, name, owed, back, opts = {}) {
         // A free system: a PS5's controllers, and when they start.
         if (unit.category === 'PS5') ui.body.append(ps5Question(ui, pads, 4));
         const clashes = bookingClash(unit);
+        const waiting = waitingNotice(unit);
+        if (waiting) ui.body.append(h('div', { style: 'margin-top:16px' }, waiting));
         if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
         time = time || timeChoice('Starts');
         ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
@@ -16217,6 +16347,8 @@ function turfMoveSheet(b, p) {
         // A free system: how many controllers on a PS5, when they start, and a booking someone has made on it soon.
         if (unit.category === 'PS5') ui.body.append(ps5Question(ui, pads, 4));
         const clashes = bookingClash(unit);
+        const waiting = waitingNotice(unit);
+        if (waiting) ui.body.append(h('div', { style: 'margin-top:16px' }, waiting));
         if (clashes.length) ui.body.append(h('div', { style: 'margin-top:16px' }, clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; })));
         time = time || timeChoice('Starts');
         ui.body.append(h('div', { style: 'margin-top:16px' }, time.node));
@@ -17274,7 +17406,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "db1617fc80e1";
+const APP_BUILD = "be7bbdef5428";
 // On City Arena's own address a screen moves to a release only once the site really serves it (owner, 24 November, as on Manipal
 // 10 November: a screen reloaded before the site had the new page and opened the old one again, never asking a second time). The
 // fresh page is asked for directly and kept as the page the device opens; until the site has it, a later refresh asks again.
