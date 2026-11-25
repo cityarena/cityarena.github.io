@@ -2620,9 +2620,24 @@ var ArenaCore = (function () {
     return row?JSON.parse(row.value):{rates:rates[category].slice(),revision:0};
   }
   function pricesFor(state,category){return rateSetting(state,category).rates.slice();}
+  // GTA 6's four prices (owner, 25 November, as on Manipal 20 November: "15 minutes, 40 rupees · 30 minutes, 80 · 45 minutes, 100 ·
+  // 1 hour, 120 · keep continuing"), or Settings gta6Rates once changed on Rates; saved with the game it starts, as every price is.
+  var GTA_DEFAULTS={quarterPaise:4000,halfPaise:8000,fortyFivePaise:10000,hourPaise:12000};
+  function gtaRates(state){
+    var row=state?(state.Settings||[]).find(function(r){return r.id==='gta6Rates';}):null,saved=null;
+    try{saved=row?JSON.parse(row.value):null;}catch(e){saved=null;}
+    var out={game:'GTA 6'};
+    Object.keys(GTA_DEFAULTS).forEach(function(k){out[k]=Number(saved&&saved[k])||GTA_DEFAULTS[k];});
+    return out;
+  }
+  // A game started as GTA 6 (its saved prices say so).
+  function isGta(segment){try{var p=JSON.parse(segment.ratesJson||'null');return !!(p&&!Array.isArray(p)&&p.halfPaise!=null);}catch(e){return false;}}
   function bill(start, end, prices) {
     var duration = end - start;
     check(Number.isSafeInteger(start) && Number.isSafeInteger(end) && duration > 0, 'End time must be after start time.');
+    // GTA 6 in 15-minute steps, as every other system: 5 minutes over not counted, then 15 minutes, 30, 45 or the hour, the same
+    // again after each whole hour (no 10-minute price).
+    if (prices && !Array.isArray(prices) && prices.halfPaise != null) prices = [prices.quarterPaise, prices.halfPaise, prices.fortyFivePaise, prices.hourPaise];
     check(Array.isArray(prices) && (prices.length === 4 || prices.length === 5) && prices.every(function(p){return Number.isSafeInteger(p) && p >= 0;}), 'Invalid saved rates.');
     // After each full hour, with a 10-minute price set (the fifth; owner, 16 November, as on Manipal: "upto 1.06 remains same 1 hours
     // from 1.07 to 1:10 → 1 hour + 10 minutes and 1:11 to 1:20 → 1 hour + 15 minutes"): up to 6 minutes over is the hour, 7 to 10
@@ -2657,8 +2672,16 @@ var ArenaCore = (function () {
   }
   function execute(state, cmd, actor, now, operationId) {
     check(actor && actor.role === 'owner', 'Access denied.');
-    check(cmd && ['START','BILL','PAY','CREDIT','SAVE_RATES'].indexOf(cmd.type) >= 0, 'Unsupported operation.');
+    check(cmd && ['START','BILL','PAY','CREDIT','SAVE_RATES','GTA_RATES'].indexOf(cmd.type) >= 0, 'Unsupported operation.');
     var id = operationId, result;
+    if(cmd.type==='GTA_RATES'){
+      // GTA 6's four prices; a game already started keeps its own.
+      var gta={};
+      Object.keys(GTA_DEFAULTS).forEach(function(k){var v=cmd[k];check(Number.isSafeInteger(v)&&v>0&&v<=100000000,'Every rate must be more than zero and at most ₹10,00,000.');gta[k]=v;});
+      state.Settings=state.Settings||[];var gtaRow=state.Settings.find(function(r){return r.id==='gta6Rates';});
+      if(gtaRow)gtaRow.value=JSON.stringify(gta);else state.Settings.push({id:'gta6Rates',value:JSON.stringify(gta)});
+      return {message:'GTA 6 rates saved. Games already started keep their rates.'};
+    }
     if(cmd.type==='SAVE_RATES'){
       var previous=rateSetting(state,cmd.category);
       check(cmd.revision===previous.revision,'This price setting changed on another device. Refresh before editing.');
@@ -2703,7 +2726,7 @@ var ArenaCore = (function () {
     }
     return result;
   }
-  return { scanners:scanners, payMethod:payMethod, payParts:payParts, rates:rates, pricesFor:pricesFor, rateSetting:rateSetting, bill:bill, execute:execute, check:check, startTime:startTime, nextNumber:nextNumber, isVoidedBill:isVoidedBill, carryOf:carryOf, engineFor:engineFor, run:run, freshStart:freshStart, pausedMs:pausedMs, charge:charge };
+  return { scanners:scanners, payMethod:payMethod, payParts:payParts, rates:rates, pricesFor:pricesFor, rateSetting:rateSetting, gtaRates:gtaRates, isGta:isGta, bill:bill, execute:execute, check:check, startTime:startTime, nextNumber:nextNumber, isVoidedBill:isVoidedBill, carryOf:carryOf, engineFor:engineFor, run:run, freshStart:freshStart, pausedMs:pausedMs, charge:charge };
 })();
 
 
@@ -2719,8 +2742,11 @@ var ArenaApp=(function(){
   function visitName(v){return typeof v==='string'&&v.trim()?v:'Walk-in';}
   function openTab(s,id,customer,phone,now,kind){var t={id:id,customer:text(visitName(customer),80),phone:phone?text(phone,30):'',status:'open',createdMs:now,kind:kind||'individual'};s.Tabs.push(t);return t;}
   function active(s,unitId){return s.Segments.filter(function(g){return g.unitId===unitId&&g.status==='active';});}
-  function add(s,id,tabId,groupId,unitId,controller,player,start,now){
+  function add(s,id,tabId,groupId,unitId,controller,player,start,now,game){
     var unit=row(s.Equipment,unitId), occupants=active(s,unitId);
+    // GTA 6 is one player (owner, 25 November, as on Manipal): started on a free console, and nobody joins a console it is played on.
+    check(!occupants.some(ArenaCore.isGta),'GTA 6 is being played on '+unit.name+': one player only.');
+    if(game==='gta6')check(unit.category==='PS5'&&occupants.length===0,'GTA 6 starts on a free PS5.');
     check(row(s.Tabs,tabId).status==='open','This tab is already finalized.');
     check(!s.Sessions.some(function(x){return x.unitId===unitId&&x.status==='active';}),'This unit has a legacy session. Finish it first.');
     if(unit.category==='PS5'){
@@ -2730,7 +2756,7 @@ var ArenaApp=(function(){
     }else{check(occupants.length===0,'This unit is occupied.');controller=0;}
     // A start time earlier than the last session on this slot ended is allowed (owner, 21 October: "let me add regardless");
     // only a controller or unit in use now is refused, above.
-    var g={id:id,tabId:tabId,groupId:groupId,unitId:unitId,controller:controller,player:text(player,80),startMs:start,endMs:'',status:'active',ratesJson:JSON.stringify(ArenaCore.pricesFor(s,unit.category)),totalPaise:0,billableMinutes:0};s.Segments.push(g);return g;
+    var g={id:id,tabId:tabId,groupId:groupId,unitId:unitId,controller:controller,player:text(player,80),startMs:start,endMs:'',status:'active',ratesJson:JSON.stringify(game==='gta6'?ArenaCore.gtaRates(s):ArenaCore.pricesFor(s,unit.category)),totalPaise:0,billableMinutes:0};s.Segments.push(g);return g;
   }
   // Money paid before the bill exists (a parent pays for an hour up front). It is received now, with its own receipt number,
   // comes off the bill when the bill is made, and anything over the bill is handed back at settlement (see SETTLE_REVIEW).
@@ -2773,8 +2799,10 @@ var ArenaApp=(function(){
         var ended=execute(s,{type:switching?'SWITCH_SEGMENT':'END_SEGMENT',segmentId:g.id,endMs:endAt,disposition:c.disposition,unitId:c.destinationId,controller:slot,joinTable:c.joinTable===true||i>0,acknowledge:c.acknowledge},actor,now,id+'-'+i);tabs.push(ended.tabId);});
       result={message:selected.length+' controllers ended. Unselected players continue.',segmentIds:c.segmentIds,tabIds:Array.from(new Set(tabs))};
     }else if(c.type==='OPEN_TAB'){
-      var unit=row(s.Equipment,c.unitId),count=unit.category==='PS5'?c.controllers:1;
+      var unit=row(s.Equipment,c.unitId),count=unit.category==='PS5'?c.controllers:1,gta=c.game==='gta6';
       check(Number.isInteger(count)&&count>=1&&count<=4,'Invalid controller count.');
+      // GTA 6: one controller on its own console, at its own prices; the player reads GTA 6 on the card and the bill.
+      if(gta)check(unit.category==='PS5'&&count===1&&!(Array.isArray(c.alsoUnits)&&c.alsoUnits.length),'GTA 6 is one player on one PS5.');
       var occupants=active(s,unit.id);
       check(occupants.length===0||(unit.category==='PS5'&&c.joinExisting===true&&c.checkedReservationId),unit.category==='PS5'?'This console is in use. Use Add controllers to join it.':unit.category==='PC'?'This PC is in use.':'This table is in use. Use Add joining party if the current players agree to share.');
       if(typeof ArenaReservations!=='undefined')ArenaReservations.assertRisk(s,c,unit.id,now,c.checkedReservationId);
@@ -2788,7 +2816,7 @@ var ArenaApp=(function(){
       check(count<=slots.length,'This console has too few available controllers.');
       // On a PS5 the customer name is the group's name. Every player is "Controller N" unless a name was given for that controller.
       var given=Array.isArray(c.playerNames)?c.playerNames:[];
-      for(var n=1;n<=count;n++)add(s,id+'-s'+n,tab.id,tab.id,unit.id,slots[n-1],unit.category==='PS5'?(String(given[n-1]||'').trim().slice(0,80)||'Controller '+slots[n-1]):tab.customer,start,now);
+      for(var n=1;n<=count;n++)add(s,id+'-s'+n,tab.id,tab.id,unit.id,slots[n-1],gta?'GTA 6':unit.category==='PS5'?(String(given[n-1]||'').trim().slice(0,80)||'Controller '+slots[n-1]):tab.customer,start,now,gta?'gta6':'');
       others.forEach(function(o,k){for(var m=1;m<=o.controllers;m++)add(s,id+'-u'+k+'-s'+m,tab.id,tab.id,o.unit.id,m,'Controller '+m,start,now);});
       if(unit.category==='Pool'||unit.category==='Snooker')ArenaLifecycle.party(s,s.Segments[s.Segments.length-1],c.partySize,now);
       // Optional, in the same save: money paid up front, and a reminder for this station.
@@ -2951,7 +2979,8 @@ var ArenaLifecycle=(function(){
   if(units.length===1&&table(units[0])&&busy(units[0]))return join(s,Object.assign({},c,{type:'JOIN_TABLE',sourceTabId:t.id,tableSegmentId:c.tableSegmentId,joiningMs:at}),actor,now,id);
   var ending=(s.Endings||[]).filter(function(e){return e.reviewTabId===t.id&&e.status==='review';}),played=ending.filter(function(e){return !!e.segmentId;}),players=played.length?played.map(function(e){return row(s.Segments,e.segmentId).player;}):[t.customer];
   // "Controller 2" belonged to the old console. One mover is known by the visit's name; several get the new console's controller numbers.
-  players=players.map(function(p){return /^Controller \d$/.test(p)?(players.length===1?t.customer:''):p;});
+  // "GTA 6" was the game, not a person: whoever carries on after it is named as a controller is.
+  players=players.map(function(p){return /^Controller \d$/.test(p)||p==='GTA 6'?(players.length===1?t.customer:''):p;});
   var target=t;
   if(units.length===1&&units[0].category==='PS5'&&c.joinTabId){
    // Joining the friends' bill: everything this visit owes so far moves onto their bill, once, and the new controller is charged there too.
@@ -9921,9 +9950,11 @@ const groupable = unit => state.Equipment.filter(u => u.category === 'PS5' && u.
 // A console's four controllers as tiles: one in use shows its time and is tapped to choose it for ending; a free one adds a
 // controller. The End button says how many it will stop (owner, 20 October: choose on the card, not in a menu).
 function controllerTiles(unit, players, paint) {
-  const tiles = [];
+  // GTA 6 is one player (owner, 25 November, as on Manipal): its console shows its one controller, nothing free to add.
+  const tiles = [], gta = players.some(p => ArenaCore.isGta(p));
   for (let n = 1; n <= 4; n++) {
     const g = players.find(p => p.controller === n);
+    if (!g && gta) continue;
     if (!g) {
       tiles.push(h('button', { type: 'button', class: 'pad-tile free', title: 'Add controller ' + n, 'aria-label': 'Add controller ' + n + ' on ' + unit.name, data: { seatFree: String(n) }, onclick: e => { e.stopPropagation(); addControllersSheet(unit, n); } },
         h('span', 'pad-top', icon('PS5'), h('b', { text: String(n) })), h('span', 'pad-add', icon('plus'), 'Add')));
@@ -10118,7 +10149,9 @@ function stationCardBody(unit) {
       for (const [id, row] of rows) row.classList.toggle('picked', chosen().some(g => g.id === id));
     };
     // Small: the four controllers as tiles, chosen with a tap. Opened: one row each, with its pause and corrections.
-    if (small) card.append(h('div', 'pad-row', h('span', { class: 'pad-label', text: 'Controllers' }), controllerTiles(unit, players, paint)));
+    // GTA 6 said on the card where the controllers are.
+    const gtaHere = players.some(p => ArenaCore.isGta(p));
+    if (small) card.append(h('div', 'pad-row', h('span', { class: 'pad-label', data: { gta6: gtaHere ? '1' : '' }, text: gtaHere ? 'GTA 6' : 'Controllers' }), controllerTiles(unit, players, paint)));
     else for (const g of players) {
       const paused = !!pauseState(g).since;
       const box = h('input', { type: 'checkbox', checked: picked.has(g.id), 'aria-label': 'Select ' + controllerLabel(g), data: { pick: g.id },
@@ -10146,7 +10179,7 @@ function stationCardBody(unit) {
       if (players.length < 4) actions.append(btn([icon('plusCircle'), 'Add Controllers'], () => addControllersSheet(unit), '', { data: { action: 'add-controllers' } }));
       actions.append(items);
     }
-    if (!small) card.append(h('div', { class: 'slots-head', 'aria-hidden': 'true' }, h('span', { text: 'Controllers' }), h('span', { text: 'Session time' })), list);
+    if (!small) card.append(h('div', { class: 'slots-head', 'aria-hidden': 'true' }, h('span', { text: gtaHere ? 'GTA 6' : 'Controllers' }), h('span', { text: 'Session time' })), list);
     card.append(actions);
     markCompactGroup(card, unit);
     return card;
@@ -10252,7 +10285,7 @@ function startSheet(unit) {
   const ps5 = unit.category === 'PS5', names = ['', '', '', ''];
   // Said as soon as the station is opened: would this start leave a booking in the next hour without a place?
   const clashes = bookingClash(unit);
-  let who, count, time, naming = false, acked = false;
+  let who, count, game, time, naming = false, acked = false;
   // A group taking more than one console: the others, each with its own number of controllers, on the same bill.
   const also = new Map();
   const extras = startExtras(() => (time && time.value()) || nowMs());
@@ -10265,7 +10298,14 @@ function startSheet(unit) {
       if (clashes.length) ui.body.append(clashNotice(unit, clashes, acked, on => { acked = on; current.ack.reservation = on; if (current.primaryButton) current.primaryButton.disabled = !on; }));
       who = who || customerFields();
       ui.body.append(who.node);
+      // GTA 6 on any PS5 (owner, 25 November, as on Manipal): one player, at its own prices; chosen here, nothing else to fill in.
       if (ps5) {
+        game = segmented([['ps5', 'PS5 games'], ['gta6', 'GTA 6']], game ? game.value() : 'ps5', () => ui.redraw());
+        ui.body.append(h('div', { class: 'field', data: { field: 'game' } }, h('span', { text: 'Game' }), game.node));
+      }
+      const gta = ps5 && game.value() === 'gta6';
+      if (gta) { also.clear(); naming = false; }
+      if (ps5 && !gta) {
         // The name above is the group's. Players are Controller 1–4; a name for one of them is optional.
         count = segmented([[1, '1'], [2, '2'], [3, '3'], [4, '4']], count ? count.value() : 1, () => ui.redraw());
         ui.body.append(h('div', 'field', h('span', { text: 'Controllers' }), count.node));
@@ -10279,7 +10319,7 @@ function startSheet(unit) {
         }
       }
       const links = h('div', 'station-links');
-      if (ps5) links.append(btn([icon('pencil'), naming ? 'Hide player names' : 'Name the players'], () => { naming = !naming; ui.redraw(); }, 'quiet', { data: { action: 'name-players' } }));
+      if (ps5 && !gta) links.append(btn([icon('pencil'), naming ? 'Hide player names' : 'Name the players'], () => { naming = !naming; ui.redraw(); }, 'quiet', { data: { action: 'name-players' } }));
       ui.body.append(links);
       if (ps5 && naming) for (let n = 1; n <= Number(count.value()); n++) {
         const input = textInput({ value: names[n - 1], placeholder: 'Controller ' + n, 'aria-label': 'Name for controller ' + n, data: { playerName: String(n) } });
@@ -10292,9 +10332,9 @@ function startSheet(unit) {
       ui.primary(also.size ? 'Start ' + (also.size + 1) + ' Consoles' : 'Start Session', clashes.length > 0 && !acked);
     },
     command() {
-      const controllers = count ? Number(count.value()) : 1;
-      return { type: 'OPEN_TAB', unitId: unit.id, customer: who.name.value.trim(), phone: who.phone.value.trim(), controllers, playerNames: ps5 && naming ? names.slice(0, controllers).map(v => v.trim()) : undefined, startMs: time.value(),
-        alsoUnits: also.size ? [...also].map(([unitId, n]) => ({ unitId, controllers: n })) : undefined, ...extras.value() };
+      const gta = ps5 && game && game.value() === 'gta6', controllers = gta ? 1 : count ? Number(count.value()) : 1;
+      return { type: 'OPEN_TAB', ...(gta ? { game: 'gta6' } : {}), unitId: unit.id, customer: who.name.value.trim(), phone: who.phone.value.trim(), controllers, playerNames: ps5 && naming ? names.slice(0, controllers).map(v => v.trim()) : undefined, startMs: time.value(),
+        alsoUnits: also.size && !gta ? [...also].map(([unitId, n]) => ({ unitId, controllers: n })) : undefined, ...extras.value() };
     },
     // Stay on the category so the new session is on screen.
     then() { closeSheet(); floorCategory = unit.category; go('floor'); }
@@ -14597,16 +14637,23 @@ const ratesPage = {
     // The fifth row, the 10-minute price after an hour, empty until it is set (owner, 16 November).
     const durations = [15, 30, 45, 60, 10], inputs = {};
     const saved = category => { const row = state.Settings.find(r => r.id === 'gamingRates-' + category); return row ? JSON.parse(row.value) : { rates: RATE_DEFAULTS[category], revision: 0 }; };
+    // GTA 6 on a PS5 (owner, 25 November, as on Manipal): a column of its own, its 15 minutes, half hour, 45 minutes and hour, charged as
+    // every system is (no 10-minute price).
+    const gtaNow = ArenaCore.gtaRates(state), gtaKeys = ['quarterPaise', 'halfPaise', 'fortyFivePaise', 'hourPaise'];
+    const gtaCells = gtaKeys.map((key, i) => h('input', { type: 'number', min: '1', step: '1', inputmode: 'decimal', value: String(gtaNow[key] / 100), 'aria-label': 'GTA 6 ' + durations[i] + ' minutes', data: { rate: 'gta6-' + i } }));
     const grid = h('table', 'rates',
-      h('thead', null, h('tr', null, h('th'), CATEGORIES.map(c => h('th', null, h('span', null, icon(c), catName(c)))))),
+      h('thead', null, h('tr', null, h('th'), CATEGORIES.map(c => h('th', null, h('span', null, icon(c), catName(c)))), h('th', { data: { field: 'gta6-rates' } }, h('span', null, icon('PS5'), 'GTA 6')))),
       h('tbody', null, durations.map((d, i) => h('tr', null, h('th', { text: i === 4 ? '10 min after an hour' : d + ' min' }), CATEGORIES.map(c => {
         const value = saved(c).rates[i];
         const input = h('input', { type: 'number', min: i === 4 ? '0' : '1', step: '1', inputmode: 'decimal', value: value ? String(value / 100) : '', placeholder: i === 4 ? 'Not set' : '', 'aria-label': c + ' ' + (i === 4 ? '10 minutes after an hour' : d + ' minutes'), data: { rate: c + '-' + i } });
         (inputs[c] = inputs[c] || []).push(input);
         return h('td', null, input);
-      })))));
+      }), h('td', null, gtaCells[i] || null)))));
     const saveRates = () => {
-      const commands = [];
+      const commands = [], gta = {};
+      gtaKeys.forEach((key, i) => { gta[key] = toPaise(gtaCells[i].value); });
+      if (gtaKeys.some(key => !(gta[key] > 0))) { notify('error', 'Every rate must be more than zero.'); return; }
+      if (gtaKeys.some(key => gta[key] !== gtaNow[key])) commands.push({ type: 'GTA_RATES', ...gta });
       for (const c of CATEGORIES) {
         const typed = inputs[c].map(i => toPaise(i.value || 0)), rates = typed[4] > 0 ? typed : typed.slice(0, 4), before = saved(c);
         if (rates.slice(0, 4).some(r => !(r > 0))) { notify('error', 'Every rate must be more than zero.'); return; }
@@ -17406,7 +17453,7 @@ function watchArrivals() {
 // A release while this page is open (owner, 1 November: a counter screen open since before 29 October ran the old app, its
 // saves stuck behind one another until it was refreshed): the page reloads itself into the new one, once nothing is waiting
 // to be saved and no sheet is open, and once for each release (a page and a server released a minute apart never loop).
-const APP_BUILD = "be7bbdef5428";
+const APP_BUILD = "4402b3464166";
 // On City Arena's own address a screen moves to a release only once the site really serves it (owner, 24 November, as on Manipal
 // 10 November: a screen reloaded before the site had the new page and opened the old one again, never asking a second time). The
 // fresh page is asked for directly and kept as the page the device opens; until the site has it, a later refresh asks again.
